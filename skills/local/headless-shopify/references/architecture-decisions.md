@@ -26,6 +26,19 @@ Capture these decisions before implementation:
 | **Identity & Sessions** | Guest vs Customer Account API (`2026-10`, OAuth 2.0 + PKCE), `WritableCustomerSessionManager` (`HttpOnly; Secure; SameSite=Lax`), automatic `cartBuyerIdentityUpdate` sync, `requestContext.applyResponseHeaders` privacy guard. |
 | **Markets & B2B** | Subfolder (`/fr-ca`), domain, or cookie market resolution; `@inContext(country, language)` propagation; B2B `purchasingCompany`, quantity rules, and volume price breaks. |
 | **Checkout & Account Extensions** | Checkout UI Extensions and Customer Account UI Extensions (`@shopify/ui-extensions` `2026-04+` Preact + `<s-*>` Polaris web components) replacing legacy ScriptTag/checkout.liquid hacks. |
+| **Domain Topology (`<brand>` vs `checkout.<brand>`)** | Primary apex/www (`brand.com`) routed to Hydrogen/Oxygen; dedicated subdomain (`checkout.brand.com`) routed to Shopify Online Store / Checkout (`PUBLIC_CHECKOUT_DOMAIN`) with `Shopify/hydrogen-redirect-theme` active. |
+
+## 2.5 Primary Storefront (`<brand>`) vs Checkout Subdomain (`checkout.<brand>`) Architecture
+
+Never leave a production headless storefront handing shoppers off to `<shop>.myshopify.com/checkouts/...` or putting Hydrogen on `shop.<brand>` while marketing breaks cookies on another root domain:
+
+| Hostname | Target / DNS | Shopify Admin Target | Responsibility |
+| --- | --- | --- | --- |
+| `brand.com` (+ `www.brand.com` 301) | Oxygen (`shops.myshopify.com` / Oxygen A+CNAME) or Vercel/Cloudflare edge | **Hydrogen Storefront** (Primary custom domain) | All buyer-facing SSR routes (`/`, `/collections/*`, `/products/*`, `/pages/*`, `/blogs/*`, `/policies/*`, `/cart`, `/account/*`, `/sitemap.xml`). |
+| `checkout.brand.com` | `CNAME -> shops.myshopify.com` | **Online Store / Checkout** (`PUBLIC_CHECKOUT_DOMAIN`) | Authoritative `cart.checkoutUrl` destination, Shop Pay / accelerated wallets, `/checkpoint` flash-sale bot protection, `gift_card.liquid`, and Customer Account OAuth endpoints. |
+
+- Install `Shopify/hydrogen-redirect-theme` as the active Liquid theme on `checkout.brand.com` with `settings.storefront_hostname = "https://brand.com"` so accidental visits to `checkout.brand.com/` redirect cleanly to `brand.com` without breaking `/checkouts/*`, `/checkpoint`, or `/gift_cards/*`.
+- Because `brand.com` and `checkout.brand.com` share the same eTLD+1 (`brand.com`), first-party cookies (`_shopify_y`, `_shopify_s`, `_fbp`, `_fbc`, `_ga`) survive checkout handoff with zero cross-domain linker loss (`hydrogen-headless-tracking`).
 
 ## 3. Authority & Custom Data Boundaries (`Shopify-AI-Toolkit` Custom Data Rules)
 

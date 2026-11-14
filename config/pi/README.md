@@ -44,32 +44,62 @@ Rules:
 
 A Pi session that implements with one model has its work reviewed by a
 different one. The four review models, all through `9router-fantastico`:
+Opus 5.5, Gemini 4 Carbon, Sonnet 5.5, GPT-6.1 Sol. Carbon replaced Argon as
+the Gemini reviewer on 2026-11-10 (owner decision); Argon stays usable for
+implementation and is reviewed like any Gemini row.
 
 | Implementer (model in use) | Reviewer, first choice | Reviewer, second choice |
 |---|---|---|
-| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
-| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
-| Gemini 4 Argon (`ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
-| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-argon-high` |
+| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-carbon-high` | `cx/gpt-6.1-sol` |
+| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-carbon-high` | `cx/gpt-6.1-sol` |
+| Gemini (`ag/gemini-4-carbon-*`, `ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
+| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-carbon-high` |
 
 - Opus and Sonnet are one family (Anthropic), so neither reviews the other's
-  work. Sonnet 5.5 (`cc/claude-sonnet-5-5`) is the lighter reviewer for Argon or
-  Sol work when a full Opus pass is not needed.
-- Choose by the substance: Argon for a broad second read of plans and
+  work; Carbon and Argon are one family (Gemini) likewise. Sonnet 5.5
+  (`cc/claude-sonnet-5-5`) is the lighter reviewer for Gemini or Sol work when
+  a full Opus pass is not needed.
+- Choose by the substance: Carbon for a broad second read of plans and
   architecture, Sol for correctness, edge cases and code-level findings, Opus
   for judgment-heavy or security-sensitive review of non-Anthropic work.
 - The `reviewer` subagent defaults to `cx/gpt-6.1-sol` at high thinking
-  (`subagents.agentOverrides` in `settings.json`, seeded by
-  `pi-9router-restore` when absent). The parent passes `model` explicitly for
+  (`subagents.agentOverrides` in `settings.json`, kept in step by
+  `pi-9router-restore`). The parent passes `model` explicitly for
   any other pairing, for example
-  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-argon-high", task: ...}`.
+  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-carbon-high", task: ...}`.
+- The `oracle` subagent (alias `advisor`: read-only plan, architecture and
+  decision-drift checks) defaults to `ag/gemini-4-carbon-high` at high
+  thinking, seeded per agent the same way. Without an override it would
+  inherit the session model and advise from the implementer's own blind
+  spots. Carbon leads on long context (GraphWalks) and is outside the Claude
+  family; Opus 5.5 stays the implementer for agentic coding, where it leads the
+  independent coding-agent index. When the implementer is Gemini or GPT-6.1
+  Sol, pass `model: "9router-fantastico/cc/claude-fable-5-2"` (the newest
+  Claude, outside both families; Opus 5.5 is the fallback).
+- Recon and research agents are pinned too (2026-11-13): `scout` runs
+  `cc/claude-haiku-5-5` at low thinking (speed over the parent's heavy model),
+  `researcher` runs `ag/gemini-4-carbon-medium` (1M context), and
+  `evidence-auditor` runs `cx/gpt-6.1-sol` at high thinking so it audits the
+  researcher from another family. `worker` and `delegate` inherit the session
+  model, because the implementer's family decides the review pairing.
+- `enabledModels` (Ctrl+P cycling) holds only the models in daily use; every
+  9Router row stays selectable in `/model`.
+- `pi-9router-restore` sets every tracked `agentOverrides` entry on each device
+  (see the ownership rule below); agents only a device overrides stay.
+- 9Router serves `ag/gemini-4-carbon-{low,medium,high}` and
+  `cc/claude-fable-5-1` (upstream `claude-fable-5-1`) but omits them from
+  `/v1/models`; `pi-9router-sync.js` adds Carbon from its Argon siblings and
+  Fable 5.1 from `cc/claude-fable-5-2` until the gateway lists them itself
+  (then the gateway's row wins). Without that, a subagent call fails with
+  "Unknown subagent model".
 - If the first choice fails (quota, 401, gateway down), use the second and say
   so. If both fail, report it; never replace the review with self-review.
 - Record the reviewer's real model in `delivery-ledger review-boundary
   --reviewer-model ... --reviewer-provider 9router-fantastico`.
 - The `ag/claude-*` rows are the same Anthropic family as `cc/`: an `ag/` Opus or
-  Sonnet implementer is reviewed by Argon or Sol, never by another Claude row.
-- Verified 2026-11-10 on `dot`: all four answer through 9Router.
+  Sonnet implementer is reviewed by Carbon or Sol, never by another Claude row.
+- Verified 2026-11-10 on `dot`: all four answer through 9Router; Carbon also
+  passed a tool call with high thinking.
 
 ## Tracked reference and local state
 
@@ -77,12 +107,10 @@ different one. The four review models, all through `9router-fantastico`:
   it sets only the startup provider/model (`9router-fantastico/cc/claude-sonnet-5-5`)
   and thinking level (`medium`; switch per task with `Shift+Tab` or `/thinking`,
   and to Opus with `Ctrl+P` when the work needs it),
-  the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
-  not authenticated simply do not match; it includes Opus 5.5 and Sonnet 5.5
-  through 9Router's Antigravity route, `ag/claude-opus-5-5`,
-  `ag/claude-sonnet-5-5` and their `-high`/`-medium` variants, which the sync
-  serves over `openai-completions` with tools and thinking; `cc/` stays the
-  first choice because it carries prompt cache and Anthropic compat), `quietStartup`, `hideThinkingBlock`
+  the `enabledModels` cycling list (Ctrl+P; curated 9-model `9router-fantastico`
+  daily set — includes `ag/claude-opus-5-5` as the Antigravity quota fallback
+  while keeping `cc/` first for prompt cache and Anthropic compat; remaining
+  `ag/claude-*` and other 9Router rows stay selectable in `/model`), `quietStartup`, `hideThinkingBlock`
   (thinking shows as a `Thinking...` label, `Ctrl+T` reveals it; answers stay
   in full and tool output is already collapsed by default, `Ctrl+O`), the package set below
   (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a
@@ -95,7 +123,7 @@ different one. The four review models, all through `9router-fantastico`:
   `pi-agent-browser-native`, `pi-subagents`, `@narumitw/pi-lsp`, `cc-safety-net`,
   `pi-background-tasks`, `@ff-labs/pi-fff`, `@narumitw/pi-plan-mode`,
   `@juicesharp/rpiv-todo`, `pi-rewind-hook`, `@narumitw/pi-worktree`,
-  `@narumitw/pi-btw`). Pi installs a missing package at
+  `@narumitw/pi-btw`, `@narumitw/pi-goal`). Pi installs a missing package at
   startup, `pi update --extensions` reconciles versions, and `pi list` shows
   what a device actually resolved. The baseline is additive: a device may keep
   local packages the tracked list does not carry, and `pi-9router-restore`
@@ -125,6 +153,15 @@ different one. The four review models, all through `9router-fantastico`:
   `typescript` package itself, because the language server starts that
   package's `tsserver.js`: TypeScript 7.x is the native port and ships no
   `tsserver.js`, so the route needs `typescript` 6.x or lower.
+  The `astro` route runs `astro-ls --stdio` (`npm i -g @astrojs/language-server`)
+  for `.astro` files. `astro-ls` refuses to start without
+  `initialization.typescript.tsdk`, a device path, so the tracked seed carries
+  the placeholder `@GLOBAL_TYPESCRIPT_LIB@`; `pi-9router-restore` fills it from
+  the global TypeScript (mise's `node/<major>` alias when present), adds the
+  route to an existing `pi-lsp.json` without touching other servers, keeps a
+  device's own `astro` entry, and drops the route when no global TypeScript 6
+  exists. Verified 2026-11-12: `lsp_diagnostics` on a `.astro` file reports
+  `ts 2322` through `astro-ls` 2.17.3.
 
 ## Package set
 
@@ -138,6 +175,7 @@ run with Pi's permissions, so add one only after reading its source.
 | Plan mode | `@narumitw/pi-plan-mode` | `/plan`: read-only exploration and an approved plan before edits. |
 | Worktree | `@narumitw/pi-worktree` | `/worktree`: create, inspect, switch, and prune Git worktrees in TUI while moving the active session into the new worktree directory. Registers no model tools. |
 | Side thread | `@narumitw/pi-btw` | `/btw <question>`: ask side questions in an overlay thread without polluting the main conversation history or prompt cache. Registers no model tools. |
+| Goal mode | `@narumitw/pi-goal` | `/goal [--tokens <budget>] <objective>`: keeps working after Pi goes idle until the model proves completion (`goal_complete`), hits a true blocker (`goal_blocked`), waits (`goal_wait`), or reaches a limit. Defaults are kept (no `pi-goal.json`): 25 automatic responses, pause after 3 no-progress turns, RPC off, usage-limit retry off. These are not dollar caps, so pass `--tokens`. Shares the `workflow:mutex:v1` lock with Plan mode (needs plan-mode >= 0.52). Interactive TUI only: `pi -p` exits at the idle boundary where Goal would continue. |
 | Task list | `@juicesharp/rpiv-todo` | Model-maintained todo overlay that survives compaction. |
 | Rewind | `pi-rewind-hook` | `/tree` or `/fork` restores files with the conversation. Stores snapshots under `refs/pi-rewind/store` in the project's own `.git` with a temporary index (never the working index); retention keeps it bounded. Needs a Git repository. |
 | Diagnostics | `@narumitw/pi-lsp` | `lsp_diagnostics`, `lsp_fix`; see `pi-lsp.json`. |
@@ -163,17 +201,37 @@ ai-mcp-sync
 
 `pi-9router-restore` seeds missing `settings.json`, `models.json`, `pi-fff.json` and
 `pi-lsp.json`, and removes the retired `~/.pi/extensions/compact-free` copy.
-An existing `settings.json` gains tracked packages it lacks (matched by
-package name, so a local pin wins), deduplicates repeated `packages` (keeping
-any version-pinned entry) and `enabledModels` entries, guards `pi-mcp-adapter`
-against colliding with `builtin:mcp` when present, and seeds missing
-`enabledModels`, `rewind`, `hideThinkingBlock`, `quietStartup`, and
-`defaultThinkingLevel` when absent; Pi installs added packages on its next
-start. `dotsync autopull` does
-not run it automatically, so third-party extension code is never installed
-silently. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
-Playwright MCP definition (`--isolated`, `--output-dir /tmp/playwright-mcp`,
-Pi `description`, and `toolExposure`).
+
+**Ownership rule.** `config/pi/settings.json` owns the shared Pi stack; each
+device owns its own choices. On an existing `settings.json`:
+
+| Tracked file wins | Device keeps |
+|---|---|
+| Package set: missing tracked packages are added by name | Extra packages the tracked file does not list |
+| A tracked version pin replaces the device's (an unpinned tracked entry keeps the device's pin) | Its default provider, model and thinking level once set |
+| Every `subagents.agentOverrides` entry the tracked file defines (`reviewer`, `oracle`, `scout`, `researcher`, `evidence-auditor`) | Overrides for agents the tracked file does not define |
+| Its `prompts` directories (appended once) | Its own prompt directories |
+| `enabledModels` rows whose provider passes `pi auth check` here (retired tracked rows are removed) | Its own device-local rows; rows for an unauthenticated provider are skipped so Pi does not warn at every start |
+
+The tool also deduplicates `packages` (keeping a pinned entry) and
+`enabledModels`, guards `pi-mcp-adapter` against colliding with `builtin:mcp`,
+and seeds `rewind`, `hideThinkingBlock`, `quietStartup` and
+`defaultThinkingLevel` when absent. Pi installs a new or re-pinned package on
+its next start.
+
+`dotsync` runs it after every pull and on each up-to-date autopull, on a device
+that already has `~/.pi/agent/settings.json`, so a change committed here
+reaches every Pi device without a manual step. The review point for
+third-party extension code is therefore the commit that adds or re-pins a
+package in `config/pi/settings.json`: read the package source before that
+commit. (Until 2026-11-12 autopull deliberately did not run it, and devices
+kept their own pins and reviewer overrides; the owner chose shared-follows-
+dotfiles instead.) A device that must keep a different reviewer or pin sets it
+in the tracked file's terms or opts out of Pi sync by not using `dotsync`. `ai-mcp-sync` updates `~/.pi/agent/mcp.json` with the shared
+MCP servers from `config/ai/mcp-servers.json`: Playwright (`--isolated`,
+`--output-dir /tmp/playwright-mcp`, Pi `description`, and `toolExposure`) and
+the official Astro Docs search (`astro-docs`, pinned `mcp-remote` bridge,
+state in `/tmp/mcp-remote-auth`).
 
 | Control / Command | Behavior |
 |---|---|
@@ -183,9 +241,11 @@ Pi `description`, and `toolExposure`).
 | `Ctrl+P` | Cycle across `enabledModels` (Sonnet 5.5, Opus 5.5, GPT-6.1, etc.). |
 | `/plan <prompt>` | Enter read-only Plan mode (`@narumitw/pi-plan-mode`), clarify via structured questions, and review before edits. |
 | `/worktree` | Create, inspect, switch, or prune Git worktrees (`@narumitw/pi-worktree`) and transfer the active Pi session into the selected worktree. |
+| `/review [target] [focus]` | Tracked prompt template (`config/pi/prompts/review.md`, loaded through `prompts` in `settings.json`): resolves the target (default `git diff HEAD`; `staged`, a ref, a path or `plan`), picks a cross-family reviewer from the Review pairing, runs the `reviewer` subagent with fresh context, then checks each P0/P1 itself and reports without editing. `pi-subagents` also ships `/review-loop` (review and fix until clean) and `/parallel-review`. |
+| `/goal --tokens 200k <objective>` | Run one objective to verified completion (`@narumitw/pi-goal`); `/goal` opens the manager (status, pause, resume, edit, clear). Use for objectives with a checkable end state; approval gates still apply. |
 | `/btw <question>` | Open a side-question overlay (`@narumitw/pi-btw`) without changing the main conversation history or prompt cache. |
 | `/tree` or `/fork` | Navigate or branch conversation history while `pi-rewind-hook` restores tracked files to that point. |
-| `/mcp` or `pi mcp list` | Inspect the connected Playwright MCP server and its `codemode` tool exposure. |
+| `/mcp` or `pi mcp list` | Inspect the connected MCP servers (Playwright, Astro Docs) and their `codemode` tool exposure. |
 
 `pi-9router-restore` preserves existing real settings files and does not install or start 9Router.
 On Linux it installs `pi-9router-sync.timer` (one minute after boot, then

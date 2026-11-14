@@ -8,8 +8,8 @@
 #
 # Two of its properties are load-bearing and easy to break by accident:
 #   - it operates on the repository the SCRIPT lives in, never the caller's cwd,
-#     which is what keeps `git add -A` away from the $HOME/.git that exists on
-#     this machine by accident;
+#     which is what keeps `git add -A` away from a stray $HOME/.git that some
+#     devices carry by accident;
 #   - without a TTY and without --yes it refuses to mutate anything.
 set -uo pipefail
 ROOT="${DOTFILES_DIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
@@ -252,7 +252,33 @@ ap; rc=$?
 check "up-to-date autopull succeeds after the reconciliation is repaired" "$rc" "0"
 check "and actually reruns skill reconciliation" "$(cat "$TMP/skills-synced")" "repaired"
 rm -rf "$P/skills/agents-bin"
+printf '#!/usr/bin/env bash\necho ran > "%s/mcp-synced"\n' "$TMP" > "$P/bin/ai-mcp-sync"; chmod +x "$P/bin/ai-mcp-sync"
+upstream "auto mcp sync"; ap
+check "after a fast-forward, autopull reconciles MCP servers (retired ones leave every device)" "$(cat "$TMP/mcp-synced" 2>/dev/null)" "ran"
+printf '#!/usr/bin/env bash\nexit 5\n' > "$P/bin/ai-mcp-sync"
+upstream "mcp sync fails"; ap; rc=$?
+check "a failing ai-mcp-sync fails the autopull" "$rc" "1"
+has_last "and names ai-mcp-sync in the warning" "ai-mcp-sync"
+rm -f "$TMP/mcp-synced"
+printf '#!/usr/bin/env bash\necho ran > "%s/mcp-synced"\n' "$TMP" > "$P/bin/ai-mcp-sync"; chmod +x "$P/bin/ai-mcp-sync"
+printf '#!/usr/bin/env bash\nexit 3\n' > "$P/bin/ai-memory-link"; chmod +x "$P/bin/ai-memory-link"
+upstream "linker broken"; ap; rc=$?
+check "a failing ai-memory-link does not stop ai-mcp-sync" "$(cat "$TMP/mcp-synced" 2>/dev/null)" "ran"
+check "but the autopull still fails" "$rc" "1"
+rm -f "$P/bin/ai-mcp-sync"
 rm -f "$P/bin/ai-memory-link"
+# Pi's shared config follows every pull, but only on a device where Pi is set up.
+printf '#!/usr/bin/env bash\necho ran > "%s/pi-synced"\n' "$TMP" > "$P/bin/pi-9router-restore"; chmod +x "$P/bin/pi-9router-restore"
+upstream "auto pi sync, no pi"; ap
+check "without ~/.pi/agent/settings.json autopull leaves Pi alone" "$([ -e "$TMP/pi-synced" ] && echo ran || echo skipped)" "skipped"
+mkdir -p "$HOME/.pi/agent"; printf '{}\n' > "$HOME/.pi/agent/settings.json"
+upstream "auto pi sync"; ap
+check "after a fast-forward, autopull reconciles Pi config" "$(cat "$TMP/pi-synced" 2>/dev/null)" "ran"
+printf '#!/usr/bin/env bash\nexit 6\n' > "$P/bin/pi-9router-restore"
+upstream "pi sync fails"; ap; rc=$?
+check "a failing pi-9router-restore fails the autopull" "$rc" "1"
+has_last "and names pi-9router-restore in the warning" "pi-9router-restore"
+rm -f "$P/bin/pi-9router-restore"; rm -rf "$HOME/.pi"
 check "the lock is released after a run" "$([ -d "$XDG_STATE_HOME/dotsync/lock" ] && echo held || echo free)" "free"
 upstream "auto blocked"; h="$(head_p)"
 printf 'local untracked\n' > "$P/upstream.txt.tmp"; mv "$P/upstream.txt.tmp" "$P/blocker.txt"

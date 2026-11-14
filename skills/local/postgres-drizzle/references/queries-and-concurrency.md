@@ -82,6 +82,29 @@ relation locks that can queue behind long transactions and then block following 
 Inspect active transaction age and rehearse the operation rather than assuming the DDL
 statement is small.
 
+Time inside a transaction: `now()`, `current_timestamp` and `transaction_timestamp()`
+return the **start of the current transaction**; `clock_timestamp()` returns the actual
+current time (PostgreSQL docs, "Date/Time Functions and Operators", Current Date/Time).
+An authority check (membership, role, grant validity) that compares `effective_to` with
+`now()` lets a transaction opened before a revocation keep acting after the revocation
+committed. Two things must both hold:
+
+- **The check sees the revocation.** Waiting on a lock does not refresh a snapshot
+  that was already taken ("Transaction Isolation"): in Read Committed each statement
+  snapshots when it starts, in Repeatable Read/Serializable the first statement fixes
+  it. Either lock the authority row itself with `SELECT … FOR SHARE` (or `FOR NO KEY
+  UPDATE` / `FOR UPDATE`; Read Committed re-checks the updated row after waiting,
+  Repeatable Read fails with a serialization error that you retry). Never `FOR KEY
+  SHARE`: a revocation that updates a non-key column such as `effective_to` takes
+  `FOR NO KEY UPDATE`, which does not conflict with it ("Row-Level Locks", Table 13.3).
+  Or, when an advisory/tenant lock
+  serializes revocations, run Read Committed and issue the validity `SELECT` as a
+  **separate statement after** the lock is held, never in the same statement or CTE.
+- **The comparison uses real time**: `clock_timestamp()`, not `now()`.
+
+Keep one lock order across every writer. Proof: two sessions; A binds the actor, B
+revokes and commits, A's action must be refused, at the isolation level the code uses.
+
 Retry only recognized transient transaction failures, and retry the complete transaction
 from a clean boundary. Bound attempts and use jitter/backoff appropriate to the project.
 Uniqueness/check/FK violations, syntax errors, authorization failures, and deterministic

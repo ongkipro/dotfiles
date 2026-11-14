@@ -12,8 +12,9 @@ Use this skill when implementing, migrating, auditing, or debugging **first-part
 
 - **This skill (`hydrogen-headless-tracking`)**: Owns Hydrogen analytics (`<ShopifyScripts />`, `window.Shopify.analytics`, `useCartAnalytics()`, `addDestination()`, and Classic `<Analytics.Provider>`), Customer Privacy consent gating, first-party `/__shopify/*` and `/.well-known/shopify/fec/produce` proxies, cart-to-checkout click-ID/cookie bridging, and Shopify Web Pixel + webhook deduplication handoff.
 - **Not this skill**:
-  - General Hydrogen routes, Storefront API queries, or UI components -> `hydrogen-development`
-  - Headless suitability or multi-system commerce boundaries -> `headless-shopify`
+  - Shopify store diagnostics, CLI 5.x (`store execute/bulk`), HTTP 402 triage, or Admin catalog/CMS operations -> `shopify-development`
+  - General Hydrogen routes, Storefront API queries, Oxygen caching, or UI components -> `hydrogen-development`
+  - Headless suitability, `<brand>` vs `checkout.<brand>` domains, or multi-system commerce boundaries -> `headless-shopify`
   - Platform-specific ad signal schemas, EMQ scoring, and server outboxes:
     - Meta Pixel + CAPI -> `meta-ads-signal-engine`
     - Google Tag / sGTM / Enhanced Conversions -> `google-ads-signal-engine`

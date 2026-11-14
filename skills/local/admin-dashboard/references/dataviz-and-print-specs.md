@@ -26,6 +26,11 @@ payslips, and A6/100×150mm thermal waybills).
   - Label the reporting timezone once in the chart header or subtitle (`WIB /
     UTC+7` or `MYT / UTC+8`) and bucket daily series by the merchant's local
     midnight, never raw UTC midnight (`07:00 WIB`).
+- **Responsive Inline SVG `viewBox` Legibility (`>= 12px`)**:
+  - When rendering custom/inline `<svg>` charts outside Recharts, derive the
+    horizontal `viewBox` from the measured container `clientWidth` (or re-layout
+    at breakpoints) rather than scaling one wide static `viewBox` down to narrow
+    screens, which shrinks `<text>` axis/tick labels below the `12px` floor.
 
 ### Direct Labels, Legends & Secondary Non-Color Cues
 

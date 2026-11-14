@@ -136,7 +136,11 @@
         "testtimeout",
         "vitest",
         "create database",
-        "drop database"
+        "drop database",
+        "merge conflict",
+        "conflict marker",
+        "stash pop",
+        "zdiff3"
       ],
       "paths": [
         "**/astro.config.*",

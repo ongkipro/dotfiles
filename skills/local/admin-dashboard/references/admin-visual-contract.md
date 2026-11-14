@@ -15,6 +15,20 @@ surface, and `scripts/admin-geometry.mjs` measures the render against it.
    Default for every new admin unless the owner chooses otherwise.
 3. **Compact clean-light** ([`compact.json`](../assets/size-contracts/compact.json))
    only when the owner explicitly asks for a denser back office.
+4. **Comfort** ([`comfort.json`](../assets/size-contracts/comfort.json)) when
+   the brief names operators aged 40+, counter or touch use, or a customer
+   waiting at the desk (POS, cashier, warehouse, clinic front desk). Pick it
+   from the brief's Audience line, not per screen.
+
+**Why the default reads small (measured 2026-11-12).** Stock shadcn 4.23
+primitives (`shadcn view`) and the `dashboard-01` block render body, table
+cells, sidebar links and desktop inputs at 14px, with 12px meta/badges taking
+~22% of visible characters; buttons inside the block drop to 28px. Polaris
+resource-index renders 16px body on phones and 14px only on desktop. Health
+Literacy Online 3.3 asks ≥ 16px body and ~19px for older readers; WCAG sets no
+minimum size but 1.4.4 requires 200% resize, so zoom must never be locked.
+The default contract is correct for a desk back office; it is the wrong
+contract for a 45-year-old owner at a counter, which is why `comfort` exists.
 
 Pick one at project start, copy it to `design/admin-contract.json`, and record
 the choice. Never mix values from two contracts, never pick a size per screen,
@@ -26,28 +40,38 @@ when a contract exists; those are background evidence, not instructions.
 Every visible size maps to one role. A value not in this table is a defect, or
 an intended deviation recorded in the project contract with its reason.
 
-| Role | volum-default | compact | Tailwind / shadcn (default → compact) |
-|---|---|---|---|
-| Root font | 16px | 16px | never change `html` font-size or use `zoom` to "fit" |
-| Body, table cell, form control text | 14px | 14px | `text-sm` (inputs `text-base md:text-sm`: 16px on phones stops iOS zoom) |
-| Meta, table header label, badge | 12px | 12px | `text-xs` |
-| Section / card title | 16px / 600 | 16px / 600 | `text-base font-semibold` |
-| Page title | 24px / 700 | 20px / 600 | `text-2xl font-bold tracking-[-0.02em]` → `text-xl font-semibold` |
-| KPI value | 24px / 700 | 20px / 600 | same as page title; never larger than it |
-| Button: sm / default / lg | 32 / 36 / 40 | 28 / 32 / 36 | `h-8/h-9/h-10` → change `buttonVariants` sizes to `h-7/h-8/h-9` |
-| Icon button | 36 (toolbar 32) | 32 | `size-9` (`size="icon"`), toolbar `size-8` |
-| Input, select trigger: form / toolbar | 36 / 32 | 32 | `h-9` form, `h-8` table toolbar → `h-8` everywhere |
-| Header | 64px | 48px | `h-16` → `h-12` |
-| Sidebar expanded / icon rail | 256 / 48 | 240 / 48 | `SIDEBAR_WIDTH 16rem`/`3rem` → `15rem`/`3rem` |
-| Table header row | 40px | 32px | `TableHead h-10` → `h-8` |
-| Table cell padding | 8px | 6px × 8px | `TableCell p-2` → `px-2 py-1.5` |
-| Page padding | 16px × 24px | 16px | `Main` `px-4 py-6` → `p-4` |
-| Gap: related / section | 8 / 16 or 24 | 8 / 16 | `gap-2` / `gap-4`, `space-y-6` between page sections |
-| Icon in text | 16px | 16px | `size-4`, `text-muted-foreground` |
-| Touch (`pointer: coarse`) | ≥ 44px hit area | ≥ 44px | raise height or hit area; WCAG 2.5.8 floor is 24px |
+| Role | volum-default | compact | comfort | Tailwind / shadcn (default → compact / comfort) |
+|---|---|---|---|---|
+| Root font | 16px | 16px | 16px | never change `html` font-size, `zoom`, or lock the viewport meta to "fit" |
+| Smallest visible text (`text-floor`) | 12px | 12px | 14px | nothing below it anywhere, including badges, chart ticks, captions |
+| Body, table cell, form control text | 14px | 14px | 16px | `text-sm` → comfort `text-base` (inputs `text-base md:text-sm` → `text-base` always) |
+| Meta, table header label, badge | 12px | 12px | 14px | `text-xs` → comfort `text-sm` |
+| Section / card title | 16px / 600 | 16px / 600 | 18px / 600 | `text-base font-semibold` → comfort `text-lg` |
+| Page title | 24px / 700 | 20px / 600 | 28px / 700 | `text-2xl font-bold tracking-[-0.02em]` → `text-xl` / `text-[28px]` |
+| KPI value | 24px / 700 | 20px / 600 | 28px / 700 | same as page title; never larger than it |
+| Button: sm / default / lg | 32 / 36 / 40 | 28 / 32 / 36 | 36 / 40 / 44 | `h-8/h-9/h-10` → `h-7/h-8/h-9` / `h-9/h-10/h-11`; comfort forms pair `lg` (44) with 44px inputs, toolbars pair `default` (40) with 40px controls |
+| Icon button | 36 (toolbar 32) | 32 | 44 (toolbar 40) | `size-9` → `size-8` / `size-11` (toolbar `size-10`) |
+| Input, select trigger: form / toolbar | 36 / 32 | 32 | 44 / 40 | `h-9`/`h-8` → `h-8` / `h-11`/`h-10` |
+| Header | 64px | 48px | 64px | `h-16` → `h-12` / `h-16` |
+| Sidebar expanded / icon rail | 256 / 48 | 240 / 48 | 256 / 56 | `SIDEBAR_WIDTH 16rem`/`3rem` → `15rem`/`3rem` / `16rem`/`3.5rem` |
+| Sidebar link | 32px / 14px | 32px / 14px | 40px / 16px | `SidebarMenuButton` `h-8 text-sm` → comfort `h-10 text-base`; collapsed rail `group-data-[collapsible=icon]:size-8!` → `size-10!`; header/footer `size="lg"` stays 48px |
+| Table header row | 40px | 32px | 44px | `TableHead h-10` → `h-8` / `h-11` |
+| Table cell padding (vertical × horizontal) | 8 × 8px | 6 × 8px | 8 × 12px | `TableCell p-2` → `px-2 py-1.5` / `px-3 py-2` |
+| Page padding | 16px × 24px | 16px | 16px × 24px | `Main` `px-4 py-6` → `p-4` |
+| Gap: related / section | 8 / 16 or 24 | 8 / 16 | 8 / 24 | `gap-2` / `gap-4`, `space-y-6` between page sections |
+| Icon in text | 16px | 16px | 20px | `size-4` → comfort `size-5`, `text-muted-foreground` |
+| Touch (`pointer: coarse`) | ≥ 44px hit area | ≥ 44px | ≥ 48px (advisory `touch-target` warns below 48) | raise height or hit area; WCAG 2.5.8 floor is 24px |
 
-Compact requires editing the owned primitives once (`button.tsx`, `input.tsx`,
-`select.tsx`, `table.tsx`, `sidebar.tsx`), not overriding classes per call site.
+Typeface: keep the project's face; with none, the system UI stack (or Geist /
+Inter where shadcn's preset already ships it). Use `tabular-nums` for money,
+weights and counts. Never pick a face with a small x-height to "look premium";
+at 14px it reads like 12px. One family plus a mono for IDs only.
+
+Compact and comfort require editing the owned primitives once (`button.tsx`, `input.tsx`,
+`textarea.tsx`, `select.tsx`, `table.tsx`, `sidebar.tsx`, `badge.tsx`), not overriding classes per call site.
+`text-floor` measures own text nodes and text-bearing inputs (value or
+placeholder), skips visually hidden `sr-only` text, and scales SVG `<text>` to
+rendered px; CSS `::before`/`::after` text is not measured — review it by eye.
 Per-call `className="h-7"` sprinkled through features is exactly the drift this
 contract prevents.
 
@@ -95,7 +119,7 @@ node ~/dotfiles/skills/local/admin-dashboard/scripts/admin-geometry.mjs \
 - Measure every route you changed, in a state that shows its real content
   (seeded data, filters open where relevant). Overlays are only measured when
   opened; open them in a Playwright test when they are part of the change.
-- `touch-target` is advisory: it lists controls under 44px on a phone so you
+- `touch-target` is advisory: it lists controls under 44px (48px in comfort) on a phone so you
   decide where a larger hit area is needed.
 - To adopt a deliberate change (e.g. a 72px header for a two-row shell), edit the
   project contract and record the reason beside it. Never widen `allowed` just to

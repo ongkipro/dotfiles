@@ -61,3 +61,20 @@ token file or record project facts in this skill directory. Compute ratios with
 - Light/dark differences: <pairs re-derived rather than inverted>
 - Verification source and date: <tool/manual check, YYYY-MM-DD>
 ```
+
+
+## Text size floor (measured 2026-11-12)
+
+- Body copy ≥ 16px; 17–19px when the audience skews 45+ (Health Literacy
+  Online 3.3: ≥ 16px, ~19px for older adults). Polaris renders 16px body on
+  phones; stock shadcn renders 14px body and 12px meta, which is a desk-admin
+  scale, not a public-page scale.
+- Nothing readable below 12px: captions, legal lines, chips, chart ticks,
+  footer links. `dotuiux check` fails `tiny-text`.
+- Form controls 16px on phones so iOS does not zoom; fix the size, never
+  add `maximum-scale=1` / `user-scalable=no` (WCAG 1.4.4 resize to 200%;
+  ACT rule b4f0c3; `dotuiux check` fails `zoom-lock`).
+- Grey 13px helper text on a tinted band is the common AI-slop tell: raise
+  size or contrast, or delete the sentence.
+- Small x-height faces read a size smaller; judge the rendered x-height at
+  the body size, not the font's name.

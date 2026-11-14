@@ -64,3 +64,13 @@ Moved verbatim from `TASKS.md` by TASK-207 to keep the hot file under its budget
 - **Non-Scope:** killing running Pi sessions; removing the npm copy while sessions still use it; other CLIs; commit/push.
 - **Escalation Conditions:** sudo, a change to `models.json`/auth, or a session that must be killed.
 - **Outcome (2026-11-10):** Done. Commits `ca9c419`, `d148db1`, `bb7dca9` (`pi-managed-migrate`), `dca75ab` and this one (`ag/` Opus and Sonnet in `/model`), `f1c550a` (review pairing, Argon APPROVE). `rich` 7/7 and `dot` 6/6 sessions moved on their own session files; npm copy removed on both; both on Pi 1.5.2 via `pi update`; `ai-doctor` clean; 9Router sync `official: pi catalog` (27 models). Other devices migrate with `pi-managed-migrate` when `ai-doctor` warns.
+
+## TASK-212: Mengantar skill from the official Public API docs; Partner API pointer
+- **Requirement:** REQ-MENGANTAR-OFFICIAL (owner 2026-11-10: "tambahkan ke skill mengantar", sandbox partner docs).
+- **Risk Level:** R1.
+- **Allowed Paths:** `skills/local/mengantar-api/**`, `config/ai/project-memory/mengantar-documentation.md`, `skills/local/README.md`, `docs/DOTFILES_SITEMAP.md`, `CHANGELOG.md`, `TASKS.md`, `docs/archive/**`.
+- **Canonical Contract Owners:** `mengantar-api` skill.
+- **Accepted Invariants:** every contract claim cites the official docs and the retrieval date; the private Partner API contract (marked "do not share outside your team") stays device-local, the public repository only names it and its safety rules; no credential or account identifier in tracked files.
+- **Regression Checks:** `skill-check`, `ai-policy-lint`, `system-map --check`, `security-check`.
+- **Non-Scope:** live calls with real keys; project repositories.
+

@@ -9,6 +9,10 @@
   1. **Subfolders** (`/fr-ca/products/...` via `($locale).*` routes): Parse the first path segment against supported locales; strip the prefix before passing `request` to `createShopifyRouteTemplates` or configure locale-aware route templates; redirect invalid prefixes (`404`) and keep canonical/alternate `hreflang` tags aligned.
   2. **Domains / Subdomains** (`ca.example.com`, `example.fr`): Derive `i18n` from `new URL(request.url).hostname`.
   3. **Cookie / Session Selector**: Read the chosen country/language from a cookie or `sessionManager`; when a buyer switches markets, update both the cookie and `cartBuyerIdentityUpdate({ countryCode })` (in `2026.10`, `cartHandlers` syncs buyer context from `requestContext.i18n`).
+- **Geo-IP Country vs Market Language Pairing**:
+  - Shopify Markets binds enabled languages per country. Passing `@inContext(country, language)` where `country` does not enable `language` causes the Storefront API to silently fall back to the default store language (e.g., `CF-IPCountry: ID` with `language: AR` returning English). Apply a geo-IP `country` header only when that country's market supports the active domain/subfolder `language`; otherwise map the route to a market country where that language is enabled.
+- **Multi-Locale SEO Field Truthiness**:
+  - Trust non-empty `.trim()` values from Shopify `seo.title` and `seo.description` across all locales; do not gate them behind English character-length floors (such as `120–158` chars), which reject valid concise Arabic (`85–115` chars) and Indonesian descriptions.
 - **Currency & Price Invariants**:
   - Render every price from the Storefront API's localized `MoneyV2` response via `formatMoney(money, { locale })` (`2026.10+`) or `<Money>` (Classic). Never multiply prices by client-side exchange rates.
 

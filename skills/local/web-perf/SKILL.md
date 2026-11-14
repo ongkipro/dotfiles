@@ -6,7 +6,18 @@ description: >-
 
 # Web Performance Audit
 
-Your knowledge of web performance metrics, thresholds, and tooling APIs may be outdated. **Prefer retrieval over pre-training** when citing specific numbers or recommendations.
+**Prefer retrieval over pre-training** when citing thresholds, scoring weights,
+or Chrome DevTools MCP parameters. Detailed MCP setup flags, trace insight
+names, and per-stack codebase checklists live in
+[trace-and-codebase-playbook.md](references/trace-and-codebase-playbook.md).
+
+**Pick the path first:**
+
+| Situation | Do |
+|---|---|
+| Trace MCP tools exposed (`emulate`, `performance_start_trace`) | Run Phases 1–4 (§2), plus Phase 5 when repo access exists |
+| No trace tools (`--slim` server or MCP unconfigured) | Run the degraded path (§1.1) + Phase 5 — never hard-stop |
+| Need MCP registration flags, insight table, or per-stack checklists | Open [trace-and-codebase-playbook.md](references/trace-and-codebase-playbook.md) |
 
 ## Retrieval Sources
 
@@ -19,304 +30,63 @@ Your knowledge of web performance metrics, thresholds, and tooling APIs may be o
 | INP phases | `https://web.dev/articles/optimize-inp` (verified 2026-10-02) | Input delay / processing duration / presentation delay |
 | Tailwind v4 sources | `https://tailwindcss.com/docs/detecting-classes-in-source-files` (verified 2026-10-02) | Automatic detection, `@source`, dynamic class names |
 
-## FIRST: Verify MCP Tools Available
+## 1. Verify MCP Tools First
 
-**Run this before starting.** Discover which browser and performance tools
-are actually exposed — try `list_pages`, `navigate_page`, or
-`performance_start_trace`. Tool presence is not all-or-nothing: a server
-started with `--slim` exposes only three tools (navigation, script execution,
-screenshots) and no trace tools, so treat it as the degraded path below.
+Discover exposed tools before starting (`list_pages`, `navigate_page`,
+`performance_start_trace`). A server started with `--slim` exposes navigation,
+script execution, and screenshots but **no trace tools** — treat `--slim` as the
+degraded path below.
 
-If the trace tools exist, run the full workflow below.
+**MCP configuration is a user-scope change:** register or modify it only when
+the user asked for setup or it is clearly within authorized scope; otherwise ask
+first and run the degraded path meanwhile. On dotfiles machines, shared
+cross-CLI registration lives in `config/ai/mcp-servers.json` + `ai-mcp-sync`;
+single-runtime Claude CLI setup and full flags are in
+[trace-and-codebase-playbook.md](references/trace-and-codebase-playbook.md) §1.
 
-If they don't, the `chrome-devtools` MCP server isn't configured on this
-machine. **Changing MCP configuration is a user-scope change: do it only when
-the user asked for setup or it is clearly within the authorized scope;
-otherwise ask first** and continue on the degraded path meanwhile. Register it
-through the CLI rather than hand-editing JSON:
+Operational traps that silently corrupt audits:
+- **SSH requires `--headless`** (server defaults to `--headless: false` and fails when `DISPLAY` is empty).
+- **Headless defaults to ~780 px width** — pass `--viewport 1280x720` or call `emulate(viewport: ...)` before reading desktop numbers.
+- **CrUX URL lookup is on by default** — pass `--no-performance-crux` on staging/private URLs; keep CrUX **field data** separate from lab trace numbers; opt out of telemetry with `--no-usage-statistics`.
+- **`pageId` is required** on page-scoped tools (`emulate`, `performance_start_trace`, `lighthouse_audit`); fetch it from `list_pages` or `new_page`, and attach to a visible browser via `--browserUrl http://127.0.0.1:9222` only when visual debugging is needed.
 
-```bash
-npm i -g chrome-devtools-mcp   # persistent binary; no per-launch download
-claude mcp add --scope user chrome-devtools chrome-devtools-mcp -- \
-  --headless --executablePath /usr/bin/google-chrome
-```
-
-**`--headless` is not optional when you work over SSH.** The server defaults to
-`--headless: false`, so with no `DISPLAY` it tries to open a window that has
-nowhere to go and fails. Verified on the Linux box: headless Chrome renders,
-runs JS, and serves CDP fine through an SSH session with `DISPLAY` empty.
-
-The global install pins whatever version was installed; upstream's
-[quick start](https://github.com/ChromeDevTools/chrome-devtools-mcp#getting-started)
-instead runs `npx -y chrome-devtools-mcp@latest` so the client always gets the
-latest server. Either is fine — with the global binary, update it periodically
-(`npm i -g chrome-devtools-mcp@latest`), because tool names and parameters
-change between releases.
-
-Other things that bite:
-
-- **Headless defaults to a ~780px viewport.** That silently makes every
-  measurement a narrow-screen measurement. Pass `--viewport 1280x720` (or
-  another size) to the server, or `emulate(viewport: ...)` per page, before
-  reading anything as a desktop number.
-- **Trace URLs may be sent to Google's CrUX API.** The performance tools fetch
-  real-user field data for the traced URL and present it beside the lab data.
-  Pass `--no-performance-crux` when auditing private, staging, or
-  pre-release URLs. When CrUX data does come back, report it as **field
-  data** and keep it separate from the lab trace numbers.
-- **Usage statistics are on by default.** Opt out with `--no-usage-statistics`
-  (or the `CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS` env var) if the user
-  wants no telemetry.
-- **Current releases require a `pageId` on page-scoped tools** (`emulate`,
-  `performance_start_trace`, `lighthouse_audit`, …). Get it from
-  `list_pages` or `new_page`; the calls in this file omit it for brevity.
-  If a parameter is rejected, read the live tool schema rather than guessing
-  ([tool reference](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/tool-reference.md)).
-- To drive a browser you can actually *see* on a machine that has a GUI, start
-  Chrome there with `--remote-debugging-port=9222` and attach with
-  `--browserUrl http://127.0.0.1:9222` instead of launching a private headless
-  one. Useful for visual debugging; unnecessary for pure measurement.
-
-### Degraded path (no MCP) — do NOT just stop
+### 1.1 Degraded path (no MCP) — do NOT just stop
 
 `design-taste`, `admin-dashboard`, `storefront-ux`, and `ui-validation` all
-delegate performance work here, so a hard stop leaves four skills with a dead
-end. Without the MCP you cannot measure field or lab metrics — say that
-plainly, never estimate a number — but you can still do real work:
+delegate performance work here. Without trace MCP tools you cannot measure lab
+trace insights — state that plainly and never invent or estimate a Core Web
+Vital — while executing all four steps that still hold:
 
-1. **Phase 5 (codebase analysis) runs unchanged** and is the highest-value part
-   when you have repo access. Bundle composition, render-blocking patterns,
-   font loading, image formats, and cache headers are all readable from source
-   and config.
-2. **Use the project's own scripts first** (`package.json`): an existing
-   `build`, `analyze`, `lighthouse`, or bundle-visualiser script beats any tool
-   you would add. Build output already reports bundle sizes.
-3. **If a browser can actually be driven** — the project has a working
-   Playwright runner, or a system browser Playwright can point at — hand that
-   work to `ui-validation` ("Performance evidence requested by web-perf" in its
-   §5). It returns raw page-reported numbers: `PerformanceObserver` entries,
-   `performance.getEntriesByType('navigation'|'resource')`, console errors,
-   failed requests. Coarse single-run lab numbers, but real and measured — you
-   interpret them, it does not. Declaring Playwright in `package.json` is not
-   the same as having its browsers installed; check before promising this step.
-4. **Static asset audit** needs no browser: hero image dimensions and format,
-   self-hosted vs remote fonts, `font-display`, missing width/height causing
-   CLS, third-party script tags in `<head>`.
+1. **Phase 5 codebase analysis runs unchanged** (bundle composition, `'use client'` / island boundaries, render-blocking tags, font loading, image pipelines, cache headers).
+2. **Run the project's own scripts first** (`package.json` `build`, `analyze`, `lighthouse`): production build output already gives real chunk sizes.
+3. **If a real browser is runnable** (project Playwright runner or system Chrome), hand raw browser collection to `ui-validation` (§2 / recipes "raw timings for `web-perf`"): `PerformanceObserver` entries, `navigation`/`resource` timings, console errors, and failed requests. You interpret the numbers; check that browser binaries actually exist before promising this step.
+4. **Static asset audit**: hero image dimensions/format/`fetchpriority`, self-hosted vs remote fonts and `font-display`, unsized media causing CLS, and synchronous third-party `<script>` tags in `<head>`.
 
-Report exactly which metrics remain **unmeasured** and that closing the gap
-needs the MCP or a Lighthouse run. Never present a codebase inference as a
-measured Core Web Vital.
+Name every metric that remains **unmeasured** and state that closing the gap
+requires Chrome DevTools MCP or Lighthouse.
+
+## 2. Workflow
+
+1. **Phase 1 — Explicit lab profile + trace:** Get `pageId` (`list_pages` / `new_page`), set a reproducible profile before navigating — default constrained mobile: `emulate(networkConditions: "Slow 4G", cpuThrottlingRate: 4, viewport: "390x844x2,mobile,touch")` — then `navigate_page(url)` and `performance_start_trace(autoStop: true, reload: true)` (if empty, verify `navigate_page` loaded first). Keep the exact same profile on before/after comparison runs, and always report CPU, network, viewport, mobile, and touch settings; if unthrottled, label every number **unthrottled best-case lab data**.
+2. **Phase 2 — Core Web Vitals & LCP subpart triage:** Run `performance_analyze_insight` (`LCPBreakdown`, `LCPDiscovery`, `CLSCulprits`, `RenderBlocking`, `DocumentLatency`, `NetworkRequestsDepGraph` — table in [playbook §2](references/trace-and-codebase-playbook.md)). Split LCP into its four subparts (**TTFB**, **resource load delay**, **resource load duration**, **element render delay**) before recommending fixes: shrinking an image will not fix an LCP dominated by render delay or late discovery, and an empty LCP resource URL indicates a text LCP gated on web fonts.
+   - **Thresholds (good / needs-improvement / poor):** TTFB `< 800ms / < 1.8s / > 1.8s` · FCP `< 1.8s / < 3s / > 3s` · LCP `< 2.5s / < 4s / > 4s` · INP `< 200ms / < 500ms / > 500ms` · TBT `< 200ms / < 600ms / > 600ms` · CLS `< 0.1 / < 0.25 / > 0.25` · Speed Index `< 3.4s / < 5.8s / > 5.8s`.
+3. **Phase 3 — Network analysis:** Call `list_network_requests` (`Script`, `Stylesheet`, `Document`, `Font`, `Image`) and `get_network_request(reqid)`. Check render-blocking `<head>` tags, late request chains, missing preloads, weak `Cache-Control`/missing compression, oversized bundles, and unused preconnects (recommend removing a preconnect only when zero requests hit that origin).
+4. **Phase 4 — Accessibility snapshot & complementary Lighthouse:** Run `take_snapshot(verbose: true)` and `lighthouse_audit(mode: "navigation", device: "mobile")`. `lighthouse_audit` excludes performance (the trace stays authoritative); treat it as an automated screen for ARIA/contrast/name gaps and route keyboard, focus-trap, and cross-viewport interaction proof to `ui-validation`.
+5. **Phase 5 — Codebase & INP analysis** *(skip when no repo access)*: Follow [playbook §3](references/trace-and-codebase-playbook.md) across:
+   - **Stack & tree-shaking:** Vite/Rollup/Astro, Next.js (Turbopack/webpack, `optimizePackageImports`, leaf `'use client'` boundaries), barrel imports, wholesale utility imports.
+   - **Unused JS/CSS:** Tailwind v4 automatic scanning + `@source` / dynamic class traps (vs v3 `content`), Astro `client:*` islands, `next/dynamic` & `next/script`.
+   - **Images:** `astro:assets`, `next/image` (`sizes`, LCP preload), Shopify `image_url` + `image_tag`, Cloudflare Images `format=auto`, intrinsic dimensions, `fetchpriority="high"` on the LCP image only, no CSS-background heroes.
+   - **INP:** Reload traces never measure INP; record a non-reload interaction trace (or report INP unmeasured) and attribute latency to **input delay**, **processing duration**, or **presentation delay** before mapping to handlers and re-renders.
+   - **Targets & delivery:** Modern `browserslist`/`build.target`, default minification intact, `br`/`gzip`/`zstd` + immutable `Cache-Control`, no inline prod source maps.
 
 ## Key Guidelines
 
-- **Be assertive**: Verify claims by checking network requests, DOM, or codebase—then state findings definitively.
-- **Verify before recommending**: Confirm something is unused before suggesting removal.
-- **Quantify impact**: Use estimated savings from insights. Don't prioritize changes with 0ms impact.
-- **Skip non-issues**: If render-blocking resources have 0ms estimated impact, note but don't recommend action.
-- **Be specific**: Say "compress hero.png (450KB) to WebP" not "optimize images".
-- **Prioritize ruthlessly**: A site with 200ms LCP and 0 CLS is already excellent—say so.
-
-## Quick Reference
-
-| Task | Tool Call |
-|------|-----------|
-| Load page | `navigate_page(url: "...")` |
-| Set lab profile | `emulate(networkConditions: "Slow 4G", cpuThrottlingRate: 4, viewport: "390x844x2,mobile,touch")` |
-| Start trace | `performance_start_trace(autoStop: true, reload: true)` |
-| Analyze insight | `performance_analyze_insight(insightSetId: "...", insightName: "...")` |
-| List requests | `list_network_requests(resourceTypes: ["Script", "Stylesheet", ...])` |
-| Request details | `get_network_request(reqid: <id>)` |
-| A11y tree snapshot | `take_snapshot(verbose: true)` |
-| Complementary accessibility/SEO/best-practices audit | `lighthouse_audit(mode: "navigation", device: "mobile")` |
-
-## Workflow
-
-Copy this checklist to track progress:
-
-```
-Audit Progress:
-- [ ] Phase 1: Explicit lab profile + performance trace (emulate + navigate + record)
-- [ ] Phase 2: Core Web Vitals analysis (includes CLS culprits)
-- [ ] Phase 3: Network analysis
-- [ ] Phase 4: Accessibility snapshot + complementary Lighthouse audit
-- [ ] Phase 5: Codebase analysis (skip if third-party site)
-```
-
-### Phase 1: Performance Trace
-
-1. Select the page (`list_pages` / `new_page` → `pageId`), then set and record an explicit lab profile before navigating. A representative constrained-mobile profile is:
-   ```
-   emulate(
-     networkConditions: "Slow 4G",
-     cpuThrottlingRate: 4,
-     viewport: "390x844x2,mobile,touch"
-   )
-   ```
-   This is a reproducible house scenario, not a claim of exact Lighthouse or field equivalence. Use a different profile when the audience evidence requires it, but report the chosen CPU, network, viewport, mobile, and touch settings. If throttling is intentionally omitted, label every result **unthrottled best-case lab data**.
-
-2. Navigate to the target URL after emulation is active:
-   ```
-   navigate_page(url: "<target-url>")
-   ```
-
-3. Start a performance trace with reload to capture cold-load metrics:
-   ```
-   performance_start_trace(autoStop: true, reload: true)
-   ```
-
-4. Wait for trace completion, then retrieve results. Keep the same profile for comparison runs.
-
-**Troubleshooting:**
-- If trace returns empty or fails, verify the page loaded correctly with `navigate_page` first
-- If insight names don't match, inspect the trace response to list available insights
-
-### Phase 2: Core Web Vitals Analysis
-
-Use `performance_analyze_insight` to extract key metrics.
-
-**Note:** Insight names may vary across Chrome DevTools versions. If an insight name doesn't work, check the `insightSetId` from the trace response to discover available insights.
-
-Common insight names:
-
-| Metric | Insight Name | What to Look For |
-|--------|--------------|------------------|
-| LCP | `LCPBreakdown` | Time to largest contentful paint; breakdown of TTFB, resource load, render delay |
-| LCP Discovery | `LCPDiscovery` | Whether the LCP resource was discoverable in the initial HTML (lazy-loaded, JS/CSS-injected, missing `fetchpriority`) |
-| CLS | `CLSCulprits` | Elements causing layout shifts (images without dimensions, injected content, font swaps) |
-| Render Blocking | `RenderBlocking` | CSS/JS blocking first paint |
-| Document Latency | `DocumentLatency` | Server response time issues |
-| Network Dependencies | `NetworkRequestsDepGraph` | Request chains delaying critical resources |
-
-Example:
-```
-performance_analyze_insight(insightSetId: "<id-from-trace>", insightName: "LCPBreakdown")
-```
-
-**Triage LCP by subpart before fixing anything.** LCP splits into four back-to-back parts: TTFB, resource load delay (HTML received until the LCP resource starts loading), resource load duration, and element render delay. The two delays should be near zero; when either is a large share, fix it first. Shrinking the image does not help when render delay dominates — the saved time just moves into render delay. To name the element and its resource URL, read it from the trace insight or run a `PerformanceObserver` for `largest-contentful-paint` via `evaluate_script`; an empty URL means a text LCP (check web-font blocking instead). Workflow adapted from the Chrome DevTools MCP `debug-optimize-lcp` skill (`https://github.com/ChromeDevTools/chrome-devtools-mcp/tree/main/skills/debug-optimize-lcp`, checked 2026-10-02).
-
-**Key thresholds (good/needs-improvement/poor):**
-- TTFB: < 800ms / < 1.8s / > 1.8s
-- FCP: < 1.8s / < 3s / > 3s
-- LCP: < 2.5s / < 4s / > 4s
-- INP: < 200ms / < 500ms / > 500ms
-- TBT: < 200ms / < 600ms / > 600ms
-- CLS: < 0.1 / < 0.25 / > 0.25
-- Speed Index: < 3.4s / < 5.8s / > 5.8s
-
-### Phase 3: Network Analysis
-
-List all network requests to identify optimization opportunities:
-```
-list_network_requests(resourceTypes: ["Script", "Stylesheet", "Document", "Font", "Image"])
-```
-
-**Look for:**
-
-1. **Render-blocking resources**: JS/CSS in `<head>` without `async`/`defer`/`media` attributes
-2. **Network chains**: Resources discovered late because they depend on other resources loading first (e.g., CSS imports, JS-loaded fonts)
-3. **Missing preloads**: Critical resources (fonts, hero images, key scripts) not preloaded
-4. **Caching issues**: Missing or weak `Cache-Control`, `ETag`, or `Last-Modified` headers
-5. **Large payloads**: Uncompressed or oversized JS/CSS bundles
-6. **Unused preconnects**: If flagged, verify by checking if ANY requests went to that origin. If zero requests, it's definitively unused—recommend removal. If requests exist but loaded late, the preconnect may still be valuable.
-
-For detailed request info:
-```
-get_network_request(reqid: <id>)
-```
-
-### Phase 4: Accessibility Snapshot
-
-Take an accessibility tree snapshot:
-```
-take_snapshot(verbose: true)
-```
-
-Run the complementary Lighthouse audit for accessibility, SEO, and best practices:
-```
-lighthouse_audit(mode: "navigation", device: "mobile")
-```
-
-This tool explicitly excludes performance; the trace remains the performance authority. Treat Lighthouse as a broad automated screen, not proof of keyboard behavior or cross-viewport accessibility. Route those interaction claims to `ui-validation`.
-
-**Flag high-level gaps:**
-- Missing or duplicate ARIA IDs
-- Elements with poor contrast ratios (check against WCAG AA: 4.5:1 for normal text, 3:1 for large text)
-- Focus traps or missing focus indicators
-- Interactive elements without accessible names
-
-## Phase 5: Codebase Analysis
-
-**Skip if auditing a third-party site without codebase access.**
-
-Analyze the codebase to understand where improvements can be made.
-
-### Detect Framework & Bundler
-
-Search for configuration files to identify the stack:
-
-| Tool | Config Files |
-|------|--------------|
-| Webpack | `webpack.config.js`, `webpack.*.js` |
-| Vite | `vite.config.js`, `vite.config.ts` |
-| Rollup | `rollup.config.js`, `rollup.config.mjs` |
-| esbuild | `esbuild.config.js`, build scripts with `esbuild` |
-| Parcel | `.parcelrc`, `package.json` (parcel field) |
-| Next.js | `next.config.js`, `next.config.mjs` |
-| Nuxt | `nuxt.config.js`, `nuxt.config.ts` |
-| SvelteKit | `svelte.config.js` |
-| Astro | `astro.config.mjs` |
-
-Also check `package.json` for framework dependencies and build scripts.
-
-### Tree-Shaking & Dead Code
-
-- **Vite/Rollup (and Astro, which builds on Vite)**: tree-shaking is on by default; check `build.rollupOptions`, `manualChunks`, and `sideEffects` in dependency `package.json` files
-- **Next.js (Turbopack or webpack)**: check which bundler the build script uses, `experimental.optimizePackageImports` (a default package list is already optimized — verify in the installed version's docs), and whether `'use client'` sits at a leaf or pulls a large subtree into the client graph
-- **Webpack (legacy setups)**: `mode: 'production'`, `sideEffects`, `usedExports`
-- **Look for**: barrel files (`index.js` re-exports), large utility libraries imported wholesale (lodash, moment), and dynamic template-literal import paths that defeat analysis
-- Use the project's existing bundle analyzer or the framework's documented one for the installed version; do not add an analyzer speculatively
-
-### Unused JS/CSS
-
-- **Tailwind v4**: no `content` array — sources are detected automatically (skipping `.gitignore`d paths, `node_modules`, binaries, CSS). Check `@source` / `@source not` / `source(none)` in the CSS entry, and grep for dynamically built class names (`bg-${color}-600`), which v4 cannot see; oversized output usually means an over-broad `@source` or `@source inline()` safelist. **Tailwind v3** projects still use the `content` config — confirm the installed major first
-- **Astro**: count islands and their `client:*` directives (`client:load` is the most expensive); static markup rendered through a framework component ships JS for nothing
-- **Next.js**: check client boundaries, `next/dynamic` for heavy client-only widgets, and `next/script` strategy for third parties
-- Check for CSS-in-JS runtime vs. static CSS extraction; identify dynamic imports vs. eager loading
-
-### Images
-
-The LCP element is usually an image; check the pipeline, not just the file:
-
-- **Astro**: `<Image>` / `<Picture>` from `astro:assets` for local and allowed remote images (width/height, modern formats, `loading`); raw `<img>` on the hero is a finding
-- **Next.js**: `next/image` with `sizes` on responsive images, `priority`/preload (name varies by version — verify) only on the LCP image, and `images.remotePatterns` for remote sources
-- **Shopify Liquid**: `image_url` with an explicit `width` plus `image_tag` (or `srcset`/`sizes`), never the original upload; the LCP image not lazy-loaded
-- **Cloudflare Images / image transformations**: confirm resizing happens at the edge (`/cdn-cgi/image/...` or the binding) with `format=auto` and bounded widths
-- Everywhere: intrinsic dimensions or `aspect-ratio` (CLS), `fetchpriority="high"` on the LCP image only, lazy-loading below the fold, no CSS-background hero images that the preload scanner cannot discover
-
-### Interaction (INP) diagnosis
-
-A reload trace does not measure INP; an interaction must happen during recording.
-
-1. With MCP: start a trace **without** reload, perform the slow interaction (`click`, `fill`, `press_key`), stop the trace, and inspect the interaction insight (name varies by DevTools version — list insights from the trace). Without MCP: ask `ui-validation` for a recorded interaction timing or use field data (CrUX/RUM) if available, and mark INP as unmeasured otherwise.
-2. Attribute the time to a phase: **input delay** (main thread busy before handlers run — long tasks, hydration, third-party scripts), **processing duration** (the handlers themselves — heavy state updates, synchronous work; yield, defer non-urgent work, React `startTransition`/`useDeferredValue`), or **presentation delay** (rendering the result — large DOM, layout thrashing, re-rendering big lists; `content-visibility`, virtualization, smaller updates).
-3. Map to code: the event handler, the component that re-renders, and any non-passive `touch`/`wheel` listener.
-
-### Polyfills & Targets
-
-- Check the `browserslist` / build `target` (Vite `build.target`, SWC/Next config) against the real audience; overly old targets inflate output
-- Polyfills are mostly a legacy-Babel concern: flag `core-js` / `@babel/preset-env` `useBuiltIns` only if the project still uses Babel
-
-### Compression & Minification
-
-- Production builds of Vite, Astro, and Next minify by default; flag only overrides that disable it
-- Look for gzip/brotli (or zstd) at the CDN/server and long-lived `Cache-Control` on hashed assets
-- Check for source maps in production builds (should be external or disabled)
+- **Verify before recommending:** Confirm code/preconnects/assets are actually unused or impactful in network/DOM/source; skip 0 ms insights.
+- **Be specific and proportionate:** Name exact files, byte sizes, and ms savings ("compress `hero.png` 450 KB → WebP"); if LCP is 200 ms and CLS is 0, say it is already fast.
 
 ## Output Format
 
-Present findings as:
-
-1. **Core Web Vitals Summary** - Table with metric, value, and rating (good/needs-improvement/poor)
-2. **Top Issues** - Prioritized list of problems with estimated impact (high/medium/low)
-3. **Recommendations** - Specific, actionable fixes with code snippets or config changes
-4. **Codebase Findings** - Framework/bundler detected, optimization opportunities (omit if no codebase access)
+1. **Core Web Vitals Summary** — Metric, value, rating (good / needs-improvement / poor), lab profile vs field data, and any unmeasured metrics.
+2. **Top Issues** — Prioritized findings with quantified impact (high / medium / low).
+3. **Recommendations** — Actionable code or config changes targeting the dominant bottleneck.
+4. **Codebase Findings** — Stack/bundler detected and structural opportunities (omit if third-party site).

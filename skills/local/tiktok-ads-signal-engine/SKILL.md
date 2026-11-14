@@ -44,7 +44,7 @@ Before writing or changing sender code, verify the current server-events endpoin
 
 ---
 
-## Checklist: 8 Commandments of TikTok Signal Architecture
+## Checklist: 9 Commandments of TikTok Signal Architecture
 
 1. **Server-Authoritative `Purchase`**: Fire `Purchase` (legacy `CompletePayment`) from confirmed backend payment/order status. Use the same name on both legs; do not mix legacy and new names for one event.
 2. **Matching `event_id`**: Send identical `event_id` in browser `ttq.track('Purchase', payload, { event_id: id })` and server Events API payload `{ "event_id": id }`.
@@ -52,8 +52,9 @@ Before writing or changing sender code, verify the current server-events endpoin
 4. **Normalize & SHA-256 Hash Identifiers**: Lowercase & trim emails before hashing. Format phone numbers as `+E.164` (`+62812...`, no spaces or dashes) before SHA-256 — unlike Meta, which drops the `+`. Server field name is `phone`; the Pixel `identify` key is `phone_number`. Re-check TikTok's current Events API page; it has a documented exception for country code 86.
 5. **Set Canonical `content_id`**: Match product SKUs between TikTok Catalog and conversion payload.
 6. **Prepaid vs COD Signals**: Map COD order placement to the standard `InitiateCheckout` (a custom event cannot be optimised), and fire `Purchase` on confirmed collection, `event_time` = collection time. Set the ad group's click-through window to 28 days **at creation** (it cannot be changed after publishing) so courier delays stay attributable. The official WooCommerce plugin fires `Purchase` on both `woocommerce_payment_complete` and `woocommerce_thankyou` with a fresh `event_id` each time (two undeduplicable Purchases, at placement for COD) — disable it for COD. TikTok Shop / Tokopedia orders are measured in-app and need no Events API. Collection-time `Purchase` arrives too late to pair with any browser event, so send it server-only.
-7. **Transactional Outbox & Retries**: Queue server events in a database outbox table and process asynchronously with retries on 5xx network errors.
-8. **Client IP & User Agent**: Always pass the real client `ip` and `user_agent` in server payloads. Read IP from your platform's trusted header (e.g. `CF-Connecting-IP` behind Cloudflare); a raw `x-forwarded-for` first hop is client-controlled.
+7. **Transactional Outbox & Retries**: Queue server events in a database outbox table and process asynchronously. Success is HTTP 200 **and** body `code === 0`; retry 5xx and `40100` (throttled) with backoff; `40001`/`40104` mean reconnect, not retry; `40002` is a bad payload: isolate an event only when `message` names a `data.<index>` path; otherwise fix the request-level cause (invalid JSON, > 1,000 events → rebatch) and keep the events for correction rather than dropping them. Field contract and error table: [TIKTOK_EVENTS_API_V2.md §2a](references/TIKTOK_EVENTS_API_V2.md#2a-field-contract-official-eventtrack-reference-read-in-a-browser-2026-11-12).
+8. **No server PageView, and `page.url` always**: Events API has no page-view standard event (`ttq.page()` stays browser-only), and every web event must carry `page.url` — for a delayed server event, the URL stored with the order.
+9. **Client IP & User Agent**: Always pass the real client `ip` and `user_agent` in server payloads. Read IP from your platform's trusted header (e.g. `CF-Connecting-IP` behind Cloudflare); a raw `x-forwarded-for` first hop is client-controlled.
 
 ## Sources (accessed 2026-10-02; field names, plugin and window re-checked 2026-11-02)
 
@@ -62,4 +63,5 @@ Before writing or changing sender code, verify the current server-events endpoin
 - Event deduplication (5-minute merge, 48-hour window, first event kept): https://ads.tiktok.com/help/article/event-deduplication
 - Events API 2.0 reference (JavaScript-rendered; the `+E.164` phone rule was read from TikTok's docs via search index, re-confirm in a browser): https://business-api.tiktok.com/portal/docs/events-api-2.0/v1.3
 - Pixel `ttq.identify` keys (`email`, `phone_number`): https://business-api.tiktok.com/gateway/docs/index?doc_id=1739585700402178
+- `/event/track/` parameters, supported events, deduplication, responses and errors (read in a browser 2026-11-12): https://business-api.tiktok.com/portal/docs?id=1771101303285761, ?id=1771101186666498, ?id=1771100965992450, ?id=1771101162079234
 - Official WooCommerce plugin read (tiktok-for-business 1.4.3, `pixel/tt4b_pixel.php`): https://wordpress.org/plugins/tiktok-for-business/

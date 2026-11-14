@@ -1,7 +1,8 @@
-# Astro 6/7 Platform Facts
+# Astro 6/7 Platform Facts (through 7.4)
 
-Verified 2026-10-02 against docs.astro.build and npm (`astro` latest 7.3.5,
-`@astrojs/cloudflare` latest 14.3.3). Read the installed `astro` and adapter
+Verified 2026-11-12 against docs.astro.build, the package changelogs, npm and a
+run of astro 7.4.11 (`astro` latest 7.4.11, `@astrojs/cloudflare` latest 14.4.7;
+first verified 2026-10-02 on 7.3.5 / 14.3.3). Read the installed `astro` and adapter
 majors from the lockfile first; a 5.x project does not get these APIs, and a
 6.x project does not get the 7.x ones.
 
@@ -17,11 +18,16 @@ majors from the lockfile first; a 5.x project does not get these APIs, and a
 | 7 | `compressHTML` defaults to `'jsx'`: whitespace between inline elements can disappear like in React. Check inline links/icons in rendered text. |
 | 7 | Vite 8 (Rolldown). Sätteri is the default Markdown processor; remark/rehype plugins need porting or `@astrojs/markdown-remark` reinstalled. |
 | 7 | `src/fetch.ts` is reserved for advanced routing (whole request pipeline, Hono-compatible). Rename an existing file with that name. `@astrojs/db` is removed. |
-| 7 | Stable: route caching, the logger, queued rendering. |
+| 7 | Stable: route caching, the logger, queued rendering. Agent-aware CLI: `astro dev`/`preview` background mode with a lock file and `status`/`logs`/`stop` (see SKILL.md). |
+| 7.4 | **Node `>=22.23.4`** since 7.4.2 (October 2026 Node security releases; 7.4.0 required 22.22.0). Read `engines` from the installed version before pinning Node in CI or Docker. |
+| 7.4 | `astro build --timings`; `image.service` accepts `{ build, runtime }` (build service for prerendered pages and dev, runtime for on-demand pages and `/_image`); `notFound()` from `astro/hono` / `astro/fetch` for custom `src/fetch.ts` entrypoints (put it before `pages()`); font providers may implement `getFontProperties()` (required in Astro 8). Experimental: `experimental.parallelPrerender` (`true` or `{ workers }`, more memory per worker; ignored when the adapter prerenders itself, which `@astrojs/cloudflare` does) and `experimental.redirectPage` (`src/pages/3xx.astro`). |
+| 7.4.x | Security behavior: malformed percent-encoded paths answer 400 (7.4.5, and in dev/preview since 7.4.11); `security.allowedDomains` validates `X-Forwarded-Proto`, `-Host` and `-Port` together and rejects non-HTTP(S) protocols (7.4.11); with `security.csp.scriptDirective.strictDynamic`, bundled script hashes and an integrity import map are emitted (7.4.9). |
 
 Sources: https://docs.astro.build/en/guides/upgrade-to/v6/,
 https://docs.astro.build/en/guides/upgrade-to/v7/,
-https://astro.build/blog/astro-7/ (7.0 released 2026-06-22).
+https://astro.build/blog/astro-7/ (7.0 released 2026-06-22),
+https://astro.build/blog/astro-740/ (7.4 released 2026-10-15),
+https://github.com/withastro/astro/blob/main/packages/astro/CHANGELOG.md.
 
 ## Feature notes
 
@@ -79,5 +85,14 @@ https://astro.build/blog/astro-7/ (7.0 released 2026-06-22).
 - Wrangler config is optional for basic projects; when present, `main` is
   `@astrojs/cloudflare/entrypoints/server`. Deploys go through `wrangler`
   (load that skill) and keep their approval gate.
+- 14.4 (needs `astro@^7.4.0`): images on prerendered pages go through Astro's
+  built-in image pipeline like every other adapter; Cloudflare Images binding
+  results are cached between builds; `/_image` answers 404/400 for a missing or
+  non-image source (14.4.2) and `304` on revalidation (14.4.5). The adapter's
+  `process.env` define applies to the server output only (14.4.3), so client
+  islands must not rely on `process.env`.
+- 15.0 is in beta (`@astrojs/cloudflare@beta`); stay on 14.x unless a project
+  opts into the beta deliberately.
 
-Source: https://docs.astro.build/en/guides/integrations-guide/cloudflare/
+Source: https://docs.astro.build/en/guides/integrations-guide/cloudflare/ and
+https://github.com/withastro/astro/blob/main/packages/integrations/cloudflare/CHANGELOG.md

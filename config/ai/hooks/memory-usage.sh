@@ -111,7 +111,7 @@ cwd=$(pwd 2>/dev/null) || cwd=""
 repo=""
 if [ -n "$cwd" ] && command -v git >/dev/null 2>&1; then
   repo=$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null) || repo=""
-  # $HOME carries an accidental empty .git (CORE.md); treating it as a project
+  # $HOME may carry a stray .git on some devices (CORE.md); treating it as a project
   # mislabels every prompt typed under ~ and scans the whole home tree.
   if [ -n "$repo" ] && [ "$(cd "$repo" 2>/dev/null && pwd -P)" = "$(cd "$HOME" 2>/dev/null && pwd -P)" ]; then
     repo=""

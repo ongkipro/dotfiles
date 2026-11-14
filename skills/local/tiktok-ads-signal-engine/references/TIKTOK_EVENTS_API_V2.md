@@ -66,6 +66,29 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
 
 ---
 
+## 2a. Field contract (official `/event/track/` reference, read in a browser 2026-11-12)
+
+| Field | Rule |
+| --- | --- |
+| `event_source` | `web` (pixel code), `offline` (Offline Event Set ID), `app` (allowlist only), `crm` (CRM event set, custom events only) |
+| `data[]` | ≤ 1,000 events; more rejects the whole request. TikTok recommends real-time sends over batching |
+| `event` | Case-sensitive standard name. Web list: `AddPaymentInfo`, `AddToCart`, `AddToWishlist`, `ApplicationApproval`, `CompleteRegistration`, `Contact`, `CustomizeProduct`, `Download`, `FindLocation`, `InitiateCheckout`, `Lead`, `Purchase`, `Schedule`, `Search`, `StartTrial`, `SubmitApplication`, `Subscribe`, `ViewContent`. **No page-view event on the server**: `ttq.page()` is browser-only |
+| `event_time` | Integer Unix **seconds**, UTC |
+| `event_id` | Required when the pixel sends the same event; hashed or plain |
+| `user.email`, `user.phone`, `user.external_id` | SHA-256 hex, string or string[]; an unhashed value fails `40002` |
+| `user.ttclid`, `user.ttp`, `user.ip`, `user.user_agent`, `user.locale` | Unhashed; `locale` is BCP 47 |
+| `properties` | `content_ids[]`, `contents[]` (`content_id`, `content_name`, `content_category`, `brand`, `price` = unit, `quantity`), `content_type` (`product` for sku_id, `product_group` for item_group_id), `currency`, `value` (order total), `num_items`, `order_id`, `shop_id`, `search_string`, `description`, `customer_type` (`new`/`returning`) |
+| `page.url` | **Required for web events**: the full URL where the event happened; `page.referrer` optional |
+| `limited_data_use` | Boolean, web/app; for US state privacy regimes |
+
+Responses: success = HTTP 200 **and** `code: 0`. Documented failures: `40001` no permission (HTTP 400), `40002` invalid payload / unhashed PII / > 1,000 events (400; for a per-event error the `message` names a `data.<index>` path, e.g. `Invalid value for data.2.event_id`, but request-level causes such as invalid JSON or an oversized batch carry no index), `40100` throttled at 1,000 QPS (401), `40104` empty token (401). Always check both the HTTP status and `code`.
+
+`test_event_code` (from the pixel's Test Events tab) is used by integrators but was not on the 2.0 reference page when read; confirm in Events Manager before relying on it.
+
+The official [`tiktok-business-api-sdk`](https://github.com/tiktok/tiktok-business-api-sdk) (commit `f809c39`, 2026-02-28, read 2026-11-12; see `python_sdk/docs/PixelContextUser.md`) still models the 1.0 `pixel/track` endpoint; use it only for the Pixel `identify` key names (`PixelContextUser`: `email`, `phone_number`, `external_id`, all SHA-256 client-side), not as a 2.0 payload template.
+
+---
+
 ## 3. Browser Pixel (`ttq.track`) Client Integration
 
 ```html
@@ -101,7 +124,7 @@ Use `TIKTOK_EVENTS_TRACK_URL` everywhere rather than repeating the versioned URL
 
 ## 4. Key Rules for Deduplication & High Match Rate
 
-1. **`event_id`**: Browser `ttq.track('Purchase', data, { event_id: id })` and Server `data[0].event_id` MUST be identical strings, with the same `event` name. TikTok merges Pixel + Events API copies arriving within 5 minutes and deduplicates later copies up to 48 hours after the first event, keeping the first received ([TikTok event deduplication](https://ads.tiktok.com/help/article/event-deduplication), accessed 2026-10-02).
+1. **`event_id`**: Browser `ttq.track('Purchase', data, { event_id: id })` and Server `data[0].event_id` MUST be identical strings, with the same `event` name. TikTok merges Pixel + Events API copies arriving within 5 minutes and deduplicates later copies up to 48 hours after the first event, keeping the first received ([TikTok event deduplication](https://ads.tiktok.com/help/article/event-deduplication), accessed 2026-10-02). The dedup key is `event_source_id` + `event` + `event_id` only; Automatic Advanced Matching is a match-rate setting, not a dedup prerequisite. Cookie (`_ttp`) dedup exists as a fallback but only when the server event carries **no** `event_id`, only drops the server copy, and only within 5 minutes — do not rely on it.
 2. **`ttclid` preservation**: Capture `ttclid` from URL query parameter on landing, store in `httpOnly` cookie (`_ttclid`), and pass in `user.ttclid` on server events.
 3. **SHA-256 Hashing**:
    - `email`: trim whitespace, convert to lowercase, compute SHA-256 hash.

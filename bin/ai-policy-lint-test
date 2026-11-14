@@ -592,4 +592,23 @@ with tempfile.TemporaryDirectory() as d:
 print("hidden-instruction scan fixtures: PASS")
 PYHIDE
 
+# ── Leftover merge conflict markers (12ce19d shipped one in CHANGELOG.md) ───
+python3 - "$ROOT" <<'PYCONF'
+import importlib.machinery, importlib.util, pathlib, subprocess, sys, tempfile
+root = pathlib.Path(sys.argv[1])
+loader = importlib.machinery.SourceFileLoader("lint", str(root / "bin" / "ai-policy-lint"))
+spec = importlib.util.spec_from_loader("lint", loader); mod = importlib.util.module_from_spec(spec); loader.exec_module(mod)
+with tempfile.TemporaryDirectory() as d:
+    r = pathlib.Path(d); mod.ROOT = r
+    subprocess.run(["git", "init", "-q", str(r)], check=True)
+    f = r / "CHANGELOG.md"
+    def scan(text):
+        f.write_text(text); subprocess.run(["git", "-C", str(r), "add", "CHANGELOG.md"], check=True)
+        mod.errors.clear(); mod.check_conflict_markers(); return list(mod.errors)
+    assert not scan("# Changelog\n\n## entry\n- text with ==== inside a line\n")
+    assert scan("a\n||||||| Stash base\nb\n"), "diff3 base marker missed"
+    assert scan("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> other\n"), "classic markers missed"
+print("conflict-marker scan fixtures: PASS")
+PYCONF
+
 echo "ai-policy-lint-test: PASS"

@@ -4,6 +4,7 @@
   "settleMs": 1500,
   "checks": [
     { "id": "root-font", "selector": "html", "prop": "fontSize", "allowed": [16], "viewports": "all" },
+    { "id": "text-floor", "selector": "body *", "prop": "textSize", "min": 12, "viewports": "all" },
     { "id": "button-height", "selector": "[data-slot=button]", "prop": "height", "allowed": [32, 36, 40], "viewports": "desktop" },
     { "id": "input-height", "selector": "[data-slot=input], input[data-slot=form-control], [data-slot=select-trigger]", "prop": "height", "allowed": [32, 36], "viewports": "desktop" },
     { "id": "input-font-desktop", "selector": "[data-slot=input], input[data-slot=form-control], textarea", "prop": "fontSize", "allowed": [14], "viewports": "desktop" },

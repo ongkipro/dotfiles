@@ -1,0 +1,19 @@
+{
+  "capability": "unattributed",
+  "head": "baa1a927de81b07bfb88b4f4635b2c2eb701e560",
+  "job": "implementation",
+  "model": "google/gemini-4-carbon",
+  "provider": "antigravity-native",
+  "reasoningEffort": "medium",
+  "recordedAt": "2026-11-10T17:02:44Z",
+  "result": "PASS",
+  "risk": "R1",
+  "runId": "RUN-20261110T170129Z-39c79325",
+  "schemaVersion": 1,
+  "skillsUsed": [
+    "continuous-learning"
+  ],
+  "usageHash": "2f533b12ee60edc3073e24761d990501b0a2ee5d94e335c327ee8367517a5ab8",
+  "verificationFailed": false,
+  "worker": "agy-main"
+}

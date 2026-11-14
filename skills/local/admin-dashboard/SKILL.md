@@ -18,7 +18,9 @@ caching, and server/client boundaries from the framework skill.
   KPI counts, data volume, timezone) go back to the owner; do not guess.
 - New dashboard family: §1 → §2 → the matching sections → §7.
 - No `design/brief.md` + `DESIGN.md` yet: start with `dotuiux init`/`teardown`
-  (skill `dotuiux`); run `dotuiux check <url>` before calling the UI done.
+  (skill `dotuiux`); run `dotuiux check <url> --surface admin` (auto-detected
+  when `design/admin-contract.json` or `Surface: admin` in `DESIGN.md` exists)
+  before calling the UI done.
 - References at the end are for specific needs, not pre-reading.
 
 An admin screen is quiet. Hierarchy comes from type, alignment, whitespace,
@@ -33,7 +35,8 @@ no description paragraph under every page title.
 
 Before building or changing any admin screen read
 [admin-visual-contract.md](references/admin-visual-contract.md): one size and
-surface contract per product (repository contract > house default > compact),
+surface contract per product (repository contract > house default; compact or
+comfort only when the owner or brief names them),
 mapped to Tailwind/shadcn classes, measured by `scripts/admin-geometry.mjs`
 at 390/1366/1536 against `assets/size-contracts/*.json`. Exit 1 is REVISE;
 exit 3 or `NOT-CHECKED` is reported as not checked. Numbers elsewhere in this
@@ -191,7 +194,8 @@ assuming a deploy target.
 ## 7. Delivery
 
 Build or change → critique against the sections you used and fix →
-`admin-geometry.mjs` exits 0 on every changed route → `ui-validation`
+`dotuiux check <url> --surface admin` (390/1366/1536 floor + slop) and
+`admin-geometry.mjs` exit 0 on every changed route → `ui-validation`
 browser proof → done.
 
 | When | Reference |

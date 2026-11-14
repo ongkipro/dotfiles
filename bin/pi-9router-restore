@@ -39,12 +39,18 @@ if [ -f "$settings_source" ]; then
   # file that was kept will differ from the tracked seed, and printing the seed
   # would claim a state that is not there.
   #
-  # An existing file also receives tracked packages it lacks (compared by package
-  # name, so a local pin or version wins) and the rewind retention bound when it
-  # has none. Nothing else is changed; Pi installs added packages on next start.
+  # The tracked file owns the shared Pi stack; a device owns its own choices.
+  # Tracked wins: a package's version pin (an unpinned tracked entry keeps the
+  # device's pin), every agentOverrides entry it defines, its prompt
+  # directories, and enabledModels rows whose provider is authenticated here.
+  # The device keeps: its extra packages, agents and models, the default
+  # provider/model, and every key the tracked file does not set. Pi installs a
+  # new or re-pinned package on its next start.
   SETTINGS_LIVE="$PI_AGENT_DIR/settings.json" SETTINGS_SEED="$settings_source" python3 - <<'PY'
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 
 live_path, seed_path = os.environ["SETTINGS_LIVE"], os.environ["SETTINGS_SEED"]
@@ -86,8 +92,14 @@ for p in raw_packages:
         packages.append(p)
 present = set(index_by_name)
 added = [p for p in seed.get("packages", []) if package_name(p) not in present]
-changed = bool(added or removed_dups)
-if added or removed_dups:
+repinned = []
+for p in seed.get("packages", []):
+    idx = index_by_name.get(package_name(p))
+    if idx is not None and has_version_pin(p) and packages[idx] != p:
+        repinned.append((packages[idx], p))
+        packages[idx] = p
+changed = bool(added or removed_dups or repinned)
+if changed:
     settings["packages"] = packages + added
 if "pi-mcp-adapter" in {package_name(p) for p in settings.get("packages") or []}:
     exts = list(settings.get("extensions") or [])
@@ -104,10 +116,61 @@ for key in ("rewind", "hideThinkingBlock", "quietStartup", "defaultThinkingLevel
     if key not in settings and key in seed:
         settings[key] = seed[key]
         changed = True
+# Tracked prompt-template directories (/review) are added beside any local ones.
+live_prompts = list(settings.get("prompts") or [])
+missing_prompts = [p for p in seed.get("prompts", []) if p not in live_prompts]
+if missing_prompts:
+    settings["prompts"] = live_prompts + missing_prompts
+    changed = True
+# Tracked per-agent overrides (reviewer, oracle) are the shared review pairing:
+# a tracked agent's entry follows the tracked file; agents only this device
+# overrides stay.
+seed_overrides = seed.get("subagents", {}).get("agentOverrides", {})
+live_overrides = settings.setdefault("subagents", {}).setdefault("agentOverrides", {}) if seed_overrides else {}
+for agent, override in seed_overrides.items():
+    if live_overrides.get(agent) != override:
+        live_overrides[agent] = override
+        changed = True
+# A model row for a provider this device cannot authenticate makes Pi warn at
+# every start, so only rows whose provider `pi auth check` reports ready are
+# added. Without pi on PATH nothing is filtered (fresh install, tests).
+ready = {}
+def provider_ready(model):
+    provider = model.split("/", 1)[0]
+    if provider not in ready:
+        if not shutil.which("pi"):
+            ready[provider] = True
+        else:
+            try:
+                ready[provider] = subprocess.run(
+                    ["pi", "auth", "check", "--provider", provider],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30,
+                ).returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                ready[provider] = False
+    return ready[provider]
 if "enabledModels" in seed or "enabledModels" in settings:
     raw_models = settings.get("enabledModels") or []
-    models = list(dict.fromkeys(raw_models))
-    missing_models = [m for m in seed.get("enabledModels", []) if m not in models]
+    # Rows the tracked file once shared and dropped on 2026-11-13 (Ctrl+P keeps
+    # only daily models). Restore only appends, so without this they would stay
+    # on every device forever; rows a device added itself are not listed here.
+    retired = {
+        "9router-fantastico/" + m for m in (
+            "cx/gpt-6.1-terra", "cx/gpt-6-astra", "ag/gemini-4-carbon-low",
+            "ag/gemini-4-carbon", "cc/claude-opus-5", "ag/claude-opus-5-5-high",
+            "ag/claude-opus-5-5-medium", "cc/claude-fable-5-1", "cc/claude-fable-5",
+            "cc/claude-sonnet-5", "ag/claude-sonnet-5-5", "ag/claude-sonnet-5-5-high",
+            "ag/claude-sonnet-5-5-medium", "cc/claude-haiku-4-5-20251001",
+            "oc/mimo-v2.6-flash-free", "oc/deepseek-v4.1-flash-free", "oc/glm-5.3-flash-free",
+        )
+    } | {
+        "minimax/MiniMax-M2.7", "minimax/MiniMax-M2.7-highspeed",
+        "minimax/MiniMax-M3", "minimax/MiniMax-M3.1-Flash",
+        "openai-codex/gpt-5.6-terra", "openai-codex/gpt-6-luna",
+    }
+    retired -= set(seed.get("enabledModels", []))
+    models = [m for m in dict.fromkeys(raw_models) if m not in retired]
+    missing_models = [m for m in seed.get("enabledModels", []) if m not in models and provider_ready(m)]
     if len(models) != len(raw_models) or missing_models:
         settings["enabledModels"] = models + missing_models
         changed = True
@@ -125,6 +188,11 @@ if changed:
             os.unlink(tmp)
 for source in added:
     print(f"Added tracked Pi package {source} (installs on next Pi start)")
+for old, new in repinned:
+    print(f"Re-pinned Pi package {old} -> {new} (installs on next Pi start)")
+for provider, ok in sorted(ready.items()):
+    if not ok:
+        print(f"Skipped tracked models for {provider}: not authenticated here (pi auth check)")
 print(
     "Pi settings in place "
     f"(provider={settings.get('defaultProvider', '?')}, "
@@ -158,7 +226,87 @@ fi
 lsp_source="$DOTFILES_DIR/config/pi/pi-lsp.json"
 if [ -f "$lsp_source" ] && [ ! -e "$PI_AGENT_DIR/pi-lsp.json" ]; then
   cp "$lsp_source" "$PI_AGENT_DIR/pi-lsp.json"
-  say "Seeded pi-lsp.json (TypeScript, Pyright, Bash language servers)"
+  say "Seeded pi-lsp.json (TypeScript, Pyright, Bash language servers; Astro below when TypeScript exists)"
+fi
+# astro-ls refuses to start without `typescript.tsdk`; the seed carries a
+# placeholder because the global TypeScript path is device-specific. Keep the
+# managed `astro` route pointed at a TypeScript that exists: fill or repair it
+# from the global install, drop it when there is none, and never touch a
+# device's own astro entry (any entry whose command differs from the seed).
+if [ -f "$PI_AGENT_DIR/pi-lsp.json" ] && [ -f "$lsp_source" ] && command -v python3 >/dev/null 2>&1; then
+  ts_lib=""
+  if command -v npm >/dev/null 2>&1; then
+    npm_root="$(npm root -g 2>/dev/null || true)"
+    if [ -n "$npm_root" ]; then
+      ts_lib="$npm_root/typescript/lib"
+      # mise installs live under node/<x.y.z>; prefer the node/<major> alias that
+      # survives a patch upgrade (the same rule as the systemd units).
+      case "$ts_lib" in
+        */mise/installs/node/[0-9]*.[0-9]*.[0-9]*/*)
+          major_lib="$(printf '%s\n' "$ts_lib" | sed -E 's#(/mise/installs/node/)([0-9]+)\.[0-9]+\.[0-9]+/#\1\2/#')"
+          [ -f "$major_lib/typescript.js" ] && ts_lib="$major_lib"
+          ;;
+      esac
+      [ -f "$ts_lib/typescript.js" ] || ts_lib=""
+    fi
+  fi
+  astro_result="$(python3 - "$PI_AGENT_DIR/pi-lsp.json" "$lsp_source" "$ts_lib" <<'PY' || true
+import copy, json, os, sys, tempfile
+target, source, ts_lib = sys.argv[1], sys.argv[2], sys.argv[3]
+PLACEHOLDER = "@GLOBAL_TYPESCRIPT_LIB@"
+try:
+    data = json.load(open(target, encoding="utf-8"))
+    seed = json.load(open(source, encoding="utf-8")).get("astro")
+except (OSError, ValueError):
+    print("skip"); raise SystemExit(0)
+if not isinstance(data, dict) or not isinstance(seed, dict):
+    print("skip"); raise SystemExit(0)
+servers = data["servers"] if isinstance(data.get("servers"), dict) else data
+entry = servers.get("astro")
+
+def tsdk_of(e):
+    try: return e["initialization"]["typescript"]["tsdk"]
+    except (KeyError, TypeError): return None
+
+managed = entry is None or (isinstance(entry, dict) and entry.get("command") == seed.get("command"))
+if not managed:
+    print("custom"); raise SystemExit(0)
+current = tsdk_of(entry) if entry else None
+healthy = bool(current) and current != PLACEHOLDER and os.path.isfile(os.path.join(current, "typescript.js"))
+if ts_lib:
+    if entry is not None and healthy and current == ts_lib:
+        print("unchanged"); raise SystemExit(0)
+    fresh = copy.deepcopy(entry if entry is not None else seed)
+    fresh.setdefault("initialization", {}).setdefault("typescript", {})["tsdk"] = ts_lib
+    servers["astro"] = fresh
+    result = "configured"
+else:
+    if entry is None:
+        print("absent"); raise SystemExit(0)
+    if healthy:
+        print("unchanged"); raise SystemExit(0)
+    del servers["astro"]
+    result = "removed"
+mode = os.stat(target).st_mode & 0o777
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(target), prefix=".pi-lsp.")
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as out:
+        os.fchmod(out.fileno(), mode)
+        json.dump(data, out, indent=2)
+        out.write("\n")
+        out.flush()
+        os.fsync(out.fileno())
+    os.replace(tmp, target)
+finally:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+print(result)
+PY
+)"
+  case "$astro_result" in
+    configured) say "Configured the Astro language server route in pi-lsp.json (typescript.tsdk=$ts_lib)" ;;
+    removed) say "Removed the Astro language server route: no global TypeScript 6 (npm i -g typescript@6 @astrojs/language-server)" ;;
+  esac
 fi
 
 # Earlier restores copied the retired compact-free extension here; Pi never

@@ -1,69 +1,124 @@
 ---
 name: mengantar-api
 description: >-
-  Integrate the Mengantar API (Indonesian multi-courier aggregator): estimates, COD eligibility, wallet-paid orders, batching, sandbox traps; JNE, SiCepat, SAP, J&T. Not AutoLaris (autolaris-h2h), storefront UX, or payment accounting.
+  Integrate the Mengantar API (Indonesian courier aggregator): estimates, COD, idempotent orders, batching, labels, webhooks, sandbox, per-seller keys. Not AutoLaris (autolaris-h2h), storefront UX, or payment accounting.
 ---
 
-# Mengantar API: Logistics & Expedition Architecture
+# Mengantar API
 
-Use this skill when integrating local Indonesian shipping, courier estimation, and COD (Cash on Delivery) via the Mengantar API aggregator.
+Use this skill for Indonesian shipping, courier estimates, COD, labels, and order
+status through Mengantar, including platforms that hold one Mengantar key per
+merchant. It owns the Mengantar contract only; storefront behavior, order modeling,
+payment accounting and courier UI belong to their own skills.
 
-## Evidence and Currentness Boundary
+## Source of truth
 
-This is private integration knowledge; no relevant canonical public upstream was found. Endpoint names, account behavior, courier constraints, percentages, and sandbox rules are point-in-time operational claims. Before implementation, compare them with the tenant's current Mengantar documentation/dashboard or support response and one observed sandbox call. Record the environment, account tier, retrieval date, and sanitized evidence. Current provider documentation and observed responses override this file.
+Mengantar publishes its Public API reference; re-read it before coding, it changes
+often (new couriers, discontinued couriers, new headers):
 
-Re-checked 2026-10-02: no public Mengantar API reference was found. API access
-is requested through `https://antar.co/request-api`, which redirects to a
-Typeform (`https://mengantar.typeform.com/request-api`), so the contract is
-issued per merchant. **Every endpoint path, header, flag name, the 90-minute
-pickup rule, the 409 concurrency behavior, and the sandbox traps below are
-unverified as of 2026-10-02.** Treat them as hypotheses to confirm against the
-tenant's issued documentation before you code against them.
+- Public API: `https://api-public.mengantar.com/docs/` (same text on
+  `app.mengantar.com/docs/` and `sandbox.mengantar.com/docs/`). Fetch with plain
+  `curl`; some fetchers get 403. Read the **sandbox host** too: its sandbox notes
+  are hidden (`display:none`) on the production hosts, so a text extractor that
+  drops hidden nodes misses them.
+- Courier status codes: the "Order Status Reference Sheet" linked from the docs.
+- Seller onboarding for partner platforms: documented separately and **privately**
+  for partners with an agreement. Its contract never goes into a public repository;
+  see [references/partner-api.md](references/partner-api.md) for the safe rules and
+  `~/.config/ai-local/mengantar/` for a device-local snapshot when one exists.
 
-This skill owns Mengantar-specific routing, COD, wallet, and courier constraints. It does not own storefront behavior, generic order modeling, payment accounting, or courier UI; hand those concerns to their relevant product/domain skills without copying this API contract.
+This skill summarizes the docs as read on **2026-11-11**. When the docs and this
+file disagree, the docs win; fix this file. Endpoint detail:
+[references/public-api.md](references/public-api.md).
 
-## 1. CORE API TOPOLOGY
-- **Base URL:** `{BASE_URL}/api/public/{API_KEY}`
-- **Standard Header:** `Content-Type: application/json`.
-- **Integrator Header:** If building for WooCommerce, ALWAYS inject `x-client-source: woocommerce`. Without this, orders default to `directCall` and analytics will be skewed.
+## Non-negotiables
 
-### Server-Only Credential Boundary
+1. **Server only.** Keyed paths are `{BASE_URL}/api/public/{API_KEY}/…`. Never put
+   the base URL or key in browser or mobile code, analytics, error messages, or
+   logs; redact the path before logging. Rotate a leaked key (that also replaces
+   the Webhook Secret).
+2. **Gate checkout on both coverage flags** from every estimate:
+   `unsupported: true` → no delivery at all; `unsupported_cod: true` → non-COD only.
+   Dangerous Goods: see the reference; only SiCepat (`HALU`) and iDexpress are DG
+   couriers consistently across the docs.
+3. **Create orders idempotently.** Header `idempotencyKey` (1–50 chars, your own
+   order/batch reference, remembered 24 h per account), exact same body on every
+   retry. `400 IDEMPOTENCY_KEY_INVALID` → fix the key. `409
+   IDEMPOTENCY_REQUEST_IN_PROGRESS` → wait `Retry-After`, same key. `422
+   IDEMPOTENCY_KEY_REUSED` → different body under an old key. `503
+   IDEMPOTENCY_UNAVAILABLE` → nothing created, retry with the **same** key. `409
+   IDEMPOTENCY_REQUEST_UNRESOLVED` or a **replayed 5xx** (`Idempotent-Replayed:
+   true`) → it may have created part of the batch: check `GET /order`, then send only
+   the missing orders with a **new** key. A 4xx rejected before creation releases
+   the key.
+4. **One batch at a time per account for JT Premium and SiCepat** (Mengantar assigns
+   their AWB numbers sequentially). Parallel requests get `409` ("Sedang ada proses
+   pembuatan order …"). Queue per account and group orders into one batch.
+5. **Insufficient balance still "succeeds".** A non-COD order is created with
+   `isPaid: false` and `cnote_no: null`. Top up, then `POST /order/pay-unpaid`
+   (`courier`, `batch_id`); never create the shipment again.
+6. **Webhooks are verified and are not the only path.** HMAC-SHA256 hex of
+   `{x-timestamp}.{raw body}` keyed with the Webhook Secret, constant-time compare,
+   reject stale timestamps, refuse `x-environment: sandbox` in production. Delivery is
+   best effort (3 retries, may arrive out of order: order by `x-timestamp`; paused
+   after 20 consecutive failed updates within 24 h; missed updates are not resent),
+   so reconcile with `GET /order`. Branch on `status_category` with a default branch;
+   handle both `CANCELED` and `CANCELLED`.
+7. **Ninja is discontinued from 1 September 2026** for estimates, new orders and
+   pay-unpaid (`400 COURIER_DISABLED`); historical reads still accept it.
 
-Because the credential is embedded in the URL path, every Mengantar request must originate from a trusted backend. Never place the base URL or key in browser/mobile bundles, client-side fetches, analytics, exception messages, proxy access logs, or request traces; redact the credential-bearing path before logging. If a key reaches a client, repository, log, or third party, treat it as compromised and rotate/revoke it through the provider before sending another request.
+## Workflow
 
-## 2. ESTIMATION PRICING PATHS
-Always pick the right estimation endpoint depending on the business model:
-1. **Retail / App Level (`/order/estimate` and `/order/allEstimatePublic`):** Returns account-specific retail pricing and discounts. Never encode an assumed discount percentage.
-2. **3PL / B2B Level (`/order/allEstimate3PL`):** Use this for system-to-system integration where raw courier pricing is required (no promotional markups).
+1. Areas: `GET /address/search?keyword=` → area `_id` (estimate `origin_id` /
+   `destination_id`, order `customerAddressDataId`). Pickup addresses: `GET /address`;
+   their `_id` is `pickup.address_id`, distinct from the area id in `PICKUP_AUTOFILL`.
+2. Estimate with the endpoint that fits the business model:
+   `GET /order/estimate` (keyed; account-specific discount; `COD_AMOUNT`),
+   `GET {BASE_URL}/api/order/allEstimatePublic` (no key in the path; flat 20%
+   discount), `GET {BASE_URL}/api/order/allEstimate3PL` (no key in the path; raw
+   courier rates, no COD parameter; may return `null` coverage flags, treat as unknown).
+3. Pickup slot: `POST /time` (`date` `mm-dd-yyyy`, `time` `9:00`…`18:00`, **at least
+   90 minutes ahead**). SPX validates the slot against its own live schedule. Pos
+   Indonesia scheduled pickup needs `pinpointData` on the pickup address.
+4. Create: `POST /order` with `idempotencyKey`; store the full envelope (`data[]`,
+   `batch_id`, `errors[]`, `ordersClosedDestination`).
+5. Track: webhook plus `GET /order` (cursor pagination; `tracking_id`/`order_id`
+   lookups return `history`). In sandbox drive statuses with `POST /order/simulation`.
+6. Labels: `POST /label-generation` (one order per request, 8 Print actions per
+   minute shared with Seller Web) → poll `GET /label-generation/{id}` until
+   `COMPLETED`; the download URL lasts 15 minutes per poll.
 
-**Route Validation Logic (Mandatory Check):**
-Never allow checkout without evaluating these two boolean flags from the estimation response:
-- `unsupported: true` -> Courier cannot reach destination. Hide courier.
-- `unsupported_cod: true` -> Courier reaches destination, but COD is forbidden. Hide COD payment option.
+## Accounts, users and environments
 
-## 3. ORDER CREATION PROTOCOLS
-`POST /order` accepts an array of orders (Batch processing).
+- **One key = one seller account.** Every order created with a key belongs to that
+  account and uses its rates and balance. A platform serving many merchants keeps one
+  key per merchant (their own key pasted in, or one issued through partner
+  onboarding), stored per merchant and never shared across tenants.
+- **Team users inside one account**: `GET /my-users` lists the account's users; pass
+  a user `_id` as `assignee` to attribute an order. Label printing and the
+  receiver-score allowance are counted per parent account across its sub-accounts.
+- **Sandbox and production are separate deployments** with separate accounts, keys
+  and Webhook Secrets. Never let a sandbox key, webhook or data path reach production.
 
-### A. Non-COD Wallet Flow
-Non-COD shipments deduct from the Mengantar Wallet balance.
-**The Insufficient Balance Trap:** If a user submits a non-COD order but lacks balance, the API does **not** fail. It creates a draft order with `isPaid: false` and `cnote_no: null`. 
-**Implementation Rule:** Your system must handle this state gracefully by prompting the user to Top Up, then subsequently firing `POST /order/pay-unpaid` to acquire the tracking number.
+## Sandbox (documented on the sandbox host)
 
-### B. Concurrency Block (J&T, Ninja, SiCepat)
-These couriers generate tracking numbers dynamically. 
-**Architectural Rule:** NEVER fire concurrent (parallel) `/order` requests. You will receive a `409 Conflict` ("Sedang ada proses pembuatan order..."). Always queue or aggregate multiple user checkouts into a single batch array.
+- Balance: **Top Up Saldo** in the sandbox app, then pay in the Midtrans sandbox
+  simulator.
+- Known sandbox-only courier errors: **JNE** needs a Jakarta pickup address ("Content
+  not confirm our security Policy."); **SAP** supports only non-COD Jakarta→Jakarta
+  ("Service tidak ditemukan dalam kontrak"); **SPX** accepts only a Jakarta origin and
+  rejects some destinations. None of these happen in production.
+- `POST /order/simulation` (sandbox only, 404 in production): move your own order to
+  `ON DELIVERY`, `DELIVERED` or `RTS` and fire one webhook, so create → simulate →
+  read is testable end to end.
+- Whitelisted endpoints are open in sandbox: courier performance, and receiver score
+  (sample data; the same number gives the same sample, a number ending in `0` gives
+  the "no valid courier" shape). Webhooks need no enablement in sandbox.
 
-### C. Scheduling Constraint
-`POST /time` requires the scheduled pickup (`date` + `time`) to be **at least 90 minutes** from `Date.now()`. If closer, the API rejects it.
+## Bounded sandbox smoke check
 
-## 4. SANDBOX ENVIRONMENT TRAPS
-Treat these as historical sandbox observations to re-verify, not limitations to hardcode into product logic:
-- **JNE Sandbox:** Origin `PICKUP_ADDRESS` MUST be mapped to Jakarta.
-- **SAP Sandbox:** MUST be Non-COD, and the route MUST be Jakarta to Jakarta.
-- **Balance Testing:** Sandbox balance requires manual top-up via Midtrans Sandbox Simulator.
-
-## Bounded Sandbox Smoke Check
-
-Use a sandbox key from a trusted backend and the provider's current documented method/payload for a Jakarta-to-Jakarta, non-COD estimate. Do not create an order or touch production.
-
-The smoke passes only when the response is HTTP 2xx, parses as the documented JSON shape, includes at least one courier estimate, and exposes boolean `unsupported` and `unsupported_cod` route flags where the current contract specifies them. An authentication, validation, HTML, or undocumented-shape response is a failure. Record the sanitized request schema, status, relevant response fields, account/environment, and date without the credential-bearing URL. This observed result is the minimum evidence before claiming the integration contract is current.
+From a trusted backend with a **sandbox** key: one Jakarta→Jakarta non-COD estimate
+(`courier=all`). Pass only on HTTP 2xx, documented JSON shape, at least one courier
+estimate, and boolean `unsupported` / `unsupported_cod`. Record status, relevant
+fields, environment and date without the credential-bearing URL. Creating orders,
+paying, or anything on production needs explicit approval.
