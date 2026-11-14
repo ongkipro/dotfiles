@@ -114,7 +114,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 27 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 76 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
 | Commands | [`bin/`](../bin/) | 65 | linked from this page |
 | Command tests | [`bin/`](../bin/) | 79 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
@@ -296,6 +296,7 @@ Owned capabilities are grouped by domain; `skills/local/README.md` is auto-rende
 
 ### 6.1 Cloudflare Platform
 - [`cloudflare`](../skills/local/cloudflare/SKILL.md): Platform entry point (Workers, KV, D1, R2, Vectorize, WAF).
+- [`cloudflare-for-saas`](../skills/local/cloudflare-for-saas/SKILL.md): Multi-tenant apps on customer domains: custom hostnames, root domains, O2O, tenant isolation, per-tenant data.
 - [`workers-best-practices`](../skills/local/workers-best-practices/SKILL.md): Production Worker code patterns and anti-patterns.
 - [`wrangler`](../skills/local/wrangler/SKILL.md): Cloudflare CLI configuration and bindings.
 - [`durable-objects`](../skills/local/durable-objects/SKILL.md): Stateful DO coordination, RPC, SQLite storage, alarms.

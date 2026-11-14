@@ -30,7 +30,7 @@ import sys
 
 DOMAINS: dict[str, tuple[str, ...]] = {
     "Cloudflare platform": (
-        "cloudflare", "workers-best-practices", "wrangler", "durable-objects",
+        "cloudflare", "cloudflare-for-saas", "workers-best-practices", "wrangler", "durable-objects",
         "agents-sdk", "cloudflare-email-service", "cloudflare-one",
         "cloudflare-one-migrations", "sandbox-next", "sandbox-stable",
         "sandbox-migrate-to-next",
