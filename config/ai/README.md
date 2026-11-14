@@ -83,8 +83,8 @@ See [device synchronization](../../docs/ai-memory-sync.md).
 
 Owned skills live only in `~/dotfiles/skills/local/`. `skill-update` reconciles
 the runtime-native discovery adapters, including OMP's
-`~/.omp/agent/skills`; Codex keeps its built-in `.system` skills alongside
-per-skill links to the owned source. Only skill metadata is loaded up front;
+`~/.omp/agent/skills`; Claude (claude.ai-synced skills) and Codex (built-in
+`.system`) keep their own content alongside per-skill links to the owned source. Only skill metadata is loaded up front;
 bodies load on demand. Codex shortens every description to ~250 characters once
 many skills are installed (measured with `codex debug prompt-input`), so an owned
 skill states what it does and its boundary within the first ~240 characters;

@@ -30,7 +30,7 @@
 |---|---|---|
 | `claude` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/claude |
 | `codex` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/codex |
-| `pi` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/pi |
+| `pi` | terpasang | ~/.local/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | terpasang | ~/.local/bin/omp |
 
@@ -76,7 +76,7 @@
 | memori → agy | `~/.gemini/GEMINI.md` | ✅ ok |
 | memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
 | skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
-| skills → claude | `~/.claude/skills` | ✅ ok |
+| skills → claude | `~/.claude/skills` | ✅ ok (76 per-skill links) |
 | skills → pi | `~/.pi/agent/skills` | ✅ ok |
 | skills → agy | `~/.gemini/config/skills` | ✅ ok |
 | skills → omp | `~/.omp/agent/skills` | ✅ ok |

@@ -146,19 +146,21 @@ node -v && npm -v
 > install`, jadi jalankan baris pertama di bawah secara manual dulu:
 > ```bash
 > npm config set allow-scripts=@anthropic-ai/claude-code --location=user
-> npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+> npm i -g @anthropic-ai/claude-code @openai/codex
 > node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"   # perbaiki kalau sudah kadung rusak
 > ```
 
 ```bash
-npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+npm i -g @anthropic-ai/claude-code @openai/codex
+curl -fsSL https://pi.dev/install.sh | sh   # Pi: managed install, dependency di-pin
+mise reshim
 ```
 
 | CLI | Paket npm | Perintah |
 |---|---|---|
 | Claude Code | `@anthropic-ai/claude-code` | `claude` |
 | Codex | `@openai/codex` | `codex` |
-| pi.dev | `@earendil-works/pi-coding-agent` | `pi` |
+| pi.dev | managed install (`pi.dev/install.sh`, di `~/.pi/agent/install`) | `pi` |
 
 **Antigravity (`agy`)** — bukan paket npm, punya installer sendiri
 ([dokumen resmi](https://antigravity.google/docs/cli-getting-started)):
@@ -293,7 +295,8 @@ mise install
 mise which node
 
 # 4 — AI CLI
-npm i -g @anthropic-ai/claude-code @openai/codex @earendil-works/pi-coding-agent
+npm i -g @anthropic-ai/claude-code @openai/codex
+curl -fsSL https://pi.dev/install.sh | sh && mise reshim
 
 # 5 — Login & cek
 gh auth login && gh auth setup-git

@@ -134,4 +134,14 @@ HOME="$TMP/home" DOTFILES_DIR="$fixture" AI_MEMORY_USAGE_DIR="$TMP/telemetry" \
   || fail "hook failed on a very large prompt"
 [ $(( $(date +%s) - start )) -le 15 ] || fail "hook took too long on a large prompt"
 
+# --- a prompt typed in $HOME (which carries an accidental .git) is not a repo --
+# A spy access binary records its argv; it must not receive --repo $HOME.
+spy_home="$TMP/spyhome"; mkdir -p "$spy_home/.local/bin"; git init -q "$spy_home"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" > "%s/argv"\n' "$TMP" > "$spy_home/.local/bin/ai-memory-access"
+chmod +x "$spy_home/.local/bin/ai-memory-access"
+( cd "$spy_home" && printf '%s' "$(payload 'what are my preferences')" | \
+  HOME="$spy_home" DOTFILES_DIR="$fixture" AI_MEMORY_USAGE_DIR="$TMP/telemetry" "$HOOK" >/dev/null 2>&1 ) || true
+[ -s "$TMP/argv" ] || fail "spy access binary was not called from \$HOME"
+grep -qx -- '--repo' "$TMP/argv" && fail "hook passed --repo for \$HOME (accidental ~/.git treated as a project)"
+
 echo "memory-usage-hook-test: PASS"

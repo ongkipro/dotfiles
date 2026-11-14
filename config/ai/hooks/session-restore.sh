@@ -23,8 +23,8 @@ BUDGET = 10         # seconds for the whole hook; the manifest kills it at 15
 DEADLINE = time.monotonic() + BUDGET
 
 
-def run(args, cwd):
-    left = min(STEP_TIMEOUT, DEADLINE - time.monotonic())
+def run(args, cwd, step=STEP_TIMEOUT):
+    left = min(step, DEADLINE - time.monotonic())
     if left <= 0.2:
         return ""
     try:
@@ -53,7 +53,11 @@ def main():
     brief_bin = os.path.join(dot, "bin", "resume-brief")
     if (os.path.isfile(os.path.join(top, "TASKS.md")) or os.path.isdir(os.path.join(top, ".delivery"))) \
             and os.access(brief_bin, os.X_OK):
-        parts.append(run([brief_bin, top], top).strip())
+        # The brief re-verifies every ledger run before trusting it; on a repo
+        # with ~180 MB of run evidence that alone took ~3.4 s, so the plain 4 s
+        # step cap silently dropped the brief (TASK-207). It may use most of the
+        # hook budget; the git fallback below still gets what is left.
+        parts.append(run([brief_bin, top], top, step=8).strip())
     if not parts or not parts[0]:
         branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], top).strip()
         head = run(["git", "log", "-1", "--format=%h %s"], top).strip()

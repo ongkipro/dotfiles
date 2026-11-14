@@ -23,10 +23,23 @@ const GATEWAY_UNVERIFIED = [
 ];
 
 // Pi's built-in catalogs ship inside the installed pi-coding-agent package.
+// The pi.dev managed install comes first: its `pi` is a launcher script, so the
+// PATH walk below cannot reach the package, and the timer has no Pi env vars.
 // PI_9ROUTER_OFFICIAL_DIR, when set, is the only providers directory tried (tests).
+function managedProviders() {
+  const root = process.env.PI_MANAGED_INSTALL_ROOT
+    || path.join(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi/agent'), 'install');
+  try {
+    const version = fs.readFileSync(path.join(root, 'current-version'), 'utf8').trim();
+    if (!/^[0-9A-Za-z._+-]+$/.test(version) || version === '.' || version === '..') return undefined;
+    return path.join(root, 'releases', version, 'node_modules/@earendil-works/pi-ai/dist/providers');
+  } catch { return undefined; }
+}
+
 function loadOfficial() {
   const rel = 'pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/providers';
   const candidates = [process.env.PI_9ROUTER_OFFICIAL_DIR];
+  if (process.env.PI_9ROUTER_OFFICIAL_DIR === undefined) candidates.push(managedProviders());
   if (process.env.PI_9ROUTER_OFFICIAL_DIR === undefined) for (const dir of (process.env.PATH || '').split(path.delimiter)) {
     try {
       const cli = fs.realpathSync(path.join(dir, 'pi'));

@@ -44,12 +44,26 @@ archive_skill_backups() {
   fi
 }
 
-lint_skill_frontmatter() {
-  local npm_root pi_pkg runtime_dir text match frontmatter_message
+# The pi.dev managed install (~/.pi/agent/install/releases/<current-version>)
+# wins over an npm global copy, because its launcher is what `pi` runs.
+pi_package_dir() {
+  local root version npm_root pkg="node_modules/@earendil-works/pi-coding-agent"
+  root="${PI_MANAGED_INSTALL_ROOT:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/install}"
+  if IFS= read -r version < "$root/current-version" 2>/dev/null && [ -d "$root/releases/$version/$pkg" ]; then
+    printf '%s\n' "$root/releases/$version/$pkg"; return 0
+  fi
+  npm_root="$(npm root -g 2>/dev/null)" || return 1
+  [ -d "$npm_root/@earendil-works/pi-coding-agent" ] || return 1
+  printf '%s\n' "$npm_root/@earendil-works/pi-coding-agent"
+}
 
-  npm_root="$(npm root -g 2>/dev/null)" || return 0
-  pi_pkg="$npm_root/@earendil-works/pi-coding-agent"
-  [ -d "$pi_pkg" ] || return 0
+lint_skill_frontmatter() {
+  local pi_pkg
+
+  if ! pi_pkg="$(pi_package_dir)"; then
+    echo '[pi-update-safe] Skill frontmatter lint skipped: Pi package not found' >&2
+    return 0
+  fi
 
   PI_PKG_DIR="$pi_pkg" RUNTIME_SKILL_DIRS="$RUNTIME_SKILL_DIRS" node <<'NODE'
 const fs = require('node:fs');
@@ -60,8 +74,10 @@ const piPkgDir = process.env.PI_PKG_DIR;
 let YAML;
 
 try {
-  YAML = require(path.join(piPkgDir, 'node_modules', 'yaml'));
+  // npm global nests yaml under Pi's package; the managed install hoists it.
+  YAML = require(require.resolve('yaml', { paths: [piPkgDir] }));
 } catch {
+  console.error('[pi-update-safe] Skill frontmatter lint skipped: yaml not found next to ' + piPkgDir);
   process.exit(0);
 }
 

@@ -4,6 +4,73 @@ Pi and OMP may use 9Router. Claude Code, Codex and Antigravity keep their own
 native logins. Each runtime owns its authentication; sharing a gateway does not
 copy credentials or make Pi an OMP prerequisite.
 
+## Installation (all devices)
+
+Pi runs from the pi.dev managed install on every device: releases live in
+`~/.pi/agent/install/releases/<version>` with a pinned lockfile,
+`current-version` selects one, and `~/.local/bin/pi` links to the launcher
+`~/.pi/agent/bin/pi`. It does not depend on mise's Node version, so a Node
+upgrade cannot strand it.
+
+| Situation | Command |
+|---|---|
+| New device | `curl -fsSL https://pi.dev/install.sh \| sh && mise reshim` |
+| Device still on npm global | `pi-managed-migrate` |
+| Old sessions closed afterwards | `pi-managed-migrate --cleanup` |
+| Check a device | `pi-managed-migrate --status` or `ai-doctor` |
+| Update Pi / packages | `pi update` / `pi update --extensions` |
+
+Rules:
+
+- Never `npm i -g @earendil-works/pi-coding-agent`; that recreates the second
+  copy and, through the mise shim, can take `pi` back to an old version.
+- Do not run the bare installer on a device whose Pi sessions run from npm: it
+  migrates by `npm uninstall` underneath them. `pi-managed-migrate` runs the
+  same official installer with npm's `pi` hidden from `PATH`, removes only
+  npm's `pi` link, runs `mise reshim`, and uninstalls the npm package only when
+  no Pi process still runs from it (exit 10 until then).
+- Move a running session to the managed Pi without losing it: let it reach a
+  stopping point, `/quit`, then `pi --session <same session file>`. History,
+  todos and the working directory come back; background tasks and subagents of
+  the old process do not, so finish or checkpoint them first.
+- `settings.json`, `models.json`, `mcp.json`, auth, sessions and extensions live
+  in `~/.pi/agent` and are untouched by install, migration and updates.
+- `pi-update-safe` and `pi-9router-sync.js` look in the managed layout first and
+  fall back to npm global, so the 9Router sync keeps `official: pi catalog`.
+- `ai-doctor` reports the install kind, warns while a mise shim shadows the
+  managed `pi`, and warns while the npm copy is still installed.
+
+## Review pairing
+
+A Pi session that implements with one model has its work reviewed by a
+different one. The four review models, all through `9router-fantastico`:
+
+| Implementer (model in use) | Reviewer, first choice | Reviewer, second choice |
+|---|---|---|
+| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
+| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-argon-high` | `cx/gpt-6.1-sol` |
+| Gemini 4 Argon (`ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
+| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-argon-high` |
+
+- Opus and Sonnet are one family (Anthropic), so neither reviews the other's
+  work. Sonnet 5.5 (`cc/claude-sonnet-5-5`) is the lighter reviewer for Argon or
+  Sol work when a full Opus pass is not needed.
+- Choose by the substance: Argon for a broad second read of plans and
+  architecture, Sol for correctness, edge cases and code-level findings, Opus
+  for judgment-heavy or security-sensitive review of non-Anthropic work.
+- The `reviewer` subagent defaults to `cx/gpt-6.1-sol` at high thinking
+  (`subagents.agentOverrides` in `settings.json`, seeded by
+  `pi-9router-restore` when absent). The parent passes `model` explicitly for
+  any other pairing, for example
+  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-argon-high", task: ...}`.
+- If the first choice fails (quota, 401, gateway down), use the second and say
+  so. If both fail, report it; never replace the review with self-review.
+- Record the reviewer's real model in `delivery-ledger review-boundary
+  --reviewer-model ... --reviewer-provider 9router-fantastico`.
+- The `ag/claude-*` rows are the same Anthropic family as `cc/`: an `ag/` Opus or
+  Sonnet implementer is reviewed by Argon or Sol, never by another Claude row.
+- Verified 2026-11-10 on `dot`: all four answer through 9Router.
+
 ## Tracked reference and local state
 
 - `settings.json` runs Pi on its documented defaults (`docs/settings.md` in the installed package):
@@ -11,7 +78,11 @@ copy credentials or make Pi an OMP prerequisite.
   and thinking level (`medium`; switch per task with `Shift+Tab` or `/thinking`,
   and to Opus with `Ctrl+P` when the work needs it),
   the `enabledModels` cycling list (Ctrl+P; patterns for providers a device has
-  not authenticated simply do not match), `quietStartup`, `hideThinkingBlock`
+  not authenticated simply do not match; it includes Opus 5.5 and Sonnet 5.5
+  through 9Router's Antigravity route, `ag/claude-opus-5-5`,
+  `ag/claude-sonnet-5-5` and their `-high`/`-medium` variants, which the sync
+  serves over `openai-completions` with tools and thinking; `cc/` stays the
+  first choice because it carries prompt cache and Anthropic compat), `quietStartup`, `hideThinkingBlock`
   (thinking shows as a `Thinking...` label, `Ctrl+T` reveals it; answers stay
   in full and tool output is already collapsed by default, `Ctrl+O`), the package set below
   (`pi-subagents` and `pi-lsp` stay pinned to their verified versions), and a

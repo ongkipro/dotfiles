@@ -455,6 +455,34 @@ if [ -d "$SK" ]; then
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ ! -d "$path" ]; then bad "$cli: ${path/#$HOME/\~} tidak ada. Perbaiki: skill-update"; continue; fi
 
+    # Claude owns its root (claude.ai-synced skills land there): it must be a
+    # real directory with one live link per owned skill (TASK-207).
+    if [ "$cli" = "claude" ]; then
+      if [ -L "$path" ]; then
+        bad "$cli: ${path/#$HOME/\~} masih legacy directory link (bocorkan synced/ ke runtime lain). Perbaiki: skill-update"
+        continue
+      fi
+      c_ok=0; c_bad=0; c_dangling=0
+      while IFS= read -r skill_file; do
+        skill_dir="$(dirname "$skill_file")"
+        t="$path/$(basename "$skill_dir")"
+        if [ -L "$t" ] && [ -e "$t" ] && [ "$(resolve_path "$t" 2>/dev/null)" = "$skill_dir" ]; then
+          c_ok=$((c_ok + 1))
+        else
+          c_bad=$((c_bad + 1))
+        fi
+      done < <(find "$SK" -mindepth 2 -maxdepth 2 -name SKILL.md)
+      while IFS= read -r l; do
+        [ -e "$l" ] || c_dangling=$((c_dangling + 1))
+      done < <(find "$path" -mindepth 1 -maxdepth 1 -type l)
+      if [ "$c_bad" -eq 0 ] && [ "$c_dangling" -eq 0 ]; then
+        ok "$cli: ${path/#$HOME/\~} per-skill links ($c_ok → skills/local; runtime-owned entries kept)"
+      else
+        bad "$cli: ${path/#$HOME/\~} $c_bad owned skill(s) missing/stale, $c_dangling dangling link(s). Perbaiki: skill-update"
+      fi
+      continue
+    fi
+
     # Model baru: path itu sendiri adalah symlink root ke skills/local
     if [ -L "$path" ]; then
       root_tgt=$(resolve_path "$path" 2>/dev/null || true)
@@ -684,7 +712,23 @@ for c in claude codex pi agy omp; do
         else
           wrn "claude: launcher ada tetapi native binary gagal; doctor tidak memperbaiki otomatis. Perbaiki: node \"\$(npm root -g)/@anthropic-ai/claude-code/install.cjs\""
         fi ;;
-      pi)    ok "pi: terpasang (capability opsional, bukan control plane OMP)" ;;
+      pi)
+        # The pi.dev managed install pins dependencies and survives node upgrades;
+        # a mise shim left in front of it would keep running a removed npm copy.
+        pi_path="$(command -v pi)"
+        if [ -f "$HOME/.pi/agent/install/managed-install.json" ]; then
+          case "$pi_path" in
+            */mise/shims/*|*/mise/installs/*)
+              wrn "pi: managed install ada, tapi PATH masih ke $pi_path. Perbaiki: pi-managed-migrate --cleanup" ;;
+            *) ok "pi: terpasang (managed install pi.dev, $(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null))" ;;
+          esac
+          # The npm copy is kept only while older sessions still load from it.
+          pi_npm_root="$(npm root -g 2>/dev/null || true)"
+          [ -n "$pi_npm_root" ] && [ -d "$pi_npm_root/@earendil-works/pi-coding-agent" ] \
+            && wrn "pi: salinan npm lama masih ada di $pi_npm_root. Setelah sesi pi lama ditutup: pi-managed-migrate --cleanup"
+        else
+          wrn "pi: masih npm global. Pindahkan ke managed install pi.dev (aturan: config/pi/README.md): pi-managed-migrate"
+        fi ;;
       *)     ok "$c: terpasang" ;;
     esac
   else

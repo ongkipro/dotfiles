@@ -12,7 +12,7 @@ This is an engineering applicability aid, not legal, tax, privacy, or certificat
 | US | [FTC privacy/security guidance](https://www.ftc.gov/business-guidance/privacy-security) | Federal/sector obligations and representations; add exact state authority |
 | California | [CPPA laws and regulations](https://cppa.ca.gov/regulations/) | Thresholds, rights, opt-outs, ADMT, risk/cybersecurity rules, effective dates |
 | UK | [ICO international transfers](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/international-transfers/) | Restricted-transfer test, adequacy, safeguards, exceptions, UK-specific assessment |
-| Singapore | [PDPC obligations](https://www.pdpc.gov.sg/overview-of-pdpa/the-legislation/personal-data-protection-act/data-protection-obligations) | Purpose, protection, retention, rights, breach, overseas transfer limitation |
+| Singapore | [PDPC obligations](https://www.pdpc.gov.sg/data-protection-obligations) | Purpose, protection, retention, rights, breach, overseas transfer limitation |
 | Canada | [PIPEDA](https://laws-lois.justice.gc.ca/ENG/ACTS/P-8.6/index.html) | Federal/provincial/sector scope, safeguards, access, breach, accountability |
 | Brazil | [ANPD LGPD publication](https://www.gov.br/anpd/pt-br/centrais-de-conteudo/outros-documentos-e-publicacoes-institucionais/lgpd-en-lei-no-13-709-capa.pdf/@@display-file/file) | Territorial scope, bases, rights, incidents, transfers; Portuguese original controls |
 | Australia | [OAIC Privacy Act](https://www.oaic.gov.au/privacy/privacy-legislation/the-privacy-act) | APP scope, cross-border disclosure, breach, health/credit/state overlays |

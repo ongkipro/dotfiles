@@ -190,7 +190,7 @@ unawaited assertions, report paths; Playwright trace CLI, `--debug=cli`,
 component-test fixture). Check the installed major against
 `references/source-ledger.md` § Installed-runner specifics before blaming a
 test. Never run `playwright-cli install --skills -g` or any agent-skill
-installer: `~/.claude/skills` is a symlink into owned dotfiles skills.
+installer: runtime skill directories (`~/.pi/agent/skills`, `~/.claude/skills/<name>`) link into owned dotfiles skills.
 
 ## 8. Evidence gate and report
 

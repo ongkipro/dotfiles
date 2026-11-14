@@ -4,8 +4,9 @@
 
 ## Pi, OMP, and 9Router
 
-- Owner decision: **Pi and OMP may use 9Router; Claude Code, Codex and
-  Antigravity use their own native logins.** Shared dotfiles synchronization
+- Owner decision: **Pi, OMP and Codex may use 9Router; Claude Code and
+  Antigravity use their own native logins.** Codex's 9Router wiring is
+  device-local (`~/.codex/config.toml`, written by 9Router's CLI Tools page). Shared dotfiles synchronization
   never copies accounts, tokens or auth stores between runtimes.
 - Canonical configuration boundaries: [shared AI context](../README.md),
   [Pi configuration](../../pi/README.md), and [OMP reference](../../omp/README.md).

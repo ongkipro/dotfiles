@@ -73,6 +73,15 @@ def registry(repo, change=None):
     name = hashlib.sha256(repo.encode()).hexdigest()
     lock = None
     try:
+        if change is None:
+            # A read of a checkout nobody has claimed must not create anything:
+            # every prompt hook, resume-brief and test repo used to leave one
+            # empty .lock behind (2,029 of them by 2026-11-10, TASK-207). Writers
+            # replace the JSON atomically, so absence here is a valid snapshot.
+            try:
+                os.stat(name+'.json', dir_fd=directory, follow_symlinks=False)
+            except FileNotFoundError:
+                return []
         lock = os.open(name+'.lock', os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW|os.O_NONBLOCK, 0o600, dir_fd=directory)
         io['validate_telemetry_file'](lock)
         if stat.S_IMODE(os.fstat(lock).st_mode) & 0o077: raise ValueError('focus lock must be private')

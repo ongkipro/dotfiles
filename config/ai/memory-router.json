@@ -106,6 +106,23 @@
       ]
     },
     {
+      "path": "config/ai/memory/parallel-terminals.md",
+      "priority": 81,
+      "triggers": [
+        "heavy-run",
+        "ai-testdb",
+        "dev-freeze",
+        "ai-capacity",
+        "parallel terminal",
+        "terminal paralel",
+        "test database",
+        "database test",
+        "playwright suite",
+        "full suite",
+        "heavy job"
+      ]
+    },
+    {
       "path": "config/ai/memory/development-lessons.md",
       "priority": 79,
       "triggers": [
@@ -497,7 +514,6 @@
         "path": "config/ai/project-memory/tokophi-infrastructure-2026-07.md",
         "triggers": [
           "vultr",
-          "volumdev",
           "backup",
           "snapshot",
           "ssh recovery"
@@ -656,7 +672,26 @@
       }
     ],
     "adsbookcms": [
-      "config/ai/project-memory/adsbookcms-install-fleet.md"
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
     ],
     "kiriminaja": [
       "config/ai/project-memory/kiriminaja-integration.md",
@@ -699,8 +734,50 @@
       }
     ],
     "formalinads": "config/ai/project-memory/formalinads-malaysia-gateway.md",
-    "zvarashop": "config/ai/project-memory/adsbookcms-install-fleet.md",
-    "permatamall": "config/ai/project-memory/adsbookcms-install-fleet.md",
+    "zvarashop": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "permatamall": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
     "revenleather": [
       "config/ai/project-memory/revenleather-shopify-hk-payments.md",
       {
@@ -712,6 +789,26 @@
           "reven.id",
           "products.json",
           "csv"
+        ]
+      },
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
         ]
       }
     ],
@@ -731,6 +828,216 @@
     ],
     "bukalaris": [
       "config/ai/project-memory/bukalaris-docs-phase.md"
+    ],
+    "bavenshop": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "cekat-shop": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "agritani-shop": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "beranda-tani": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "taniniaga": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "halotanishop": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "numaskin-adbook": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "klikinaja": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "skincarebpom": [
+      {
+        "path": "config/ai/project-memory/adsbookcms-install-fleet.md",
+        "triggers": [
+          "deploy",
+          "wrangler",
+          "d1",
+          "kv",
+          "r2",
+          "migration",
+          "migrasi",
+          "sync",
+          "fleet",
+          "install",
+          "product",
+          "produk",
+          "worker",
+          "cloudflare",
+          "domain"
+        ]
+      }
+    ],
+    "geraiexpress": [
+      {
+        "path": "config/ai/project-memory/customer-messaging-pending.md",
+        "triggers": [
+          "email",
+          "whatsapp",
+          "waba",
+          "messaging",
+          "notification"
+        ]
+      }
     ]
   },
   "lessons": [
@@ -850,7 +1157,6 @@
       "priority": 65,
       "triggers": [
         "tokophi vultr",
-        "volumdev",
         "tokophi backup",
         "tokophi coolify",
         "vultr snapshot failed",
@@ -954,7 +1260,20 @@
       "priority": 85,
       "triggers": [
         "coolify",
-        "vps dev"
+        "vps dev",
+        "vps",
+        "vultr",
+        "hardening",
+        "server baru",
+        "bikin server",
+        "sewa vps",
+        "origin ca",
+        "cloudflare access",
+        "dotserver",
+        "devserv",
+        "fail2ban",
+        "ufw",
+        "sshd"
       ],
       "paths": [
         "docker-compose.yml",
@@ -994,5 +1313,9 @@
       ]
     }
   ],
-  "unrouted": []
+  "unrouted": [],
+  "ambiguousProjectKeys": [
+    "kelola",
+    "kamus"
+  ]
 }

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# pi-managed-migrate must install the managed Pi side by side, never uninstall
+# the npm copy while a Pi process still runs from it, and remove it once none
+# does. Network, npm and the installer are fixtures; nothing outside $TMP moves.
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/pi-managed-migrate"
+TMP="$(mktemp -d)"; trap 'kill ${legacy:-} ${managed:-} 2>/dev/null; rm -rf "$TMP"' EXIT
+f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
+
+H="$TMP/home"; NP="$TMP/node"          # fake home and fake node prefix
+mkdir -p "$H/.local/bin" "$NP/bin" "$NP/lib/node_modules/@earendil-works/pi-coding-agent" "$TMP/bin"
+ln -s "$(command -v node)" "$NP/bin/node"
+# Fake npm: root -g, ls, uninstall. Logs every call.
+cat > "$NP/bin/npm" <<SH
+#!/usr/bin/env bash
+echo "npm \$*" >> "$TMP/npm.log"
+case "\$1" in
+  root) echo "$NP/lib/node_modules" ;;
+  uninstall) rm -rf "$NP/lib/node_modules/@earendil-works/pi-coding-agent" "$NP/bin/pi" ;;
+esac
+SH
+printf '#!/bin/sh\n' > "$NP/bin/npx"; chmod +x "$NP/bin/npm" "$NP/bin/npx"
+printf '#!/bin/sh\necho 1.5.0\n' > "$NP/lib/node_modules/@earendil-works/pi-coding-agent/cli.js"
+chmod +x "$NP/lib/node_modules/@earendil-works/pi-coding-agent/cli.js"
+ln -s ../lib/node_modules/@earendil-works/pi-coding-agent/cli.js "$NP/bin/pi"
+# Fake installer served by a fake curl. It records whether it saw a `pi` on
+# PATH (the real installer would then migrate = npm uninstall).
+cat > "$TMP/install.sh" <<SH
+command -v pi >/dev/null && echo saw-pi >> "$TMP/installer.log"
+command -v npm >/dev/null || { echo no-npm >> "$TMP/installer.log"; exit 1; }
+mkdir -p "\$HOME/.pi/agent/install" "\$HOME/.pi/agent/bin"
+printf '{"kind":"pi-managed-install"}\n' > "\$HOME/.pi/agent/install/managed-install.json"
+echo 1.5.1 > "\$HOME/.pi/agent/install/current-version"
+printf '#!/bin/sh\necho 1.5.1\n' > "\$HOME/.pi/agent/bin/pi"; chmod +x "\$HOME/.pi/agent/bin/pi"
+ln -sf ../../.pi/agent/bin/pi "\$HOME/.local/bin/pi"
+echo ran >> "$TMP/installer.log"
+SH
+printf '#!/bin/sh\nwhile [ "$1" != -o ]; do shift; done; cp %s "$2"\n' "$TMP/install.sh" > "$TMP/bin/curl"
+chmod +x "$TMP/bin/curl"
+
+run() { # run [args] -> $TMP/out, $rc
+  env -i HOME="$H" TMPDIR="$TMP" PI_MIGRATE_PIDS_CMD="cat $TMP/pids" PATH="$TMP/bin:$NP/bin:$H/.local/bin:/usr/bin:/bin" \
+    bash "$CMD" "$@" > "$TMP/out" 2>&1; rc=$?
+}
+
+# A legacy Pi session: a live process without PI_MANAGED_INSTALL_ROOT, and a
+# managed one that must not block the cleanup.
+env -u PI_MANAGED_INSTALL_ROOT sleep 300 & legacy=$!
+PI_MANAGED_INSTALL_ROOT=x sleep 300 & managed=$!
+printf '%s\n%s\n' "$legacy" "$managed" > "$TMP/pids"
+
+run
+grep -q ran "$TMP/installer.log" && ok "the official installer ran" || bad "installer not run: $(cat "$TMP/out")"
+grep -q saw-pi "$TMP/installer.log" && bad "the installer saw the npm pi (it would migrate = uninstall)" \
+  || ok "the installer ran with the npm pi hidden"
+[ ! -e "$NP/bin/pi" ] && ok "npm's pi link was removed" || bad "npm's pi link is still on PATH"
+grep -q 'npm uninstall' "$TMP/npm.log" 2>/dev/null && bad "the npm copy was uninstalled under a running session" \
+  || ok "the npm copy is kept while a legacy session runs"
+[ "$rc" -eq 10 ] && ok "exit 10 reports the pending cleanup" || bad "expected exit 10, got $rc: $(cat "$TMP/out")"
+grep -q "pids: $legacy )" "$TMP/out" && ok "only the legacy session blocks, and it is named" || bad "blocking pids wrong: $(grep pids "$TMP/out")"
+
+kill "$legacy"; wait "$legacy" 2>/dev/null; echo "$managed" > "$TMP/pids"
+: > "$TMP/installer.log"
+run
+[ ! -s "$TMP/installer.log" ] && ok "a second run does not reinstall" || bad "the installer ran again"
+grep -q 'npm uninstall -g @earendil-works/pi-coding-agent' "$TMP/npm.log" \
+  && ok "the npm copy is removed once no session uses it" || bad "npm copy not removed"
+[ "$rc" -eq 0 ] && ok "a finished migration exits 0" || bad "expected exit 0, got $rc: $(cat "$TMP/out")"
+
+run --status
+grep -q 'managed install: 1.5.1' "$TMP/out" && grep -q 'npm copy: none' "$TMP/out" \
+  && ok "--status reports the final state" || bad "--status: $(cat "$TMP/out")"
+
+[ "$f" -eq 0 ] && { echo "pi-managed-migrate-test: PASS"; exit 0; }
+echo "pi-managed-migrate-test: $f case(s) failed" >&2; exit 1

@@ -78,7 +78,7 @@ config/omp/*.lock
 .pi/
 
 # === Runtime artifacts under the linked skills dir — never tracked ===
-# Claude Code syncs account-scoped plugin skills here through the ~/.claude/skills
-# link; the directory name carries a sync ID and every delivery run fingerprinted it.
+# Claude Code synced claude.ai skills here through the old ~/.claude/skills
+# directory link; skill-update now evacuates it (TASK-207). Kept as a backstop.
 skills/local/synced/
 skills/local/.trash/

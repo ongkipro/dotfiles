@@ -18,6 +18,10 @@ with tempfile.TemporaryDirectory(prefix='focus-test.') as tmp:
         r=subprocess.run([str(ROOT/'bin/focus'),'--repo',str(repo),'--session',session,*args],env=env,capture_output=True,text=True)
         assert (r.returncode==0)==ok,(args,r.stdout,r.stderr)
         return r
+    # A read of an unclaimed checkout creates nothing (TASK-207: 2,028 empty locks).
+    (root/'state').mkdir(mode=0o700)
+    run('a','status')
+    assert not any((root/'state').iterdir()), list((root/'state').iterdir())
     run('a','claim','--intent','Full commerce','--allow','src/**','--preserve','inventory remains complete','--reference','reference-shop')
     run('b','claim','--intent','Overlap','--allow','src/cart.py',ok=False)
     run('b','claim','--intent','Docs','--allow','docs/**')

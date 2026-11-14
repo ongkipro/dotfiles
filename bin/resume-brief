@@ -103,6 +103,26 @@ def events(path):
     return out
 
 
+def edge_events(path):
+    """(run_started, last run_finished) without decoding every event."""
+    try:
+        lines = [l for l in path.read_text().splitlines() if l.strip()]
+        start = next((e for e in map(json.loads, lines[:1]) if e.get("type") == "run_started"), None)
+        if start is None:
+            start = next((e for e in map(json.loads, lines) if e.get("type") == "run_started"), None)
+        fin = None
+        for line in reversed(lines):
+            if '"run_finished"' not in line:
+                continue
+            event = json.loads(line)
+            if event.get("type") == "run_finished":
+                fin = event
+                break
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    return start, fin
+
+
 def latest_evidence(records):
     """Return all possible latest (result, run ID, time) records.
 
@@ -172,11 +192,12 @@ def main():
     run_index, run_files = [], sorted((delivery / "runs").glob("RUN-*.jsonl")) if (delivery / "runs").is_dir() else []
     finished_records = []
     for f in run_files:
-        ev = events(f)
-        if not ev:
+        # Only the opening and closing events matter here, and inspect() above
+        # already verified every chain. Parsing whole files a second time cost
+        # 1.4 s on a repository whose runs reach 67 MB (TASK-207).
+        start, fin = edge_events(f)
+        if start is None and fin is None:
             continue
-        start = next((e for e in ev if e.get("type") == "run_started"), None)
-        fin = next((e for e in reversed(ev) if e.get("type") == "run_finished"), None)
         if fin:
             finished_records.append((fin.get("result"), f.stem, fin.get("time")))
         if start and start.get("task"):

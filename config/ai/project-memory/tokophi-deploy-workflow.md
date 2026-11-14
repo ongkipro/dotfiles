@@ -1,6 +1,6 @@
 ---
 name: tokophi-deploy-workflow
-description: TokoΦ deploy = Coolify auto-build on merge to origin/main; work via worktrees off origin/main; monitor deploy via docker image sha on the VPS
+description: TokoΦ ship path — PR to origin/main, then a manual Coolify deploy on the dedicated host (since 2026-11-01); worktree, migration and deploy-verification lessons
 metadata: 
   node_type: memory
   type: project
@@ -16,13 +16,14 @@ TokoΦ (`~/Projects/tokophi`) ship path — first proven by shipping the admin p
 
 **⚠️ `drizzle-kit generate` can emit a BLOATED migration** (observed in migration 0071): the meta snapshots drifted (0067–0070 landed on other branches without their cumulative snapshot), so generate diffed schema.ts against a stale snapshot and re-added `landing_pages`/`promo_pages.content`/`stores.email` on top of my two seo columns — a plain `ADD COLUMN` that would FAIL on deploy (already exists). **Fix: trim the `.sql` to only your intended statements**; the regenerated `NNNN_snapshot.json` is the full schema so it also heals the drift. Always read the generated `.sql` before committing. Demo data is added via idempotent INSERT-IF-ABSENT seed scripts (e.g. `seed-products.ts`, `seed-journal.ts`) wired NON-FATAL into the compose migrate chain AFTER `drizzle migrate`; `seed.ts` itself is a NO-OP on a live DB (skips if any store exists), so editing it never adds to prod.
 
-**Deploy = Coolify auto-build on merge to `origin/main`.** VPS <coolify-vps> (Vultr SG), SSH key `~/.ssh/tokophi_dev`, Coolify app uuid `l7r4qaqcml4zigw1dc7iptun`, **Coolify app id `1`**. **Monitor read-only via SSH docker**: the image tag IS the full commit sha (`..._admin:<sha>`); deploy landed when the container flips to the new sha and goes `(healthy)`. Merges are serialised — merge one, watch it land, then the next. See in-repo `specs/docs/DEPLOY.md`.
+**Deploy (current since 2026-11-01): manual, on the dedicated TokoΦ host.** Merging to `origin/main` no longer deploys by itself: Cloudflare Access in front of the dashboard blocks the GitHub webhook. After merge, trigger `tokophi-coolify "/api/v1/deploy?uuid=<app-uuid>" -X POST` and poll `/api/v1/deployments/<deployment-uuid>`. Host, app UUID, SSH aliases and Postgres access: `~/.config/ai-local/tokophi-access.md` § Dedicated TokoPhi VPS; fleet overview `~/.config/ai-local/fleet-inventory.md`. The in-repo `specs/docs/DEPLOY.md` on `tokophi-dev` may still describe the retired host; the cutover record is `specs/docs/tasks/2026-11-01-dedicated-vps-bootstrap.md`.
 
-**Operational notes and corrections to `DEPLOY.md` (verified shipping PR #129, merge `2399ea5`):**
-- **Build is 8–10 min, not ~5** (measured: 8m28s / 9m57s / 7m57s / 8m36s / 8m32s). Two overlapping merges of the same commit took **14m36s and 20m47s**.
-- **Coolify API 401s, and a missing token file is NOT the reason** (re-checked 2026-08-22). `DEPLOY.md` claims `~/.coolify_token` is there; it is not, but a token *does* live in `secrets-env` as `COOLIFY_TOKEN` (+ `COOLIFY_BASE_URL`). It is well-formed Sanctum shape (51 chars, `id|hash`) and still returns `{"message":"Unauthenticated."}` on `/api/v1/version` and `/api/v1/applications` — so it is revoked, or scoped to a team/user that no longer matches. The host itself is fine (`GET /` → 302 in ~0.16 s). Both stored values carry **literal single quotes**, so strip them (`${VAR//\'/}`) before use or curl builds a broken URL. The `coolify` CLI (1.6.2 at `~/.local/bin/coolify`) only has a `cloud` context pointing at `app.coolify.io` — it is not wired to this self-host, and pointing it there would hit the same 401. Working path stays `ssh tokophi-vps` + `docker exec coolify php artisan tinker`. There is no scripted rollback path; rollback = `git revert` + push + webhook ≈ 8–10 min.
-- ~~**`vultr-cli` works** (v3.10.0, key in `~/.vultr-cli.yaml`): instance `volumdev` / `0d341106-34ff-4b5b-8441-9350e1b8ce35`, Ubuntu 24.04, sgp, 4 vCPU / 8 GB / 180 GB.~~ **Superseded 2026-10-28:** that Vultr account is dead and its `~/.vultr-cli.yaml` was deleted. Vultr access is now the `dotfiles-vultr` wrapper (token `VULTR_DOTFILES_API_KEY` in `secrets-env`) on a new account — re-check with `dotfiles-vultr instance list` before assuming `volumdev` still exists.
-- 🔴 **`application_deployment_queues` is SHARED across Coolify apps on this box — Formalin is app id `2`.** Querying it unfiltered (as `DEPLOY.md`'s snippet does) shows *Formalin's* builds as if they were TokoΦ's. **Always `where application_id = '1'`** — it's a `varchar`, so `= 1` errors.
+**Still valid from the old host (re-verify on the new one):**
+- **Build is 8–10 min, not ~5.** Two overlapping deploys of the same commit took 14–20 min; deploy one change, watch it land, then the next.
+- Monitor read-only via SSH docker: the image tag is the full commit sha; a deploy landed when the container flips to the new sha and is `(healthy)`.
+
+**History (retired host `volumdev`, before 2026-10-28; do not act on):** auto-build on merge, app id `1`, a revoked `COOLIFY_TOKEN`, `ssh tokophi-vps`, `~/.vultr-cli.yaml` and the `dotfiles-vultr` account are all gone.
+- `application_deployment_queues` is shared by every app on a Coolify box: always filter by `application_id` (a `varchar`, so quote it).
 - **Require 4/4 surfaces on the new sha TWICE in a row** — Coolify swaps services one at a time, so a single 4/4 poll can be a false green. `app.`/`rich.` answering **307** is healthy (middleware → `/login`); demanding 200 there is a permanently-red check.
 
 **Worktree trick that removes the `npm install` per worktree:** hardlink node_modules from an existing worktree — `cp -al <src>/node_modules <new>/node_modules` (plus `apps/{admin,landing,storefront}/node_modules`). Near-instant, no disk cost. Deps must be identical (check `git diff --stat <base> origin/main -- package-lock.json`). **Never run `npm install` in a hardlinked worktree** — it corrupts every sibling. Also copy `.env`, `apps/admin/.env.local`, `apps/storefront/.env`; **`apps/super-admin/` has NO `.env.local` on main, which is the only reason `build:super` fails on a clean checkout** (environmental, not a regression).
@@ -31,7 +32,7 @@ TokoΦ (`~/Projects/tokophi`) ship path — first proven by shipping the admin p
 
 **Pelajaran 2026-08-12 (insiden slug-rename, storefront down ±9 mnt):**
 - ⚠️ **Healthcheck storefront (`wget 127.0.0.1:4327/`) BERGANTUNG pada `STORE_SLUG` resolve** — host numerik jatuh ke fallback env; slug fallback yang tak ada di DB = 404 = unhealthy = Traefik 503 SEMUA host storefront. Rename slug ⇒ env Coolify wajib diganti SEBELUM deploy-nya.
-- **Env Coolify bisa diubah tanpa UI** (API token tetap 401; nilai terenkripsi di DB): `docker exec coolify php artisan tinker` → `EnvironmentVariable::find(id)` set `value` + save; buat var baru via `$e->replicate()` + ganti key/value. App tokophi = Application id 1 / uuid `l7r4qaqcml4zigw1dc7iptun`.
+- **Env Coolify**: utamakan API `PATCH /api/v1/applications/<uuid>/envs` (token jalan di host baru). Jalur darurat tanpa API: `docker exec coolify php artisan tinker` → `EnvironmentVariable::find(id)` set `value` + save.
 - **Hotfix cepat antar-deploy**: file materialized di `/data/coolify/applications/<uuid>/{docker-compose.yaml,.env}` — env tertulis LITERAL di yaml (bukan interpolasi `.env`), edit yaml lalu `docker compose -p <project> --env-file .env up -d <service>`. Ditulis-ulang tiap deploy dari DB Coolify.
 - ⚠️ **Monitor kesehatan: grep `"(healthy)"`, JANGAN `"healthy"`** — substring nyangkut di "unhealthy" → false green (kejadian).
 

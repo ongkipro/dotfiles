@@ -1,7 +1,7 @@
 # Device: `dot`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-11-04**
+> Terakhir diperbarui: **2026-11-10**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,7 +22,7 @@
 | CPU | 13th Gen Intel(R) Core(TM) i7-1355U (12 thread) |
 | RAM | 15.3 GB |
 | GPU | Intel Corporation Raptor Lake-P [Iris Xe Graphics] (rev 04) |
-| Disk (/) | 937G total, 850G free (5% used) |
+| Disk (/) | 937G total, 842G free (6% used) |
 
 ## AI CLI
 
@@ -30,7 +30,7 @@
 |---|---|---|
 | `claude` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/claude |
 | `codex` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/codex |
-| `pi` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/pi |
+| `pi` | terpasang | ~/.pi/agent/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | terpasang | ~/.local/bin/omp |
 
@@ -39,7 +39,7 @@
 | Tool | Versi |
 |---|---|
 | node | v24.22.1 |
-| pnpm | 12.16.1 |
+| pnpm | 12.18.0 |
 | bun | 1.4.4 |
 | python3 | Python 3.14.4 |
 | mise | 2026.10.25 linux-x64 (2026-10-31) |
@@ -54,6 +54,18 @@
 | hook canonical (git-guard, memory-usage) | ✅ terpasang |
 | residu switcher multi-akun | ✅ bersih |
 
+## Kapasitas AI paralel
+
+> Rencana dari `ai-capacity --json`: angka yang direkomendasikan untuk mesin ini, bukan bukti bahwa batasnya sudah terpasang. Terminal dan total subagen hanya target; slot job berat, irisan memori, dan batas per-run pi-subagents baru ditegakkan setelah `ai-capacity apply`. Irisan memori hanya ada di Linux dengan systemd; penegakan slot dan pembersihan proses `heavy-run` belum teruji di macOS (lihat panduan). Panduan: [`docs/parallel-ai-dev-machine.md`](../docs/parallel-ai-dev-machine.md).
+
+| Apa | Nilai |
+|---|---|
+| Terminal AI (nyaman / maksimum) | 2 / 2 |
+| Slot job berat (`heavy-run`) | 1 (irisan memori 3.5 GB) |
+| Subagen total (target) | 4 |
+| Sumber biaya | diukur di mesin ini |
+| Mesin terdegradasi | tidak |
+
 ## Symlink dotfiles
 
 | Apa | Path | Status |
@@ -64,7 +76,7 @@
 | memori → agy | `~/.gemini/GEMINI.md` | ✅ ok |
 | memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
 | skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
-| skills → claude | `~/.claude/skills` | ✅ ok |
+| skills → claude | `~/.claude/skills` | ✅ ok (75 per-skill links) |
 | skills → pi | `~/.pi/agent/skills` | ✅ ok |
 | skills → agy | `~/.gemini/config/skills` | ✅ ok |
 | skills → omp | `~/.omp/agent/skills` | ✅ ok |

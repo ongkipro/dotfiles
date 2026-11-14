@@ -52,6 +52,24 @@ Once the repository exists, committed `PRD.md` + `TASKS.md` (+ `PLAN.md`,
 `docs/adr/`, `docs/spec/`) live at the project root so they are versioned with the
 code.
 
+## Hot files stay small — newest truth on top
+
+Every runtime reads `STATUS.md` and `TASKS.md` first, and read tools truncate
+at about 50 KB or 2,000 lines. A 421 KB `TASKS.md` with the active task at
+line 4,400 is read as months-old history (measured 2026-11-10, TASK-207).
+
+- `STATUS.md` opens with **Now / Next / Blockers / Standing rules** within the
+  first 80 lines; review rounds and verification narrative go to
+  `BUILD-LOG.md` or `docs/archive/`. Target under 12 KB (the memory router's
+  budget), hard limit 50 KB.
+- `TASKS.md` holds only open and in-progress tasks, newest first. A finished
+  task moves to `docs/archive/TASKS-<date>.md` and leaves one index line.
+  Hard limit 50 KB.
+- Archive moves text, it never rewrites it: completed contracts keep their IDs
+  so ledger evidence and commit messages still resolve.
+- An agent that finds a hot file over the limit says so and searches it by
+  task ID (`rg -n 'TASK-123|T-123'`) instead of trusting the first page.
+
 ## Decision records — one index
 
 Root `DECISIONS.md` is the repository's only decision index. A small decision is

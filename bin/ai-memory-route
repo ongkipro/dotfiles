@@ -176,6 +176,29 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
 
     selected_project = (project or project_from_repo(repo, manifest) or "").lower() or None
     project_query = norm(query)
+    named_from_query = False
+    # Outside any known project (home, dotfiles, a scratch dir) there is no
+    # current project to leak into, so a prompt that names exactly one project
+    # ("deploy tokophi" typed from ~) may open that project's notes. Inside a
+    # known project the TASK-156 boundary stands: prose never admits a foreign
+    # project, only --reference/focus does. Negated mentions never count.
+    # Explicit references (--reference, focus) already say how a foreign project
+    # enters; prose never overrides them.
+    if not project and not references and selected_project not in manifest.get("projects", {}):
+        # Keys that are also everyday words ("kelola" = manage, "kamus" =
+        # dictionary) only count as "proyek kelola" / "project kelola".
+        ambiguous = set(manifest.get("ambiguousProjectKeys", []))
+        hits = {k for k in manifest.get("projects", {}) if len(k) >= 5 and re.search(
+            (rf"\b(?:proyek|project|repo)\s+" if k in ambiguous else rf"(?<![a-z0-9_.-])")
+            + rf"{re.escape(k)}(?![a-z0-9_-])", project_query)}
+        negation = r"(?:jangan|bukan|tanpa|selain|kecuali|tidak|tak|gak|nggak|ga|abaikan|lewati|not|no|don'?t|without|except|never|skip|ignore)"
+        hits = {k for k in hits if not re.search(
+            rf"\b{negation}\b[^.?!,;]{{0,48}}{re.escape(k)}", project_query)}
+        # "tokophi" and "tokophi.com" style aliases of one project count once.
+        roots = {k.split(".")[0] for k in hits}
+        if len(roots) == 1:
+            selected_project = min(hits, key=len)
+            named_from_query = True
     # Being inside the repository is enough to open the project tier (TASK-156).
     # The old gate needed the prompt to name the project or use a stock phrase;
     # "perbaiki slug produk" typed inside ~/Projects/99ribu then skipped
@@ -184,6 +207,7 @@ def select(root: Path, manifest: dict, query: str, scope: str, repo: Path | None
     # project is now a boost (the triggered band), not the door.
     project_named = bool(
         project
+        or named_from_query
         or scope == "project"
         or (selected_project and re.search(rf"(?<![a-z0-9_]){re.escape(selected_project)}(?![a-z0-9_])", project_query))
         or any(phrase in project_query for phrase in ("project memory", "project reference", "known issue", "prior lesson", "gotcha", "stable constraint"))

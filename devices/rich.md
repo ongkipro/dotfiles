@@ -1,7 +1,7 @@
 # Device: `rich`
 
 > Dibuat otomatis oleh `bin/device-register` — **jangan edit manual**, jalankan ulang scriptnya.
-> Terakhir diperbarui: **2026-11-09**
+> Terakhir diperbarui: **2026-11-10**
 > Fakta device yang TIDAK boleh di-sync (IP, key, catatan pribadi) → `~/.config/ai-local/device.md`.
 
 ## Identitas
@@ -22,15 +22,15 @@
 | CPU | Intel(R) Core(TM) i7-7700T CPU @ 2.90GHz (8 thread) |
 | RAM | 31.2 GB |
 | GPU | Intel Corporation HD Graphics 630 (rev 04) |
-| Disk (/) | 218G total, 70G free (67% used) |
+| Disk (/) | 218G total, 59G free (72% used) |
 
 ## AI CLI
 
 | CLI | Status | Path |
 |---|---|---|
-| `claude` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/claude |
-| `codex` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/codex |
-| `pi` | terpasang | ~/.local/share/mise/installs/node/24.22.1/bin/pi |
+| `claude` | terpasang | ~/.local/share/mise/shims/claude |
+| `codex` | terpasang | ~/.local/share/mise/shims/codex |
+| `pi` | terpasang | ~/.local/bin/pi |
 | `agy` | terpasang | ~/.local/bin/agy |
 | `omp` | terpasang | ~/.local/bin/omp |
 
@@ -76,7 +76,7 @@
 | memori → agy | `~/.gemini/GEMINI.md` | ✅ ok |
 | memori → omp | `~/.omp/agent/AGENTS.md` | ✅ ok |
 | skills → shared runtime | `~/.agents/local-skills` | ✅ ok |
-| skills → claude | `~/.claude/skills` | ✅ ok |
+| skills → claude | `~/.claude/skills` | ✅ ok (75 per-skill links) |
 | skills → pi | `~/.pi/agent/skills` | ✅ ok |
 | skills → agy | `~/.gemini/config/skills` | ✅ ok |
 | skills → omp | `~/.omp/agent/skills` | ✅ ok |

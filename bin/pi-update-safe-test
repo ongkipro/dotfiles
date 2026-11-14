@@ -79,5 +79,29 @@ run 7
 [ "$rc" -ne 0 ] && ok "a failing update fails the wrapper" \
   || bad "a failing pi update was reported as success"
 
+# 5. The frontmatter lint finds Pi in the pi.dev managed layout, where yaml is
+#    hoisted next to Pi instead of nested inside it, and does not need npm.
+#    A broken skill must be reported, not skipped because of the layout.
+NONPM="$TMP/nonpm"; mkdir -p "$NONPM"; printf '#!/bin/sh\nexit 1\n' > "$NONPM/npm"; chmod +x "$NONPM/npm"
+rel="$TMP/home/.pi/agent/install/releases/9.9.9/node_modules"
+mkdir -p "$rel/@earendil-works/pi-coding-agent"
+# A stand-in yaml, hoisted like the real managed layout; CI has no Pi.
+mkdir -p "$rel/yaml"
+printf '%s\n' 'exports.parse = t => Object.fromEntries(t.split("\\n").map(l => l.split(/: (.*)/)).filter(p => p.length > 1).map(([k, v]) => [k.trim(), v]));' > "$rel/yaml/index.js"
+printf '9.9.9\n' > "$TMP/home/.pi/agent/install/current-version"
+mkdir -p "$TMP/skills/broken"; printf -- '---\nname: broken\n---\n' > "$TMP/skills/broken/SKILL.md"
+env -u PI_MANAGED_INSTALL_ROOT -u PI_CODING_AGENT_DIR PATH="$SHIM:$NONPM:$PATH" PI_SHIM_LOG="$TMP/log" \
+  PI_RUNTIME_SKILL_DIRS="$TMP/skills" PI_ARCHIVE_ROOT="$TMP/archive" HOME="$TMP/home" bash "$CMD" > "$TMP/out" 2>&1
+grep -q 'broken/SKILL.md: missing description' "$TMP/out" \
+  && ok "the lint runs against a managed install without npm" \
+  || bad "the lint missed a broken skill in the managed layout: $(head -3 "$TMP/out" | tr '\n' ' ')"
+rm -rf "$TMP/home/.pi"
+
+# 6. With no Pi package anywhere the skip is announced, never silent.
+env -u PI_MANAGED_INSTALL_ROOT -u PI_CODING_AGENT_DIR PATH="$SHIM:$NONPM:$PATH" PI_SHIM_LOG="$TMP/log" \
+  PI_RUNTIME_SKILL_DIRS="$TMP/skills" PI_ARCHIVE_ROOT="$TMP/archive" HOME="$TMP/home" bash "$CMD" > "$TMP/out" 2>&1
+grep -q 'lint skipped' "$TMP/out" && ok "a missing Pi package is reported" \
+  || bad "the lint skipped silently: $(head -3 "$TMP/out" | tr '\n' ' ')"
+
 [ "$f" -eq 0 ] && { echo "pi-update-safe-test: PASS"; exit 0; }
 echo "pi-update-safe-test: $f case(s) failed" >&2; exit 1
