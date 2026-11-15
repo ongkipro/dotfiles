@@ -45,7 +45,9 @@ async function launch(bin) {
   mkdirSync(base, { recursive: true });
   const profile = mkdtempSync(join(base, "ui-ref-"));
   const proc = spawn(bin, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
-    "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio",
+    // --password-store=basic: Chrome 157 headless on Linux never loads http(s) pages without it
+    // (data:/file: still work), so the probe below reported "no network load".
+    "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--mute-audio", "--password-store=basic",
     "--disable-extensions", "about:blank"], { stdio: "ignore", detached: true });
   // Own process group, so renderer and GPU children die with the browser.
   const close = async () => {
