@@ -50,6 +50,11 @@ def check(path: Path) -> list[str]:
                 continue
             if "┌" in row[left + 1 : right]:
                 continue
+            # A flow-diagram fork (┌──┬──┐ / ┌──┼──┐ with arrows below) is not a box: skip when the next line has no
+            # vertical border at the left column.
+            following = cells(lines[top + 1]) if top + 1 < len(lines) else []
+            if (left >= len(following) or following[left] not in "│├┤┼║╟╢└") and any(c in "┬┼" for c in row[left:right]):
+                continue
             for below in range(top + 1, len(lines)):
                 if lines[below].strip().startswith("```"):
                     problems.append(f"{path}:{top + 1}: box never closed inside the fence")

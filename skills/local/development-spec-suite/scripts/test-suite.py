@@ -1102,6 +1102,10 @@ class WireframeTests(unittest.TestCase):
         doc = self.write("```text\n┌──────┐\n│ ⚠️ ok  │\n└──────┘\n```\n")
         run(PYTHON, WIREFRAMES, doc, expected=1)
 
+    def test_flow_fork_is_not_a_box(self) -> None:
+        doc = self.write("```text\n   ┌──┬──┐\n   ▼  ▼  ▼\n  [a][b][c]\n```\n")
+        run(PYTHON, WIREFRAMES, doc)
+
     def test_text_outside_fences_is_ignored(self) -> None:
         doc = self.write("┌──┐\n│ broken   │\n└──┘\n")
         run(PYTHON, WIREFRAMES, doc)
