@@ -141,9 +141,12 @@ const UNLISTED = [
   ['ag/gemini-4-carbon-high', 'ag/gemini-4-argon-high'],
   ['ag/gemini-4-carbon-medium', 'ag/gemini-4-argon-medium'],
   ['ag/gemini-4-carbon-low', 'ag/gemini-4-argon-low'],
-  // Verified 2026-11-12: cc/claude-fable-5-1 answers (upstream claude-fable-5-1)
-  // after the catalog switched its listing to cc/claude-fable-5-2.
-  ['cc/claude-fable-5-1', 'cc/claude-fable-5-2'],
+  // Verified 2026-11-14: ag/gemini-4-hydrogen-{low,medium,high,xhigh} answer
+  // (agy 1.5.9 ships Gemini 4 Hydrogen) but the catalog omits them.
+  ['ag/gemini-4-hydrogen-xhigh', 'ag/gemini-4-argon-high'],
+  ['ag/gemini-4-hydrogen-high', 'ag/gemini-4-argon-high'],
+  ['ag/gemini-4-hydrogen-medium', 'ag/gemini-4-argon-medium'],
+  ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-argon-low'],
 ];
 
 function withUnlisted(rows) {

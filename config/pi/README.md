@@ -87,11 +87,10 @@ implementation and is reviewed like any Gemini row.
 - `pi-9router-restore` sets every tracked `agentOverrides` entry on each device
   (see the ownership rule below); agents only a device overrides stay.
 - 9Router serves `ag/gemini-4-carbon-{low,medium,high}` and
-  `cc/claude-fable-5-1` (upstream `claude-fable-5-1`) but omits them from
-  `/v1/models`; `pi-9router-sync.js` adds Carbon from its Argon siblings and
-  Fable 5.1 from `cc/claude-fable-5-2` until the gateway lists them itself
-  (then the gateway's row wins). Without that, a subagent call fails with
-  "Unknown subagent model".
+  `ag/gemini-4-hydrogen-{low,medium,high,xhigh}` but omits them from
+  `/v1/models`; `pi-9router-sync.js` adds them from their Argon siblings
+  until the gateway lists them itself (then the gateway's row wins). Without
+  that, a subagent call fails with "Unknown subagent model".
 - If the first choice fails (quota, 401, gateway down), use the second and say
   so. If both fail, report it; never replace the review with self-review.
 - Record the reviewer's real model in `delivery-ledger review-boundary
