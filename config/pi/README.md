@@ -82,8 +82,9 @@ implementation and is reviewed like any Gemini row.
   `evidence-auditor` runs `cx/gpt-6.1-sol` at high thinking so it audits the
   researcher from another family. `worker` and `delegate` inherit the session
   model, because the implementer's family decides the review pairing.
-- `enabledModels` (Ctrl+P cycling) holds only the models in daily use; every
-  9Router row stays selectable in `/model`.
+- `enabledModels` (Ctrl+P cycling and the `/model` list) holds every active
+  9Router chat row (all but the `oc/jev` classifier), so none go missing from
+  the picker; add a new gateway row here when it should show up on all devices.
 - `pi-9router-restore` sets every tracked `agentOverrides` entry on each device
   (see the ownership rule below); agents only a device overrides stay.
 - 9Router serves `ag/gemini-4-carbon-{low,medium,high}` and
