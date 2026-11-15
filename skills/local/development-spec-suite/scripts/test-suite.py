@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INIT = ROOT / "scripts" / "init-doc-suite.py"
 CHECK = ROOT / "scripts" / "check-traceability.py"
 AUDIT = ROOT / "scripts" / "audit-sources.py"
+WIREFRAMES = ROOT / "scripts" / "check-wireframes.py"
 PYTHON = sys.executable
 
 
@@ -1077,6 +1078,33 @@ Reference PR-404 and PR-3.
         self.assertEqual(original_hash, digest(backups[-1]))
         self.assertRegex(backups[-1].parent.name, r"^\d{8}T\d{12}Z$")
 
+
+
+class WireframeTests(unittest.TestCase):
+    def write(self, body: str) -> Path:
+        handle = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+        handle.write(body)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return Path(handle.name)
+
+    def test_aligned_box_with_emoji_passes(self) -> None:
+        doc = self.write("```text\n┌──────┐\n│⚠️ ok │\n│📦 ab │\n└──────┘\n```\n")
+        run(PYTHON, WIREFRAMES, doc)
+
+    def test_row_one_column_too_wide_fails(self) -> None:
+        doc = self.write("```text\n┌──────┐\n│ abcd  │\n└──────┘\n```\n")
+        out = run(PYTHON, WIREFRAMES, doc, expected=1).stdout
+        self.assertIn(":3:", out)
+
+    def test_vs16_emoji_counts_two_columns(self) -> None:
+        # Padded as if ⚠️ were one column: must fail.
+        doc = self.write("```text\n┌──────┐\n│ ⚠️ ok  │\n└──────┘\n```\n")
+        run(PYTHON, WIREFRAMES, doc, expected=1)
+
+    def test_text_outside_fences_is_ignored(self) -> None:
+        doc = self.write("┌──┐\n│ broken   │\n└──┘\n")
+        run(PYTHON, WIREFRAMES, doc)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

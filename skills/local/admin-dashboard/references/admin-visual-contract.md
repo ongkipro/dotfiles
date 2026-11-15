@@ -120,7 +120,10 @@ node ~/dotfiles/skills/local/admin-dashboard/scripts/admin-geometry.mjs \
   (seeded data, filters open where relevant). Overlays are only measured when
   opened; open them in a Playwright test when they are part of the change.
 - `touch-target` is advisory: it lists controls under 44px (48px in comfort) on a phone so you
-  decide where a larger hit area is needed.
+  decide where a larger hit area is needed. Checkboxes, switches and radios use `touch-target-toggle`
+  (`labelTarget`): a small control inside a full-row `<label>` counts the row's width **and** height, but only
+  when the label really activates a native input (a native control, or a hidden native input inside the
+  label); a narrow label, a label without a native input, or a bare ARIA switch is measured by its own box.
 - To adopt a deliberate change (e.g. a 72px header for a two-row shell), edit the
   project contract and record the reason beside it. Never widen `allowed` just to
   turn a run green.

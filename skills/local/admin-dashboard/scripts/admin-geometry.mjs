@@ -96,6 +96,13 @@ const measure = (checks) => String.raw`(() => {
   const probes = {
     height: (el, r) => r.height, width: (el, r) => r.width,
     minSide: (el, r) => Math.min(r.width, r.height),
+    // Effective tap target of a checkbox/switch: the control itself, or the <label> that activates it when that
+    // label is the control's own ancestor or its for= target and the control is labelable (native input, or an
+    // ARIA widget that keeps a hidden native input inside the label). Reports min(width, height) of the larger box.
+    labelTarget: (el, r) => { const lab = el.closest('label') || (el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]'));
+      const native = el.matches('input') || !!(lab && lab.querySelector('input[type=checkbox], input[type=radio]'));
+      const own = Math.min(r.width, r.height); if (!lab || !native) return own;
+      const lr = lab.getBoundingClientRect(); return Math.max(own, Math.min(lr.width, lr.height)); },
     fontSize: (el, r, s) => parseFloat(s.fontSize),
     // Text the reader sees: only elements with their own non-empty text node (not inherited wrappers).
     // Text-bearing inputs count by value or placeholder; SVG text is scaled to rendered px. Pseudo-element text is not measured.

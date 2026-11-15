@@ -95,6 +95,20 @@ else
   f="$(grep -A4 "text-floor" "$TMP/svg.md")"
   grep -q '"shrunk"' <<<"$f" && ! grep -qE 'tick 45|axis title' <<<"$f" && ok "text-floor: rotated SVG ticks keep 16px; viewBox-shrunk 8px text fails" || bad "text-floor svg: $f"
   grep -q "^- FAIL 1366px button-height" "$TMP/sloppy.md" && ok "sloppy: detects oversized button" || bad "sloppy: missed button-height"
+  # labelTarget: a small switch counts its labelling row only when that row really activates a native input.
+  cat > "$TMP/site/toggle.html" <<'HTML'
+<!doctype html><html><head><meta name=viewport content="width=device-width"></head><body style="margin:0;font:16px system-ui">
+<label style="display:flex;height:60px;width:300px;align-items:center"><span>Row ok</span><span role=switch aria-label="row-ok" style="display:inline-block;width:48px;height:28px"></span><input type=checkbox hidden></label>
+<label style="display:block;height:60px;width:30px"><span role=switch aria-label="narrow" style="display:inline-block;width:28px;height:28px"></span><input type=checkbox hidden></label>
+<label style="display:flex;height:60px;width:300px"><span role=switch aria-label="no-input" style="display:inline-block;width:48px;height:28px"></span></label>
+<span role=switch aria-label="bare" style="display:inline-block;width:48px;height:28px"></span>
+</body></html>
+HTML
+  printf '{"name":"t","checks":[{"id":"toggle","selector":"[role=switch]","prop":"labelTarget","min":44,"viewports":"all"}]}' > "$TMP/toggle.json"
+  node "$HERE/admin-geometry.mjs" "http://127.0.0.1:$PORT/toggle.html" --contract "$TMP/toggle.json" --viewports 390 >"$TMP/toggle.md" 2>&1
+  t="$(grep -A6 'FAIL 390px toggle' "$TMP/toggle.md")"
+  ! grep -q 'row-ok' <<<"$t" && grep -q 'narrow' <<<"$t" && grep -q 'no-input' <<<"$t" && grep -q 'bare' <<<"$t" \
+    && ok "labelTarget: full row passes; narrow label, label without native input, and bare switch fail" || bad "labelTarget: $t"
 fi
 
 [ "$fails" -eq 0 ] && echo "admin-geometry: all checks passed" || { echo "admin-geometry: $fails failure(s)"; exit 1; }
