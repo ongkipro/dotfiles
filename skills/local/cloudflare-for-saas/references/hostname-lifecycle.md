@@ -5,13 +5,16 @@ Verified 2026-11-13/14 against [Getting started](https://developers.cloudflare.c
 [Validation status](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/hostname-validation/validation-status/),
 [Backoff schedule](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/hostname-validation/backoff-schedule/),
 [Remove custom hostnames](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/remove-custom-hostnames/),
-[Troubleshooting](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/reference/troubleshooting/).
+[Troubleshooting](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/reference/troubleshooting/);
+2026-11-15: [Pre-validation](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/hostname-validation/pre-validation/),
+[Certificate validation troubleshooting](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/security/certificate-management/issue-and-validate/validate-certificates/troubleshooting/),
+[Create custom hostnames](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/create-custom-hostnames/).
 
 ## Order that works
 
 | # | Who | Step |
 |---|---|---|
-| 1 | app | Claim: normalise the host (lowercase, strip port and trailing dot), refuse the zone name, your platform domain, a host another tenant owns, and anything over the tenant's cap. Save a local row `pending`. |
+| 1 | app | Claim: normalise the host (lowercase, strip port and trailing dot), refuse the zone name, your platform domain, a host another tenant owns, and anything over the tenant's cap. A host over 64 characters exceeds the certificate CN limit (create fails with error 1469): refuse it (policy), or create it with `ssl.cloudflare_branding: true` (CN becomes `sni.cloudflaressl.com`, the host goes in the SAN). Save a local row `pending`. |
 | 2 | app | **Create** `POST /zones/{zone}/custom_hostnames` `{ "hostname": "...", "ssl": { "method": "http", "type": "dv", "settings": { "min_tls_version": "1.2" } } }`. Leave `certificate_authority` empty (default CA; Cloudflare checks CAA first). The POST may omit `validation_records`: **GET again after a short delay**. Create **before** the customer saves a proxied CNAME, or their side shows Error 1014 ([o2o](o2o.md)). |
 | 3 | customer | Point DNS: `CNAME shop → cname.platform.cc` (root: [root-domains](root-domains.md)). |
 | 4 | Cloudflare | Validates: 75 retries over 7 days (first ten within about 20 min, then at most 4 h apart). What happens next is documented inconsistently (Backoff page: deleted; Validation status page: Moved, then Deleted after 7 more days) — inspect the API state and delete abandoned hostnames yourself. |
@@ -36,9 +39,14 @@ otherwise follow Cloudflare's `abusereply@cloudflare.com` instructions.
 
 - **Hostname validation** (`ownership_verification*`) → `status`. Real-time (customer adds the
   CNAME; a short gap) or pre-validation (TXT/HTTP token first; no gap; **not available for O2O**).
+  The HTTP pre-validation token (`ownership_verification_http`: `http_url`, `http_body`) is placed
+  on the **customer's current origin** — their traffic does not reach your Worker before cutover.
 - **Certificate DCV** (`ssl.validation_records`) → `ssl.status`. `http` (automatic once the host
   points at you and is proxied — least effort), `txt`, or `email`. 90-day certificates, eligible
-  for renewal 30 days before expiry.
+  for renewal 30 days before expiry. The method applies to the first issuance: a hostname first
+  validated by TXT may be **renewed over HTTP** ([Renew](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/security/certificate-management/issue-and-validate/renew-certificates/),
+  2026-11-15); if HTTP is still blocked the renewal goes pending and needs the new TXT record from
+  `ssl.validation_records` — alert on it.
 - **Delegated DCV**: the hostname must use certificate method `txt`; copy the zone's DCV
   delegation hostname from the dashboard; the customer keeps
   `_acme-challenge.<host> CNAME <host>.<copied hostname>` in place; remove any conflicting

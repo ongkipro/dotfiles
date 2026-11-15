@@ -36,7 +36,9 @@ design with PITR recovery, prefer an explicit migration RPC instead (policy): `b
 has a 30 s limit, an escaping throw resets the object, and a restore would re-run constructor work. The Worker stores the PITR bookmark in the control
 plane, then calls an explicit migrate RPC; a failing tenant goes to a `recovery` state on its own.
 Schema changes are expand-then-contract, with the RPC carrying a protocol version across one
-release.
+release. A tenant with no traffic never reaches a request-driven migration: sweep quiet tenants from
+a cron in bounded batches, or the drain a contraction waits for never completes; an object's alarm
+must skip its work while its schema is behind the bundled chain (policy).
 
 ## Other shared resources
 

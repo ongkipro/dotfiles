@@ -37,7 +37,9 @@ test that fails on environment reads outside the platform module keeps it that w
 ## Webhooks
 
 Providers do not send your tenant's `Host`: route webhooks to an immutable per-tenant hostname plus
-a per-tenant secret, verified before any write.
+a per-tenant secret, verified before any write. A secret carried as a path segment makes the request
+URL sensitive: Workers invocation logs record the full URL (Cloudflare Workers Logs, 2026-11-15), so
+turn them off (`observability.logs.invocation_logs: false`) and log the matched route pattern instead.
 
 ## Tests
 

@@ -23,7 +23,9 @@ visitor ─► shop.customer.com  (CNAME ► cname.platform.cc)
    (`*.customers.platform.cc`) is allowed if you want per-tenant targets.
 5. **Own subdomains:** proxied `AAAA @ 100::` and `AAAA * 100::` so `<slug>.platform.cc` reaches the
    Worker. In a full DNS setup, Universal SSL covers the root and first-level subdomains only
-   (`a.platform.cc`, not `a.b.platform.cc`).
+   (`a.platform.cc`, not `a.b.platform.cc`). Policy: refuse as a tenant slug every label that has
+   its own DNS record in the zone (`cname`, `fallback`, `www`) — it would shadow the CNAME target or
+   the fallback origin.
 6. **Worker route `*/*`** on the SaaS zone → the platform Worker. It catches custom hostnames and
    your own subdomains. Exclude hostnames with a more specific route set to **Worker: None**
    (e.g. `api.platform.cc/*`). With O2O, a specific route like `*.platform.cc/*` set to None also

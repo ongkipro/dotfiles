@@ -15,7 +15,8 @@ checklist. It does not own product selection (`cloudflare`), Worker code quality
 or running customer-supplied code (Workers for Platforms, see `cloudflare`).
 
 Facts attributed to Cloudflare were checked against developers.cloudflare.com on 2026-11-13/14
-(review: `~/Documents/work/notes/adsbook-review-2026-11-13/review-skill-cloudflare-for-saas-2026-11-14.md`).
+and spot-checked again on 2026-11-15; each reference names the pages it used (the review notes
+themselves are device-local, not in this repository).
 Plans, prices and limits change: re-read the linked page before relying on a number, and say
 which page and date you used. **Unless a line is attributed to Cloudflare, the security,
 isolation, readiness and cleanup rules are this skill's recommended application policy.**
@@ -41,13 +42,19 @@ isolation, readiness and cleanup rules are this skill's recommended application 
 2. **Unknown, pending, suspended or purged host → neutral 404/403 before any tenant query or cache
    read.** Never fall back to a default tenant.
 3. **Do not intercept HTTP DCV paths** (`/.well-known/acme-challenge/*`,
-   `/.well-known/pki-validation/*`): pass them through before host classification, or HTTP
-   certificate validation of pending hostnames fails. If you use HTTP hostname *pre-validation*,
-   serve the returned ownership token at the URL Cloudflare gives you.
-4. **Activate application routing only after `status` and `ssl.status` are both `active`**, DNS
-   points at your target and a tenant-specific HTTPS probe succeeds. Cloudflare calls this ready
-   for production HTTPS; it may route earlier, and a TLS handshake can succeed on another
-   certificate, so neither is proof.
+   `/.well-known/pki-validation/*`): pass them through unmodified before host classification
+   (Cloudflare, [certificate validation troubleshooting](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/security/certificate-management/issue-and-validate/validate-certificates/troubleshooting/)),
+   or HTTP certificate validation of pending hostnames can fail. Cloudflare does not say how; on an
+   originless fallback `return fetch(request)` is this skill's assumption — prove it with a real
+   issuance and renewal on a pending hostname. HTTP hostname *pre-validation* is different: its
+   token (`/.well-known/cf-custom-hostname-challenge/<id>`) is served from the **customer's
+   current origin**, because their traffic does not reach your Worker yet.
+4. **Activate application routing only after `status` and `ssl.status` are both `active`** and DNS
+   points at your target. Cloudflare calls this ready for production HTTPS; it may route earlier,
+   and a TLS handshake can succeed on another certificate, so neither is proof. **Promote the host
+   to primary only after a tenant-specific HTTPS probe succeeds**: the probe needs active routing,
+   so it gates promotion, not routing ([hostname-lifecycle](references/hostname-lifecycle.md)
+   steps 7–8).
 5. **Every custom hostname counts toward usage until deleted, pending included** (Cloudflare).
    Delete failed, stale-pending and churned hostnames yourself (a 7-day reaper is a sound policy);
    do not rely on Cloudflare's automatic deletion. Watch the quota endpoint.
