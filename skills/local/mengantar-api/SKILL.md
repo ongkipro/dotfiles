@@ -21,13 +21,18 @@ often (new couriers, discontinued couriers, new headers):
   `curl`; some fetchers get 403. Read the **sandbox host** too: its sandbox notes
   are hidden (`display:none`) on the production hosts, so a text extractor that
   drops hidden nodes misses them.
+- Companion repo (full docs, OpenAPI, typed client, error catalog):
+  `~/Projects/mengantar-documentation`. Update check: `make docs-watch` there diffs the
+  live Public API docs against `docs/official-snapshot/`; exit 1 means the docs changed,
+  so sync the repo (`docs/`, `spec/`, `examples/`, `CHANGELOG.md`), then this skill, then
+  `bash scripts/docs-watch.sh --update`. Run it before any Mengantar coding task.
 - Courier status codes: the "Order Status Reference Sheet" linked from the docs.
 - Seller onboarding for partner platforms: documented separately and **privately**
   for partners with an agreement. Its contract never goes into a public repository;
   see [references/partner-api.md](references/partner-api.md) for the safe rules and
   `~/.config/ai-local/mengantar/` for a device-local snapshot when one exists.
 
-This skill summarizes the docs as read on **2026-11-11**. When the docs and this
+This skill summarizes the docs as read on **2026-11-11** (re-checked against the live docs on 2026-11-14: no contract change). When the docs and this
 file disagree, the docs win; fix this file. Endpoint detail:
 [references/public-api.md](references/public-api.md).
 
