@@ -39,7 +39,10 @@
     "9router-fantastico/mmf/mimo-auto",
     "9router-fantastico/oc/deepseek-v4.1-flash-free",
     "9router-fantastico/oc/glm-5.3-flash-free",
-    "9router-fantastico/oc/mimo-v2.6-flash-free"
+    "9router-fantastico/oc/mimo-v2.6-flash-free",
+    "9router-fantastico/ag/gemini-3.8-flash-low",
+    "9router-fantastico/ag/gemini-3.8-flash-medium",
+    "9router-fantastico/ag/gemini-3.8-flash-high"
   ],
   "quietStartup": true,
   "hideThinkingBlock": true,

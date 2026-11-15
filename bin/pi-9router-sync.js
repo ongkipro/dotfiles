@@ -147,6 +147,10 @@ const UNLISTED = [
   ['ag/gemini-4-hydrogen-high', 'ag/gemini-4-argon-high'],
   ['ag/gemini-4-hydrogen-medium', 'ag/gemini-4-argon-medium'],
   ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-argon-low'],
+  // Verified 2026-11-14: ag/gemini-3.8-flash-{low,medium,high} answer (agy lists them).
+  ['ag/gemini-3.8-flash-low', 'ag/gemini-3.8-flash'],
+  ['ag/gemini-3.8-flash-medium', 'ag/gemini-3.8-flash'],
+  ['ag/gemini-3.8-flash-high', 'ag/gemini-3.8-flash'],
 ];
 
 function withUnlisted(rows) {
