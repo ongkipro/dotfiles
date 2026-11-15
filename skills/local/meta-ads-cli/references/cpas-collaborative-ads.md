@@ -546,6 +546,124 @@ measured optima. Adapt these four levers dynamically:
      `template_url_spec` immediately if `InApp_VC / link_click < 25%` after
      `≥ 50` link clicks.
 
+### 7.6 Second-wave Shopee CPAS evidence & Hybrid Manual `1-1-2` Architecture (`[observation, 2026-11-15]`)
+
+**Evidence label: `[observation, 2026-11-15]` second-wave cross-account read on two
+Indonesia Shopee CPAS accounts plus controlled `validate_only` API probes on Graph
+API v23.0–v26.0. Figures below remain Meta-claimed `catalog_segment_*` ratios (not
+Shopee settlement); directional comparisons are observational, not randomized A/B
+proofs.**
+
+1. **Seller–Catalog Alignment Gate (`[verified API constraint]`)**:
+   - In Collaborative Ads, a direct Shopee product URL
+     (`https://shopee.co.id/product/<shop_id>/<item_id>`) is validated against the
+     Shopee seller bound to `adset.promoted_object.product_set_id`. If the ad set
+     points to another seller's collaborative catalog, Meta rejects the ad with
+     `Error 100: "Only use URLs that directly link to Shopee Business Account's website or app"`
+     (whereas bare `https://shopee.co.id/` passes because it has no shop ID).
+   - Shared collaborative catalogs owned by `Shopee Business Account` do **not**
+     appear in `GET /act_<id>/product_catalogs`; query the catalog ID directly or
+     inspect `promoted_object` on live CPAS campaigns/ad sets.
+
+2. **Omnichannel Conversion Location Is Mandatory (`Website and app`; App-Only Rejected)**:
+   - Probed via `execution_options: ["validate_only"]`: removing the Shopee website
+     pixel from `promoted_object.omnichannel_object` (leaving `app` only) is
+     rejected with `Error 100 / Subcode 1885010 ("Conversion event is missing")`;
+     switching to a plain mobile-app `promoted_object` is rejected with
+     `Subcode 1487678 ("Mobile Targeting Mismatch")`.
+   - Across both accounts, `100%` of recorded `catalog_segment_actions:omni_purchase`
+     rows equal `onsite_app_purchase` and `app_custom_event.fb_mobile_purchase`
+     (`0` website-pixel purchases; ~`83%–93%` Android smartphone, ~`7%–16%` iPhone).
+     Keeping `Website and app` satisfies the omnichannel schema while optimizing
+     purely on in-app Shopee purchases.
+   - Optimize for **`PURCHASE` conversion count** (`OFFSITE_CONVERSIONS` +
+     `custom_event_type: "PURCHASE"`, `7d_click` + `1d_view`). Avoid `ADD_TO_CART`
+     optimization on cold CPAS traffic (high low-intent CTR, near-zero purchase
+     follow-through).
+
+3. **Placement & Destination Update (Qualifies §7.2)**:
+   - On the mature reference account (excluding 11.11 mega-sale days, judged strictly
+     on `7d_click` `catalog_segment_value / spend`), **Cold ad sets with Advantage+
+     placements** achieved ~`2x` the `7d_click` ROAS and ~`55%` lower `7d_click` CPA
+     compared with Cold manual-placement ad sets (confounded by creative/date, so
+     treat as `[observation]`, not causal law). In **Catalog Retargeting (`RMK`)**,
+     Advantage+ and manual placements performed identically (~`3.0x` `7d_click` ROAS),
+     and every major Facebook/Instagram placement cleared `~2x–3.9x` `7d_click` ROAS.
+   - Note on Instagram reporting: Instagram placements carried `4x–10x` `1d_view`
+     purchases per `7d_click` purchase (vs `1x–2.5x` on Facebook Feed/Reels), making
+     blended ROAS overstate Instagram's click-driven contribution.
+   - Note on Meta **"limited spend on excluded placements"**: on Sales campaigns,
+     manual placement exclusions can still receive ~`5%` of budget unless strict
+     exclusion is enforced.
+   - **Direct Shopee product deep link vs Instant Experience (`canvas_doc`)**:
+     single-video/image ads linking directly to a Shopee product URL with
+     `omnichannel_link_spec` (web + Android `com.shopee.id` + iOS `959841443` all
+     pointing to the same product URL) and `applink_treatment: "deeplink_with_web_fallback"`
+     logged ~`90%–92%` app-visit share vs ~`66%–67%` (Account A) and ~`46%`
+     (Account B) on Instant Experience canvas ads. Changing `applink_treatment`
+     between `deeplink_with_web_fallback` and `automatic` did not change
+     `click → 7d_click purchase` rate (~`3.55%` vs `3.54%`); keep
+     `deeplink_with_web_fallback` so the ~`8%–10%` of users without the app land on
+     Shopee mobile web rather than an app-store install wall.
+
+4. **Hybrid Manual `1-1-2` Direct-Link Blueprint & Safe Duplication Workflow (`[proposal]`)**:
+   - Alongside `1-1-1` `CAROUSEL_DPA` (§7.3), a proven manual persuasion unit is
+     **`1 Campaign (CBO) → 1 Ad Set → 2 Single-Video Ads`** promoting the same hero
+     SKU with two distinct creator hooks, direct Shopee product deep links,
+     `SHOP_NOW`, Advantage+ placements, hard demographic bounds via
+     `targeting_automation: {"advantage_audience": 0}` (omitting `age_range`, which
+     errors with `Subcode 1487079` when `advantage_audience = 0`), and
+     `contextual_multi_ads: {"enroll_status": "OPT_OUT"}` when brand isolation is
+     desired.
+   - **Additional Graph API v23.0–v26.0 Traps (`#7–#11`, `[verified API constraint]`)**:
+     - **Trap 7 — Plain API Ad Set Creation Drops Hidden UI Defaults**: creating an
+       ad set from scratch omits UI-populated fields such as
+       `regional_regulated_categories: ["VOLUNTARY_VERIFICATION"]` and sets
+       `targeting_optimization_types` lookalike expansion to `1` instead of `0`.
+       **Fix**: duplicate a verified UI-created reference campaign (`POST /<camp_id>/copies`,
+       `deep_copy=false`) and ad set (`POST /<adset_id>/copies`, passing `campaign_id`
+       and `start_time` inside the copy request because `start_time` cannot be edited
+       after copying an already-started ad set — `Subcode 1487057`; copying >3 objects
+       at once fails with `Subcode 1885194`).
+     - **Trap 8 — Cross-Channel Creative Requires Both `applink_treatment` & `omnichannel_link_spec`**:
+       attaching a manual single-video/image creative to an omnichannel ad set fails
+       with `Subcode 2446455` if `applink_treatment` is missing and `Subcode 2446461`
+       if `omnichannel_link_spec` is missing.
+     - **Trap 9 — Deprecated `standard_enhancements` & Redundant Video Thumbnail**:
+       reading an existing creative still returns `standard_enhancements` inside
+       `degrees_of_freedom_spec.creative_features_spec`, but passing it on create
+       fails with `Subcode 3858504` (strip that key and keep individual feature flags).
+       In `video_data`, send `image_hash` **or** `image_url`, never both (`Subcode 1443051`).
+     - **Trap 10 — Reusing Historical Winning Catalog Posts for Social Proof**:
+       referencing a catalog-collection post via `object_story_id` fails with
+       `Subcode 1990065 ("Cannot use product set ID without template spec")`, and
+       copying legacy ads via `/copies` fails with `Subcode 2490596`. **Fix**: create
+       a new ad pointing directly to `creative: {"creative_id": "<original_creative_id>"}`
+       — preserves `effective_object_story_id` (likes/comments), pinned SKUs, and
+       Instant Experience canvas, with the trade-off that legacy creative flags
+       (e.g. `contextual_multi_ads`) remain immutable.
+     - **Trap 11 — Graph API v26.0 Batch Query Removal**: `?ids=a,b,c` is deprecated
+       and rejected on v26.0+; query per object or via parent edges (`/<camp_id>/ads`).
+
+5. **Sizing & Tiering Catalog Retargeting (`RMK`) + Cold Exclusion (`[proposal]`)**:
+   - Never size `RMK` budgets from `GET /act_<id>/reachestimate` when
+     `"estimate_ready": false` (observed ~`10x` overstatement vs mature custom
+     audiences). Read the account's `CLAIM` subtype `"Interacted with Product Set"`
+     custom audiences (`7d`, `14d`, `30d`) for true warm-pool scale.
+   - Cap total `RMK` daily spend so daily impressions stay near `~1x/person/day`
+     (`RMK_budget ≈ warm_pool / 1000 × CPM`). Split `RMK` into **non-overlapping
+     recency tiers** (`0–7d`, `7–14d`, `14–30d`) on `ViewContent` + `AddToCart`
+     (excluding `30d` `Purchase`, all genders `18–65` when historical buyers span
+     both genders) so `RMK` campaigns do not bid against each other. **API caveat
+     (`[verified API constraint]`)**: Meta silently resets `min_retention_seconds`
+     inside `product_audience_specs.inclusions` back to `"0"` on save; enforce the
+     inner exclusion via `excluded_custom_audiences` using the account's `7d` and
+     `14d` `"Interacted with Product Set"` `CLAIM` custom audiences (i.e., `7–14d` =
+     `14d` inclusion + exclude `7d` custom audience; `14–30d` = `30d` inclusion +
+     exclude `14d` custom audience).
+   - On **Cold (`PROS`)** ad sets, exclude the `30d` warm catalog custom audience
+     (`excluded_custom_audiences`) so cold spend is forced into net-new discovery.
+
 ## 8. Learning rules for CPAS
 
 [proposal]
