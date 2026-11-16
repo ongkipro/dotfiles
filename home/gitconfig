@@ -2,21 +2,35 @@
 	name = ongkipro
 	email = 82156528+ongkipro@users.noreply.github.com
 [core]
-    excludesfile = /Users/ongki/dotfiles/config/gitignore_global
-    autocrlf = input
+	excludesfile = ~/.gitignore_global
+	autocrlf = input
+	pager = delta
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	dark = true
 [init]
-    defaultBranch = main
+	defaultBranch = main
 [push]
-    autoSetupRemote = true
+	autoSetupRemote = true
 [pull]
-    rebase = true
+	rebase = true
+[credential]
+	helper = !gh auth git-credential
 [alias]
-    lg = log --oneline --graph --decorate --all -20
-    st = status -sb
-    ci = commit
-    br = branch
-    co = checkout
-    rb = rebase
-    diffstat = diff --stat
+	lg = log --oneline --graph --decorate --all -20
+	st = status -sb
+	ci = commit
+	br = branch
+	co = checkout
+	rb = rebase
+	diffstat = diff --stat
 [color]
-    ui = auto
+	ui = auto
+[credential "https://github.com"]
+	helper = 
+	helper = !/home/ongki/.local/share/mise/installs/gh/2.103.3/gh_2.103.3_linux_amd64/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/home/ongki/.local/share/mise/installs/gh/2.103.3/gh_2.103.3_linux_amd64/bin/gh auth git-credential
