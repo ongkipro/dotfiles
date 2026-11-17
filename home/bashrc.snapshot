@@ -1,6 +1,14 @@
+if [ "$TERM" = "xterm-ghostty" ] && ! infocmp xterm-ghostty >/dev/null 2>&1; then export TERM=xterm-256color; fi
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
+
+# Dev toolchain in PATH for non-interactive SSH & subshells
+for _d in "$HOME/.agents/bin" "$HOME/.local/bin" "$HOME/.local/share/mise/shims"; do
+  case ":$PATH:" in *":$_d:"*) ;; *) [ -d "$_d" ] && PATH="$_d:$PATH" ;; esac
+done
+unset _d
+export PATH
 
 # If not running interactively, don't do anything
 case $- in
@@ -116,5 +124,24 @@ if ! shopt -oq posix; then
   fi
 fi
 
+# nvm retired 2026-07-27 — node is managed by mise (node = "24" in mise-config.toml),
+# same as the other 15 tools. nvm shadowed the mise shims and its version-pathed bin
+# dir is what made the systemd units drift per device. ~/.nvm is kept for rollback:
+# re-enable these three lines and `systemctl --user restart 9router` after reverting
+# the unit files from *.nvm-bak.
+# export NVM_DIR="$HOME/.nvm"
+# [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+# [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# shell-tools.sh — cross-platform dev tool setup (bash + zsh, Ubuntu + macOS)
+# Auto-deteksi shell. Idempotent (aman di-source berkali-kali).
 
 source "$HOME/dotfiles/config/shell-tools.sh"
+
+# Storage offload to 1TB HDD (/data)
+export HF_HOME="/data/ai/huggingface"
+export OLLAMA_MODELS="/data/ai/ollama"
+export TORCH_HOME="/data/ai/torch"
+
+# Multi-AI session isolation & worktree collision guard
+[ -f "$HOME/.config/ai-local/rich-shell-guard.sh" ] && . "$HOME/.config/ai-local/rich-shell-guard.sh"
