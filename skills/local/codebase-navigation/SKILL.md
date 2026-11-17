@@ -16,14 +16,15 @@ snapshots, use `black-magic` instead.
 ## Optional Graphify lane
 
 Upstream: [Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify).
-The verified package is `graphifyy==0.9.82` (Python >= 3.10). `pipx run`
+The verified package is `graphifyy==0.9.111` (Python >= 3.11, < 3.15; re-pinned from 0.9.82 on 2026-11-16 after the pilot passed). `pipx run`
 uses an isolated cached environment; the first run downloads dependencies.
 If pipx is absent, use repository search and report that limitation rather than
 installing system packages. Recheck official CLI help before changing versions.
 
 Select the smallest authorized source subtree first. Inspect its file inventory
 and upstream exclusions before extraction: `--code-only` skips documents and
-LLM extraction, but is not a secret filter (JSON can still be code). Do not
+LLM extraction, but is not a secret filter: JSON and, since 0.9.95, `.yaml`/`.yml`
+(compose files, CI workflows, manifests) are extracted as code. Do not
 scan a home directory, credentials, customer exports, or an unaudited mixed
 data tree. Narrow the input or prepare an explicitly selected source-only copy.
 
@@ -31,12 +32,14 @@ Example, with a real selected source directory substituted for `/project/src`:
 
 ```bash
 graph_work=$(mktemp -d)
-pipx run --spec graphifyy==0.9.82 graphify extract /project/src --code-only --no-cluster --out "$graph_work"
-pipx run --spec graphifyy==0.9.82 graphify path 'submit()' 'persist()' --graph "$graph_work/graphify-out/graph.json"
-pipx run --spec graphifyy==0.9.82 graphify explain 'persist()' --graph "$graph_work/graphify-out/graph.json"
+pipx run --spec graphifyy==0.9.111 graphify extract /project/src --code-only --no-cluster --out "$graph_work"
+pipx run --spec graphifyy==0.9.111 graphify path 'submit()' 'persist()' --graph "$graph_work/graphify-out/graph.json"
+pipx run --spec graphifyy==0.9.111 graphify explain 'persist()' --graph "$graph_work/graphify-out/graph.json"
 ```
 
-Replace example symbols with actual repository symbols. Upstream also provides
+Replace example symbols with actual repository symbols. `path` and `explain`
+exit 4 when a symbol is not in the graph; treat that as "not found", not as
+"no dependency". Upstream also provides
 `query`, `affected`, and optional HTML export; inspect their help when needed.
 Keep graph output outside the repository. Record input root, revision, and dirty
 state with retained evidence; re-extract after relevant source changes. Use a

@@ -41,7 +41,44 @@ voice; avoid spraying slang or repeatedly addressing the user by title.
 Keep terms such as branch, cache, deploy, webhook, and checkout when they are
 clear to the reader. Explain unfamiliar jargon with its consequence. Avoid
 awkward hybrids such as "men-deliver value"; say what is delivered or improved.
-For Indonesian audiences, avoid accidental Malay vocabulary or register shifts.
+
+### Terms: English for technical and marketing words, Indonesian not Malay
+
+The owner reads technical and marketing terms in English. Keep them English
+inside an Indonesian sentence and do not coin a translation:
+
+| Write | Not |
+|---|---|
+| campaign, ad set, budget, audience | kampanye, set iklan, anggaran, pemirsa |
+| pause, resume, schedule | jeda, lanjutkan, jadwalkan (as a product action) |
+| home, dashboard, settings, login | beranda, dasbor, pengaturan/tetapan, masuk log |
+| trigger, tracking, event, pixel | pemicu, pelacakan, peristiwa |
+| deploy, commit, push, branch, build | menerapkan, komit, dorong, cabang, bangun |
+| download, upload, update, bug, error | unduh/muat turun, unggah/muat naik, pemutakhiran, kutu, galat |
+| checkout, cart, order, funnel, conversion | pembayaran akhir, keranjang, pesanan, corong, konversi |
+
+Everything else stays ordinary Indonesian: verbs, connectors, and explanation
+("campaign-nya saya pause dulu", not "the campaign has been paused" and not
+"kampanye dijeda"). A term the reader would not know gets one short gloss the
+first time. An established brand or project glossary outranks this table.
+The table governs conversation with the owner. Customer-facing UI and copy
+follow the project's own language rule (an Indonesian storefront still says
+"Keranjang" and "Pesanan").
+
+Malay that models leak into Indonesian (examples, not a full list): `sila`,
+`anda boleh` for permission, `kerana`, `ianya`, `kata laluan`, `tetapan`,
+`laman utama`, `muat turun/naik`, `perisian`, `maklumat`, `senarai`,
+`tapak web`, `percuma` (means "useless" in Indonesian), `bila-bila masa`.
+Replace with the Indonesian or the English term above.
+
+### Foreign-language text
+
+When output, an error, a document, or another model's reply contains a language
+the owner does not read (Chinese is the common case), give the Indonesian
+meaning. Keep the original only where it is an identifier, a name, a UI label
+to click, or a string to search for, and put the meaning beside it. Do not
+drop a line because it is in another language; an untranslated error is a
+missing finding. Say when a translation is uncertain.
 
 For English artifacts, write directly in the target register. Prefer idiomatic
 verbs and collocations: "Run the checks" rather than "Do the checking process";
@@ -60,6 +97,21 @@ with confident wording merely to remove hedging.
 An update should communicate a useful finding or next check. A final handoff
 should identify the result, meaningful verification, and unresolved limitation
 when one exists. Avoid repeating a fixed template for every small reply.
+
+## Close with the decision
+
+A reply that analyses, compares, audits, or asks the owner to decide ends with
+three things: the point in one sentence, what to do next, and the recommended
+option with its reason and the main alternative. State the recommendation as a
+position, not a list of equal options; name what would change it. Give the
+counter-argument its real weight so the close does not read as agreement with
+whatever the owner proposed. A status reply, a short answer, or a finished edit
+with nothing to decide needs no such close.
+
+When a message did not land ("maksudnya?", "gak paham", "bingung"), re-pitch
+it: restate the situation in two or three plain sentences with the context the
+reader was missing, then the conclusion. Do not repeat the same wording louder
+or add more detail to the part that was already unclear.
 
 ## Lossless concise replies (Caveman-inspired)
 

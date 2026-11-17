@@ -265,8 +265,6 @@ const server = createServer((req, res) => {
   ];
   if (mode === 'argon' || mode === 'argon-listed-carbon') rows.push({id:'ag/gemini-4-argon-high',context_length:1048576,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
   if (mode === 'argon-listed-carbon') rows.push({id:'ag/gemini-4-carbon-high',context_length:2000000,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
-  if (mode === 'fable' || mode === 'fable-listed') rows.push({id:'cc/claude-fable-5-2',context_length:1000000,max_completion_tokens:128000,capabilities:{reasoning:true,vision:true,thinkingFormat:'claude-adaptive'}});
-  if (mode === 'fable-listed') rows.push({id:'cc/claude-fable-5-1',context_length:500000,max_completion_tokens:64000,capabilities:{reasoning:true,vision:true}});
   if (mode === 'duplicate') rows.push(rows[0]);
   if (mode === 'invalid') rows[0].context_length = -1;
   res.end(JSON.stringify({data:mode === 'empty' ? [] : rows}));
@@ -339,21 +337,18 @@ try {
   ms=await carbonRun('argon-listed-carbon');
   assert.equal(ms.filter(m=>m.id==='ag/gemini-4-carbon-high').length,1);
   assert.equal(ms.find(m=>m.id==='ag/gemini-4-carbon-high').contextWindow,2000000); // gateway row wins
-  // Fable 5.1: served after the gateway switched its listing to 5.2.
-  assert.equal(byId['cc/claude-fable-5-1'],undefined); // absent without its 5.2 sibling
-  ms=await carbonRun('fable');
-  const fable=ms.find(m=>m.id==='cc/claude-fable-5-1');
-  assert.ok(fable,'fable 5.1 added from its 5.2 sibling');
-  assert.equal(fable.api,'anthropic-messages');assert.equal(fable.contextWindow,1000000);
-  ms=await carbonRun('fable-listed');
-  assert.equal(ms.filter(m=>m.id==='cc/claude-fable-5-1').length,1);
-  assert.equal(ms.find(m=>m.id==='cc/claude-fable-5-1').contextWindow,500000); // gateway row wins
+  // Gemini 4 Hydrogen: served but unlisted; added from its Argon siblings.
+  assert.equal(byId['ag/gemini-4-hydrogen-high'],undefined); // absent without Argon
+  ms=await carbonRun('argon');
+  const hydrogen=ms.find(m=>m.id==='ag/gemini-4-hydrogen-xhigh');
+  assert.ok(hydrogen,'hydrogen added from its argon sibling');
+  assert.equal(hydrogen.contextWindow,1048576);assert.equal(hydrogen.reasoning,true);
   await writeFile(file,good);
   for (mode of ['http-error','empty','duplicate','invalid','redirect']) {
     await assert.rejects(run());assert.equal(await readFile(file,'utf8'),good);
   }
-  assert.equal(sentCredential,false);assert.equal(catalogCalls,14);
-  console.log('pi-catalog-sync: PASS (official metadata, managed install, unlisted Carbon and Fable 5.1, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
+  assert.equal(sentCredential,false);assert.equal(catalogCalls,13);
+  console.log('pi-catalog-sync: PASS (official metadata, managed install, unlisted Carbon and Hydrogen, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
 } finally {
   await new Promise(resolve=>server.close(resolve));
   await rm(fixture,{recursive:true,force:true});

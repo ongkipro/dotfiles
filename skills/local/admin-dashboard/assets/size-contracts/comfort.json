@@ -20,6 +20,7 @@
     { "id": "gradient", "selector": "body *", "prop": "gradient", "forbid": true, "viewports": "all" },
     { "id": "icon-tile", "selector": "body *", "prop": "iconTile", "forbid": true, "viewports": "all" },
     { "id": "accent-surfaces", "selector": "body *", "prop": "accentSurface", "distinctMax": 5, "viewports": "desktop" },
-    { "id": "touch-target", "selector": "[data-slot=button], [data-slot=input], [data-slot=select-trigger], [role=checkbox], [role=switch]", "prop": "minSide", "warnBelow": 48, "viewports": "mobile" }
+    { "id": "touch-target", "selector": "[data-slot=button], [data-slot=input], [data-slot=select-trigger]", "prop": "minSide", "warnBelow": 48, "viewports": "mobile" },
+    { "id": "touch-target-toggle", "selector": "[role=checkbox], [role=switch], input[type=checkbox], input[type=radio]", "prop": "labelTarget", "warnBelow": 48, "viewports": "mobile" }
   ]
 }

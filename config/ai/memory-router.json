@@ -29,7 +29,27 @@
         "dotads",
         "iklan meta",
         "iklan facebook",
-        "kampanye meta"
+        "kampanye meta",
+        "campaign meta",
+        "meta bid cap",
+        "scale meta",
+        "scaling meta"
+      ]
+    },
+    {
+      "path": "config/ai/memory/meta-ads-lessons.md",
+      "priority": 79,
+      "triggers": [
+        "cpas",
+        "shopee cpas",
+        "collaborative ads",
+        "catalog_segment",
+        "outcome_sales",
+        "da_collection",
+        "advantage_audience",
+        "creative hot-swap",
+        "creative swap",
+        "rmk"
       ]
     },
     {
@@ -1033,6 +1053,19 @@
     ],
     "geraiexpress": [
       {
+        "path": "config/ai/project-memory/geraiexpress-cfv2-architecture.md",
+        "triggers": [
+          "geraiexpress",
+          "geraimitra",
+          "gerai.cc",
+          "domain",
+          "vultr",
+          "vps",
+          "relay",
+          "cloudflare"
+        ]
+      },
+      {
         "path": "config/ai/project-memory/customer-messaging-pending.md",
         "triggers": [
           "email",
@@ -1040,6 +1073,21 @@
           "waba",
           "messaging",
           "notification"
+        ]
+      }
+    ],
+    "geraiexpress-cfv2": [
+      {
+        "path": "config/ai/project-memory/geraiexpress-cfv2-architecture.md",
+        "triggers": [
+          "geraiexpress",
+          "geraimitra",
+          "gerai.cc",
+          "domain",
+          "vultr",
+          "vps",
+          "relay",
+          "cloudflare"
         ]
       }
     ]

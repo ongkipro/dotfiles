@@ -123,6 +123,7 @@ Validate a project pack with the deterministic checker; pass the root execution 
 ```bash
 python3 scripts/check-traceability.py /path/to/project/docs/spec --tasks /path/to/project/TASKS.md
 python3 scripts/check-traceability.py /path/to/project/docs/spec --tasks /path/to/project/TASKS.md --format json
+python3 scripts/check-wireframes.py /path/to/project/docs/visual/*.md   # box-drawing borders aligned (emoji = 2 cols)
 ```
 
 When maintaining this skill itself, additionally run:

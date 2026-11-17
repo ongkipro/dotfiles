@@ -113,6 +113,31 @@ Environment variables prevent the event value from becoming shell source, but th
 
 Writing to `$GITHUB_ENV` or `$GITHUB_OUTPUT` is its own sink: in a multiline `{name}<<{delimiter}` block, a value containing the delimiter on a line of its own ends the block early, and the following lines are parsed as further entries. [Workflow commands](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#multiline-strings) warns that the delimiter must not occur within the value and says to write a completely arbitrary value to a file instead; for untrusted data, do that and pass the file path.
 
+## AI agent steps
+
+A step that runs a coding agent or a model on repository events has a second
+injection surface: the prompt. Passing an event value through `env:` stops it
+from becoming shell source, but it is still attacker text once the prompt reads
+that variable. Check:
+
+- which event fields, issue or PR bodies, comments, CI logs, or fetched pages
+  reach the prompt, directly or through a command the agent runs at runtime;
+- whether the agent reads instruction files (`AGENTS.md`, `CLAUDE.md`, editor
+  rule files) from the PR's own checkout. On an untrusted PR those files are
+  attacker input; load instructions from a trusted ref;
+- what the agent may do with that input: write permissions, secrets in its
+  environment, unrestricted shell or tool access, and who is allowed to
+  trigger it. Treat the step as an untrusted-PR job under the invariant above;
+- one hop into composite actions and reusable workflows the step calls.
+
+Input names for specific agent actions change; read the action's current
+documentation at the pinned SHA instead of relying on a remembered option.
+Checklist paraphrased in local wording, no text copied, from Trail of Bits
+`agentic-actions-auditor` (<https://github.com/trailofbits/skills> at `149d7b2`,
+CC BY-SA 4.0) and Sentry `gha-security-review`
+(<https://github.com/getsentry/skills> at `a582c51`, Apache-2.0), inspected
+2026-11-16.
+
 ## Secrets and log handling
 
 - Use separate least-privilege credentials rather than a structured multi-secret blob.

@@ -16,11 +16,12 @@ different machine with different hardware and its own file — see
 
 ## Host facts that change what is safe
 
-Verified on disk 2026-08-16. These are the facts a fix should be checked
+Verified on disk 2026-11-16, except BIOS AC power recovery (not readable
+without root; last confirmed in 2026-08). These are the facts a fix should be checked
 against before it is applied, because each one makes some remedy safe that
 would be destructive on a different box.
 
-- Dell OptiPlex 7050 desktop, Ubuntu 24.04.4 LTS, user `ongki`.
+- Dell OptiPlex 7050 desktop, Ubuntu 24.04.5 LTS, user `ongki`.
 - **No encrypted volumes** (`lsblk` reports zero `crypt` devices). Nothing here
   needs a passphrase prompt at boot, which is what makes removing the graphical
   splash safe. On a machine with an encrypted root, removing it would take away
@@ -148,6 +149,6 @@ because what makes removing `splash` safe is the absence of an encrypted volume
 needing a passphrase prompt, not the absence of a screen. Losing the graphical
 splash on a desktop costs appearance, nothing else.
 
-Applied and verified on `rich` 2026-08-16: `GRUB_CMDLINE_LINUX_DEFAULT="quiet"`
+Applied on `rich` in 2026-08 and re-verified 2026-11-16: `GRUB_CMDLINE_LINUX_DEFAULT="quiet"`
 with `splash` removed, `pgrep plymouthd` empty, and `systemctl is-system-running`
 reporting `running` rather than `starting`.

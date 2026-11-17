@@ -344,6 +344,8 @@ cases = [
     ("cloudflare access origin ca dotserver", "coolify-vps-dev.md"),
     ("heavy-run ai-testdb full suite", "parallel-terminals.md"),
     ("git stash pop zdiff3 conflict marker", "development-lessons.md"),
+    ("shopee cpas catalog_segment purchase kosong", "meta-ads-lessons.md"),
+    ("meta ads scale campaign ke 1.5 juta pakai bid cap", "meta-ads.md"),
 ]
 # Projects registered by TASK-207 route their notes from inside their repo.
 import tempfile, os
@@ -366,6 +368,13 @@ for query in ("Write a poem from scratch", "build the landing page from scratch"
     names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
     assert "ops-lessons.md" not in names, (query, names)
     assert "development-lessons.md" not in names or "from scratch" in query, (query, names)
+# Meta Ads lessons carry only lesson-specific triggers: the two Meta files exceed the budget together, so a
+# generic phrase on the lessons file once took non-Meta prompts and evicted the owner's operating rules.
+for query in ("hot-swap config tanpa restart worker", "website conversion di landing page astro",
+              "google ads scale campaign pakai bid cap", "meta ads scale campaign ke 1.5 juta pakai bid cap"):
+    out = subprocess.run([f"{root}/bin/ai-memory-route", "--scope", "shared", "--json", query], capture_output=True, text=True, cwd=root, check=True).stdout
+    names = [f["path"].rsplit("/", 1)[-1] for f in json.loads(out)["files"]]
+    assert "meta-ads-lessons.md" not in names, (query, names)
 print("ai-memory-route-test: promoted lessons are reachable by trigger, and not by everyday phrases PASS")
 PY2
 echo 'ai-memory-route-test: PASS'

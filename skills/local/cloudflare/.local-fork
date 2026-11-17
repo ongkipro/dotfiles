@@ -1,7 +1,7 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare
 verified: 2026-10-02
 scope: directory
-reason: Five deliberate local changes; everything else is byte-identical to upstream (last path commit 41e0d19).
+reason: Six deliberate local changes; everything else is byte-identical to upstream (last path commit 41e0d19).
   (3) and (4), added 2026-10-29 from a verified AdsBookCMS review: (3) a paragraph under
   "Caching" stating that a Workers Cache hit does not run the Worker, so per-request side
   effects (cookies, logging, counters) stop, and that hits and static assets are billed at the
@@ -13,11 +13,11 @@ reason: Five deliberate local changes; everything else is byte-identical to upst
   bullet pointing ID/SEA projects to the local references/apac-placement.md (D1/R2 --location apac,
   DO locationHint apac-se, Worker placement, no Asian jurisdiction). The reference file is local-only;
   re-apply the row and bullet after a re-sync.
-  (6) added 2026-11-13 (owner request, adsbook.id multi-tenant SaaS): local-only
-  references/cloudflare-for-saas.md (plans, fallback-origin Worker, hostname lifecycle and statuses,
-  validation vs DCV, O2O, per-tenant data options incl. the no-dynamic-D1-binding constraint,
-  isolation checklist, operations), the SaaS row's link to it, and one "Working principles" bullet.
-  Re-apply all three after a re-sync.
+  (6) added 2026-11-13, moved 2026-11-14 (owner request, adsbook.id multi-tenant SaaS): the SaaS
+  row and one "Working principles" bullet route to the local skill `cloudflare-for-saas`
+  (skills/local/cloudflare-for-saas/, owns plans, hostname lifecycle, root domains, O2O, tenant
+  data, isolation, operations). references/cloudflare-for-saas.md is a pointer to it. Re-apply the
+  row, the bullet and the pointer after a re-sync.
   (1) Frontmatter description. Upstream's reads "Discover and choose Cloudflare products ..." with no
   boundary. Codex keeps only ~240 characters of each description once many skills are installed
   (see skill-check CODEX_DESCRIPTION_CUT), so the what AND the sibling boundary must be front-loaded:
