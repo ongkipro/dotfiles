@@ -65,14 +65,47 @@ does not establish an improvement or certify application behavior.
 
 ## Optional navigation and concise communication
 
-Rechecked 2026-10-10 against upstream sources and the real Graphify CLI; REA row rechecked 2026-10-30 against rea-agents 6.8.0 and upstream main c0c39022.
+Rechecked 2026-10-10 against upstream sources and the real Graphify CLI; Graphify row rechecked 2026-11-16 against `graphifyy` 0.9.111; REA row rechecked 2026-10-30 against rea-agents 6.8.0 and upstream main c0c39022.
 
 | Upstream | Local adoption | Deliberate non-adoption |
 |---|---|---|
 | [Ponytail](https://github.com/DietrichGebert/ponytail/blob/main/skills/ponytail/SKILL.md) | Existing `CORE.md`, `native-first`, and `lean-code-review` already cover the smallest complete change, caller tracing, reuse, and preservation of security/accessibility. | No duplicate skill or persistent lite/full/ultra toggle overriding explicit task depth. |
-| [Graphify](https://github.com/Graphify-Labs/graphify) | `codebase-navigation` adds optional repository-local AST extraction and upstream graph queries through isolated `pipx run`, pinned to `graphifyy==0.9.82`. A runnable synthetic Python pilot checks alias calls, directed path lookup, skipped Markdown, zero LLM tokens, and unchanged sources. | No global installer, config overwrite, automatic indexing, watcher, MCP registration, or document-to-LLM extraction. One fixture does not prove production coverage or performance. |
+| [Graphify](https://github.com/Graphify-Labs/graphify) | `codebase-navigation` adds optional repository-local AST extraction and upstream graph queries through isolated `pipx run`, pinned to `graphifyy==0.9.111` (re-pinned from 0.9.82 on 2026-11-16). A runnable synthetic Python pilot checks alias calls, directed path lookup, skipped Markdown, YAML extracted as code, exit 4 for a missing symbol, zero LLM tokens, and unchanged sources. | No global installer, config overwrite, automatic indexing, watcher, MCP registration, or document-to-LLM extraction. One fixture does not prove production coverage or performance. |
 | [REA — Reverse Engineer Anything](https://github.com/morluto/rea) (`rea-agents@6.8.0`, commit `c0c3902207d6`, MIT) | `black-magic` adopts 100% of upstream `.agents/skills/reverse-engineer-anything/` (`v55` `SKILL.md` body + all 7 `references/*.md` files, including `environments.md` for AgentEnv bundles) via deterministic `bin/rea-skill-sync` (`--upstream-dir`, `--remote`, `--pull`, `--check`, `--json`), while wrapping the `<240-char` `Not for` Codex boundary and `references/dotfiles-integration.md` for CLI-first execution and downstream handoffs (`openapi-spec`, `postgres-drizzle`, `design-taste`, `*-ads-signal-engine`, `application-security`, `full-stack-development`). | No unapproved global `rea setup` MCP registration (which injects 220+ MCP tool schemas into idle context across CLIs); owned source repositories stay with `codebase-navigation`. |
 | [Caveman](https://github.com/JuliusBrussee/caveman) | `writer/references/terminal-dialogue.md` adopts concise natural replies while preserving technical payload, negation, uncertainty, user language, and status-vs-activation intent. | No duplicate skill, forced grammar/word quota, provider proxy, hidden output compression, or unmeasured token-saving claim. |
+
+## Communication and agent-writing audit — 2026-11-15
+
+Inspected `mattpocock/skills` at commit `5863806dd4e15c63174bee4e7515a4256792ecfa`
+(2026-11-12, MIT), cloned read-only; no installer, plugin, or script was run.
+Adaptations use local wording.
+
+| Upstream skill | Local adoption | Deliberate non-adoption |
+|---|---|---|
+| [`writing-for-agents`](https://github.com/mattpocock/skills/blob/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/productivity/writing-for-agents/SKILL.md) | `writer/references/prompt-writing.md` gains the completion-criterion, positive-target, no-op, single-source, and pointer-wording levers. | No separate skill; "leading words" and the two-loads vocabulary are not adopted as house terms. |
+| [`wait-what`](https://github.com/mattpocock/skills/blob/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/productivity/wait-what/SKILL.md) | `writer/references/terminal-dialogue.md` re-pitches a message that did not land, in plain Indonesian with the missing context. | No slash command; no ASD-STE100 requirement (it is an English standard). |
+| [`diagnosing-bugs`](https://github.com/mattpocock/skills/blob/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/engineering/diagnosing-bugs/SKILL.md) | `full-stack-development` requires a run, repeatable, fast failing command before theorizing, a minimized reproduction, and prefix-tagged debug output. | No second debugging skill, no human-in-the-loop script template, no mandatory 3-5 hypothesis count (`chain-of-thought` already forbids inventing branches). |
+| [`tdd`](https://github.com/mattpocock/skills/blob/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/engineering/tdd/SKILL.md) | `testing-engineering` anti-patterns add the tautological expected value and bulk tests before implementation. | No mandatory test-first loop or seam confirmation with the user on every task; CORE's "one runnable check for non-trivial logic" stays the rule. |
+| `grilling`, `grill-me`, `grill-with-docs` | None. CORE asks only when ambiguity changes target, scope, or authorization, and the owner has asked for fewer confirmation rounds. | A relentless interview conflicts with that rule. |
+| `to-spec`, `to-tickets`, `implement`, `implement-spec`, `triage`, `wayfinder`, `setup-matt-pocock-skills` | None. `prd-taskbreaker`, `TASKS.md` contracts, and `delivery-ledger` own this flow. | An issue-tracker state machine would be a rival queue. |
+| `handoff`, `retro`, `research`, `code-review`, `domain-modeling` | None new. `resume-brief`, `ai-learn`/`continuous-learning`, the `researcher` lane, `lean-code-review` plus cross-CLI review, and `adr-record` already own these. | Per-project `GLOSSARY.md` is a candidate for a project that asks for it, not a global convention. |
+
+No measurement backs these adoptions yet; `ai-workflow-eval` cases
+`foreign-text-in-output` and `english-terms-not-malay` are decision checks only.
+
+## Scout audit — 2026-11-16
+
+Three read-only research lanes (reports in `~/Documents/work/research/2026-11-16-scout-*.md`,
+not tracked). Applied here only where the claim was checked locally.
+
+| Upstream | Local adoption | Not adopted, or pending |
+|---|---|---|
+| [Graphify](https://github.com/Graphify-Labs/graphify) 0.9.111 (PyPI, 2026-11-15) | `codebase-navigation` re-pinned from 0.9.82; pilot passed; verified locally: `.yaml`/`.yml` extracted under `--code-only`, exit 4 for a missing symbol, 0 LLM tokens, source untouched. | Hooks, agent installers, cloud features. |
+| [Ponytail](https://github.com/DietrichGebert/ponytail) `96608e07` | None; CORE "Code discipline", `native-first` and `lean-code-review` cover it. | Mandatory risk footer on every reply, mode toggles. |
+| [Superpowers](https://github.com/obra/superpowers) `22f0b46`, [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) `39b723c` (MIT) | `cross-cli` rule 4: pinned non-empty range, untracked files, contract without author rationale, lowered-check leads. | Mandatory test-first deletion, auto-commits, fixed coverage targets, confidence interviews. |
+| [trailofbits/skills](https://github.com/trailofbits/skills) `149d7b2` (CC-BY-SA-4.0), [getsentry/skills](https://github.com/getsentry/skills) `a582c51` (Apache-2.0) | `github-actions/references/security-boundaries.md` "AI agent steps", local wording. | Named action inputs (unverified here); pending: untrusted-skill inspection checklist, property-based-testing selection. |
+| Vendor skills: `vercel/next.js` skills, `vercel-labs/agent-skills`, `cloudflare/skills`, `neondatabase/agent-skills`, `planetscale/skills`, `better-auth/skills` | None yet. | Pending per owning skill; each claim names version-gated APIs that must be checked against the installed version first. `better-auth/skills` has no license: no text reuse. |
+| Memory designs: `tigerless-labs/agent-memory`, `siimvene/memspec`, `0Mattias/bettermemory`, `xChuCx/agent-memory`, `okf-memory/okf-agent-memory` | None yet. | Pending as tool work: section routing, bilingual staleness, outcome receipts, inbox triage, two-tier recall. Daemons, transcript ingestion and autonomous consolidation are rejected. |
 
 ## PRD conclusion
 

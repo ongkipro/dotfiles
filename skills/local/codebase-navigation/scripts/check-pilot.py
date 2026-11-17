@@ -38,11 +38,12 @@ def main():
             "storage.py": 'def persist():\n    return "saved"\n',
             "noise.py": '# persist appears in a comment, not a call.\ndef unrelated():\n    return "persist"\n',
             "notes.md": "Semantic extraction is not authorized for this fixture.\n",
+            "compose.yml": "services:\n  web:\n    image: example\n",
         }
         for name, content in fixtures.items():
             (source / name).write_text(content)
         before = snapshot(source)
-        cli = ("pipx", "run", "--spec", "graphifyy==0.9.82", "graphify")
+        cli = ("pipx", "run", "--spec", "graphifyy==0.9.111", "graphify")
         run(*cli, "extract", str(source), "--code-only", "--no-cluster",
             "--out", str(root / "output"))
         graph_path = root / "output" / "graphify-out" / "graph.json"
@@ -55,17 +56,23 @@ def main():
         require(all("unrelated()" not in pair for pair in calls), "Text noise became a call")
         require(all(n.get("source_file") != "notes.md" for n in nodes.values()),
                 "Markdown unexpectedly extracted")
+        require(any(n.get("source_file") == "compose.yml" for n in nodes.values()),
+                "YAML no longer extracted under --code-only; update SKILL.md")
         require(graph.get("input_tokens") == graph.get("output_tokens") == 0,
                 "Unexpected LLM token use")
         path = run(*cli, "path", "submit()", "persist()", "--graph", str(graph_path))
         require(all(symbol in path for symbol in ("submit", "place_order", "persist")),
                 "Directed CLI path did not report the call chain")
+        missing = subprocess.run([*cli, "explain", "zzz_missing()", "--graph", str(graph_path)],
+                                 capture_output=True, text=True, timeout=300)
+        require(missing.returncode == 4,
+                f"Missing symbol exited {missing.returncode}, expected 4; update SKILL.md")
         hits = run("rg", "-n", "persist", str(source))
         require("noise.py" in hits and "service.py" in hits and "storage.py" in hits,
                 "Unexpected text-search comparison")
         require(snapshot(source) == before, "Extractor changed source files")
         print(f"PASS: {len(nodes)} nodes, {len(graph['edges'])} edges; alias chain and directed path")
-        print("PASS: Markdown skipped, 0 LLM tokens, source inventory and contents unchanged")
+        print("PASS: Markdown skipped, YAML extracted as code, missing symbol exits 4, 0 LLM tokens, sources unchanged")
         print("Comparison: rg includes comment/string hits; graph resolves this static alias chain.")
         print("Scope: synthetic Python only; no speed, token-saving, or application coverage claim.")
 

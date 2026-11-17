@@ -1,7 +1,7 @@
 # Memory: User preferences (ongkipro)
 > Part of shared memory.
 
-- **Conversation** language: casual Bahasa Indonesia; technical terms stay English.
+- **Conversation** language: casual Bahasa Indonesia (not Malay); technical and marketing terms stay English (campaign, pause, home, trigger, tracking, deploy). Term table and Malay traps: skill `writer` → `references/terminal-dialogue.md`. Foreign text (often Chinese from Chinese-first models) is translated to Indonesian; analyses end with the point, the next step, and a recommendation.
 - **Repo content** language (different from conversation), matching the final dotfiles policy:
   - **dotfiles** → skills (`SKILL.md`), memory (`config/ai/memory/*`, `config/ai/project-memory/*`), & system docs all in **English** — these are AI-read artifacts, and English keeps programming terminology unambiguous.
   - **Reasoning/conversation with the user** stays Indonesian; technical terms stay English everywhere.

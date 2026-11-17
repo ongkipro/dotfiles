@@ -6,7 +6,7 @@
         "--prefix",
         "/tmp",
         "-y",
-        "@playwright/mcp@0.0.84",
+        "@playwright/mcp@0.0.85",
         "--browser",
         "chrome",
         "--headless",

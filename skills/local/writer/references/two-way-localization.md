@@ -74,6 +74,31 @@ explanation language separate from the artifact language.
   mark native-reader or domain review as pending. This workflow supports
   research across languages; it does not certify fluency in every language.
 
+## Working through models that default to another language
+
+Applies when the active or delegated model is Chinese-first (DeepSeek, Kimi,
+MiMo, MiniMax, GLM, Qwen) or when any model's output drifts into a language
+the owner does not read.
+
+- **Owner-facing replies stay Indonesian.** The model's reasoning language is
+  its own; forcing reasoning into the reader's language lowered answer accuracy
+  in the cited study, so constrain the reply, not the thinking.
+- **Prompts to another model are written in English**, not Chinese: the owner
+  can audit an English prompt, and a translation the owner cannot read is an
+  unverifiable step. State the reply language explicitly in that prompt
+  ("Reply in Indonesian" or "Reply in English"), because instruction alone
+  does not hold reliably: language drift is documented for DeepSeek and in
+  the Language Confusion Benchmark, and worsens with long or complex prompts.
+- **Check the reply's language before relaying it.** Translate any Chinese
+  passage into Indonesian, keep identifiers and quoted strings exact, and
+  re-ask once with the language stated when the whole reply came back in the
+  wrong language. Report the drift instead of silently paraphrasing around it.
+- **Exempt from translation:** code, commands, paths, URLs, package names,
+  proper nouns, and text the owner supplied in quotes.
+- A translation by the same model is a reading aid, not verified meaning. For
+  a contract, a policy, or an instruction that triggers money or a live
+  change, mark the translation as unverified and name the passage.
+
 ## Learn corrections safely
 
 Keep temporary preferences in the session. A correction becomes a durable
@@ -101,6 +126,19 @@ unverified for a locale until that happens.
   for actual locale work; this directory alone is not evidence of a specific
   country's preferred tone. Vendor guides describe vendor style, not a whole
   population.
+- Language drift and reasoning language, inspected 2026-11-15: Marchisio et
+  al., "Understanding and Mitigating Language Confusion in LLMs" (EMNLP 2024,
+  <https://arxiv.org/abs/2406.20052>): even strong models fail to answer
+  consistently in the requested language; complex prompts aggravate it and
+  few-shot prompting mitigates it partially. Qi et al., "When Models Reason in
+  Your Language" (EMNLP 2025 Findings, <https://arxiv.org/abs/2505.22888>):
+  prompting a model to reason in the user's language reduces answer accuracy.
+  DeepSeek-V3 issue 1598 (<https://github.com/deepseek-ai/DeepSeek-V3/issues/1598>)
+  collects user reports of unrequested Chinese. Abstracts and the issue were
+  read. The only local measurement is a small check on 2026-11-15 (two prompts,
+  two runs each, three free 9Router rows; inconclusive on language drift;
+  Claude, GPT and Gemini unmeasured), so the rules above remain precautions,
+  not measured compliance.
 - Humanizer, `blader/humanizer`, inspected at commit
   `0ef9fe5bc3572734fd3ae6c448fe00a30cd5dcf0` (MIT):
   <https://github.com/blader/humanizer/blob/0ef9fe5bc3572734fd3ae6c448fe00a30cd5dcf0/SKILL.md>.

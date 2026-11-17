@@ -111,8 +111,8 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 
 | Collection | Path | Tracked | Completeness enforced by |
 |---|---|---|---|
-| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 27 | linked from this page |
-| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 84 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
+| Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 28 | linked from this page |
+| Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 85 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
 | Commands | [`bin/`](../bin/) | 65 | linked from this page |
@@ -129,7 +129,7 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Research records | [`docs/research/`](../docs/research/) | 6 | linked from this page |
 | Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 70 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 71 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -242,6 +242,7 @@ Cross-project durable facts loaded selectively on demand by `ai-memory-access`.
 | [`decisions.md`](../config/ai/memory/decisions.md) | Advisory cross-project decisions, preferences, and working assumptions; each project's repository owns its technical decision records. |
 | [`skills.md`](../config/ai/memory/skills.md) | The user's skill profile (development, marketing, SEO, affiliate) for calibrating explanation depth, plus where the owned skill set is mapped. |
 | [`meta-ads.md`](../config/ai/memory/meta-ads.md) | On-demand Meta Ads knowledge map: algorithm sources, campaign decisions, Indonesia priors, ROAS economics and reviewed private-to-shared learning. |
+| [`meta-ads-lessons.md`](../config/ai/memory/meta-ads-lessons.md) | Reviewed Meta Ads lessons split from `meta-ads.md` to stay routable: CPAS purchase columns and creative swap, website-conversion liquidity and scaling, CPAS hybrid `1-1-2`. |
 | [`shopify.md`](../config/ai/memory/shopify.md) | Shopify standards: Dawn baseline, Storefront API, Hydrogen, no CTA in descriptions, brand-generic SEO. |
 | [`environment.md`](../config/ai/memory/environment.md) | Hardware & software toolchains, installed packages, mise plugins, cross-platform parity. |
 | [`environment-ai-runtimes.md`](../config/ai/memory/environment-ai-runtimes.md) | OMP, optional Pi, 9Router, and Antigravity: availability, credential boundary, and the official install method. |

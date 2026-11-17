@@ -1,6 +1,6 @@
 ---
 name: customer-messaging-pending
-description: Email provider and WhatsApp (WABA) choice for 99ribu, bukalaris, and geraiexpress is still undecided; where the discussion lives.
+description: Email provider and WhatsApp (WABA) choice for 99ribu and bukalaris is still undecided (geraiexpress-cfv2 decided: Cloudflare Email Sending + click-to-chat WA per DEC-227).
 metadata:
   node_type: memory
   type: project
@@ -8,8 +8,9 @@ metadata:
 
 # Customer messaging decision — pending
 
-As of 2026-10-28 the owner has NOT decided the transactional email provider or the
-WhatsApp setup for 99ribu, bukalaris, and geraiexpress. Do not treat any provider as chosen.
+As of 2026-11-17:
+- **GeraiExpress (`~/Projects/geraiexpress-cfv2`):** DECIDED in `DECISIONS.md` (`DEC-227` — Cloudflare Email Sending via `send_email` binding on `mail.geraiexpress.com`; WhatsApp uses operator click-to-chat `wa.me`, no third-party WABA gateway at launch). Tenant white-label zone is `geraimitra.com` (`DEC-234`); dedicated Vultr VPS is retired and `partner-relay` co-hosts on `99ribu-prod` (`DEC-235`).
+- **99ribu and Bukalaris:** transactional email provider and WhatsApp (WABA) setup remain UNDECIDED. Do not treat any provider as chosen for them.
 
 - Discussion and recommendation (Resend + subdomain SPF/DKIM/DMARC; official WABA Cloud API
   only): `~/Documents/work/notes/2026-10-28-email-whatsapp-delivery.md`.

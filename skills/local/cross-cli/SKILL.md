@@ -66,6 +66,15 @@ ai-ask RUNTIME [--cwd DIR] [--attach FILE]... [--timeout SEC] [--write] [--dry-r
 4. **Give the reviewer the contract.** Include the task's requirement,
    invariants, and the exact files or diff; ask for APPROVE / CHANGES REQUIRED
    with `file:line` and a failing scenario. Fix, then re-review the fix.
+   Pin the range first: collect the diff from the task's base (`git merge-base`
+   or the pre-task `HEAD`) plus untracked files
+   (`git ls-files --others --exclude-standard`, which `git diff` omits), and
+   confirm the combined change set is non-empty. Send
+   the artifact and the contract only: no author rationale, no "do not flag
+   X", no suggested severity. Before accepting an approval, read the diff for
+   checks that were lowered to get green: new `@ts-ignore`, lint or coverage
+   disables, `.skip`, deleted assertions, empty `catch`. These are leads for
+   the conductor to judge, not automatic failures.
 5. **Keep secrets out.** Never attach `.env`, credential files, or customer
    data; `ai-ask` sends the prompt to the other vendor.
 6. **Smallest useful delegation.** Do not fan out for a one-line change; R0–R1

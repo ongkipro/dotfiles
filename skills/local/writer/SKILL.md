@@ -70,8 +70,8 @@ Load only what the task needs:
 - Hallucination and claim safety: `references/anti-hallucination.md`
 - Research synthesis contract: `references/synthesis-contract.md`
 - Humanization and AI-slop removal: `references/human-writing.md`
-- Terminal dialogue, informal intent, status updates, and model handoffs: `references/terminal-dialogue.md`
-- Mutual understanding, correction loops, and locale-native communication: `references/two-way-localization.md`
+- Terminal dialogue, informal intent, English-term table, Malay traps, foreign-text translation, closing with a recommendation: `references/terminal-dialogue.md`
+- Mutual understanding, correction loops, locale-native communication, Chinese-first models: `references/two-way-localization.md`
 - Evaluating dialogue instructions across models: `references/dialogue-evaluation.md` (only for requested evaluation or changes to this dialogue guidance)
 - Indonesian (including EYD V spelling and KBBI checks): `references/indonesian.md`
 - English: `references/english.md`
@@ -81,7 +81,7 @@ Load only what the task needs:
 - Paid and social ads: `references/ads.md`
 - Ecommerce and product copy: `references/ecommerce.md`
 - Technical, product, PRD, and developer docs (developer-doc conventions): `references/technical.md`
-- Prompts and agent instructions: `references/prompt-writing.md`
+- Prompts, agent instructions, and handoff prompts to another model or CLI: `references/prompt-writing.md`
 - Founder, corporate, proposal, and investor writing: `references/business-writing.md`
 - Channel selection: `references/modes.md`
 - Scoring: `references/scoring.md`

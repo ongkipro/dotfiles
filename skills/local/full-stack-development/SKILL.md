@@ -73,9 +73,16 @@ Never silently move from planning to code, from local proof to deployment, or
 from a schema proposal to applying a production migration.
 
 For a repair, reproduce the symptom on controlled data and identify the first
-boundary whose observed result violates the accepted contract. Compare a working
+boundary whose observed result violates the accepted contract. Before
+theorizing, have one command you already ran that fails on this symptom (a
+test, a `curl`, a fixture run, a browser script), gives the same verdict each
+run, and takes seconds; for an intermittent fault, raise the reproduction rate
+until it is usable. If no such command can be built, say so and name what is
+missing instead of guessing. Shrink the reproduction until every remaining
+element is needed for the failure. Compare a working
 path, test one supported cause with the smallest failing check, then fix that
-cause and rerun the real path. If the hypothesis fails, gather new evidence
+cause and rerun the real path. Tag temporary debug output with one unique
+prefix and remove it by that prefix before finishing. If the hypothesis fails, gather new evidence
 before adding another patch; do not replace diagnosis with a retry quota. Use
 redacted observations rather than raw payloads or credentials. A repair that
 crosses a trust or data boundary checks both sides even when the symptom names

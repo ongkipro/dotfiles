@@ -215,7 +215,9 @@ was not exercised.
 
 Test-per-function or coverage targets without a risk hypothesis · assertions
 on source text, call order, imports, or mock wiring instead of behavior ·
-large snapshots in place of contractual fields · every collaborator mocked so
+large snapshots in place of contractual fields · an expected value recomputed
+the way the code does, passing by construction · all tests written before any
+implementation · every collaborator mocked so
 production composition never runs · SQLite or in-memory maps standing in for
 PostgreSQL · sleeps, shared rows/ports, order dependence · production targets,
 embedded secrets, blind snapshot refresh, or CI made green by retries, skips,
