@@ -57,7 +57,9 @@ profile (`/etc/apparmor.d/chrome`, `userns`). Fix without `--no-sandbox`: dotfil
 linked to `~/.agent-browser/config.json` by `install.sh` when `/usr/bin/google-chrome`
 exists. The Chrome version is then the apt package: the wrapper's "Chrome ... behind the
 current stable release" warning is cleared with `sudo apt install --only-upgrade
-google-chrome-stable`, not with `agent-browser install`.
+google-chrome-stable`, not with `agent-browser install`. Done 2026-11-18: system
+Chrome 157.0.8103.78, warning gone; the unused Chrome for Testing (408 MB) was moved
+to `/data/backups/agent-browser-cft-20261118/`.
 
 **Verified 2026-11-02:** Playwright MCP is registered once in
 `config/ai/mcp-servers.json` (`@playwright/mcp@0.0.84 --browser chrome --headless`,
