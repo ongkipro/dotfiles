@@ -59,7 +59,7 @@
 - [Pi compaction](pi-9router-models-compaction.md) — built-in compaction and the reserved-headroom debugging lesson; live catalogs are not stored in memory.
 - [OMP Claude via 9router](omp-9router-claude-wire.md) — verified transport fix record (chat-compatible endpoint, 7/7 9router tests, run RUN-20261028T203549Z-2e1c5b55); rerun tests before reuse.
 - [OMP and Pi 9Router runbook](omp-pi-9router-runbook.md) — OMP runs on upstream defaults plus a five-line 9Router provider (retry.maxDelayMs is a give-up ceiling; do not tune it), how 9Router reports rate limits, Pi defaults, account rotation, and the fallback-off live check.
-- [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)
+- [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.43.0 pinned to system Chrome (`config/agent-browser/config.json`; Chrome for Testing has no AppArmor sandbox here); prefer system Chrome via channel; install-deps optional (needs sudo)
 - [Pixs&Go layout width](pixsgo-layout-width.md) — content capped 1200px, body 1920px; Tailwind v4 needs bracket arbitrary values (max-w-[1200px] not max-w-1200px)
 - [Dev toolchain via mise](dev-toolchain-mise.md) — CLI tools (fzf/fd/bat/delta/lazygit/zoxide/eza/yq/direnv) via mise, no sudo; nvm lazy-loaded; git+delta configured
 - [My Store 10 furniture Shopify](mystore10-furniture-shopify.md) — jwy0qz-ic.myshopify.com; 98 raw dropship furniture products; listing-optimization workspace in ~/Documents/Shopify/jwy0qz-ic - My Store 10/; English + remove Ships-From option; brand TBD
