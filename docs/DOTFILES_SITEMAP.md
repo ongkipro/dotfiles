@@ -565,6 +565,7 @@ What a new machine gets, and where each terminal, editor, and Git setting lives.
 - [`README.md`](../README.md): Minimal maintainer entry point linking setup notes, the system map and change history.
 - [`install.sh`](../install.sh): Idempotent installer for Ubuntu and macOS (bash and zsh): places config and patches shell rc files.
 - [`install-macos.sh`](../install-macos.sh): Light macOS bootstrap for shared memory, skills, `dotsync`, and shell hooks.
+- [`config/agent-browser/config.json`](../config/agent-browser/config.json): Points `agent-browser` at the system Chrome (`/usr/bin/google-chrome`). `install.sh` links it to `~/.agent-browser/config.json` only when that binary exists, so it applies to Ubuntu and not to macOS.
 - [`.gitignore`](../.gitignore): Keeps SSH keys and other per-device secrets out of the repository.
 - [`.gitattributes`](../.gitattributes): Keeps the local machine's version of machine-specific snapshots on sync merges.
 - **Home snapshots:** [`home/bashrc.snapshot`](../home/bashrc.snapshot), [`home/zshrc.snapshot`](../home/zshrc.snapshot), [`home/profile`](../home/profile), [`home/gitconfig`](../home/gitconfig): reference copies of shell rc files, login profile, and Git identity.
