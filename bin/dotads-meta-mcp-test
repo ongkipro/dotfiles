@@ -69,7 +69,7 @@ run duplicate --bm BM2 --account 123 --type ad_set --source 55 --dest 77 --apply
 grep -q '"copy_count":1' "$TMP/calls.log" && ok "copy_count is pinned to 1" || bad "copy_count"
 run duplicate --bm BM2 --account 123 --type ad_set --source 55 --dest 77 --apply --journal "$J" >/dev/null 2>&1 && bad "repeated an applied duplicate" || ok "journal refuses a repeat of the same duplicate"
 [ "$(grep -c ads_duplicate_entity "$TMP/calls.log")" = 1 ] && ok "refused repeat made no second call" || bad "second call made"
-[ "$(stat -f %Lp "$J" 2>/dev/null || stat -c %a "$J")" = 600 ] && ok "journal is private (0600)" || bad "journal mode"
+[ "$(stat -c %a "$J" 2>/dev/null || stat -f %Lp "$J")" = 600 ] && ok "journal is private (0600)" || bad "journal mode"
 
 DOTADS_MCP_URL="https://example.com/ads" run tools --bm BM2 >/dev/null 2>&1 && bad "accepted a non-loopback override" || ok "URL override must be loopback http"
 # The only write tool the helper may name is ads_duplicate_entity. No create/update/activate/delete tool is called.
