@@ -21,6 +21,18 @@
 
 ---
 
+## Observation: CPAS × Shopee Affiliate is not necessarily omnichannel (2026-11-18 WIB)
+
+- **Owner-requested learning; scope:** One authenticated, read-only campaign/ad-set/ad/creative inspection observed `is_pca_unified=true` with a catalog at campaign level, a PURCHASE pixel + product set at ad-set level **without a returned omnichannel_object**, and two manual single-video ads using Shopee affiliate short links and `applink_treatment=web_only`. Audience was broad Indonesia with Advantage+ audience, Facebook Feed/Reels only, and 7d click + 1d view attribution. Private IDs, budgets and raw evidence remain in the selected account workspace, not shared memory.
+- **Qualification of the defaults below:** The omnichannel/deep-link blueprint remains a configuration-specific method, not a mandatory description of every CPAS × affiliate campaign. Inspect all four layers before planning; do not silently replace a pixel-only/web-only affiliate configuration with merchant omnichannel tracking. An Instagram identity on a creative does not itself mean Instagram placement delivery.
+- **Limits:** ACTIVE status is a configuration observation, not proof of delivery, native-app arrival, promo validity, performance or profitability. Referenced catalog IDs can remain visible in campaign metadata even when the current API identity cannot read/manage those assets; do not infer that active references establish copy permissions. Divergent top-level and nested creative video IDs require rendered/media verification before identifying the actual video.
+- **App-opening interpretation (owner clarification, not independently reproduced):** The reference Facebook Feed/Reels placements support opening Shopee's app. Do not infer "cannot open app" from `applink_treatment=web_only` alone: review the actual affiliate short-link redirect and mobile OS/app-link handoff separately from Meta's creative destination setting. Distinguish app-opening capability, observed app arrival and aggregate app-arrival rate; desktop/headless browsing cannot establish real mobile native-app behavior. Do not change placements or force omnichannel just from this field.
+- **Measurement:** Validate event/value mapping for the actual setup and separate click/view attribution. Judge affiliate economics against valid/settled commissions minus ad spend, not merchant GMV alone. Empty ordinary purchase actions are insufficient to conclude zero Shopee outcomes. No winning structure or budget was established by this inspection.
+- **Full playbook:** [cpas-shopee-id-ui-playbook.md](../../../skills/local/meta-ads-cli/references/cpas-shopee-id-ui-playbook.md).
+- **Evidence owner:** Account-local `campaigns/gacorin-active-inspection.json` and `campaigns/gacorin-active-study.md`, linked from that account's `memory/MEMORY.md`. Re-read live configuration before reuse.
+
+---
+
 ## Lesson: Shopee CPAS Hybrid Manual `1-1-2`, ONG Duplication, Tiered `RMK` Exclusions & Social-Proof Post Reuse
 
 - **Symptom & root cause:** Cross-seller collaborative catalog rejected Shopee product URLs (`Error 100` invalid Shopee Business Account URL); app-only conversion location failed (`Subcode 1885010`); plain API ad set creation dropped `regional_regulated_categories: ["VOLUNTARY_VERIFICATION"]` and lookalike `0`; Meta silently reset `min_retention_seconds` inside `product_audience_specs.inclusions` to `"0"`; and reusing winning catalog posts via `object_story_id` (`Subcode 1990065`) or ad `/copies` (`Subcode 2490596`) failed ([cpas-collaborative-ads.md](../../../skills/local/meta-ads-cli/references/cpas-collaborative-ads.md) §7.6).

@@ -1,0 +1,145 @@
+#!/usr/bin/env node
+/**
+ * dotads-meta-mcp: read-only client for Meta's hosted ads MCP server, plus one guarded write (duplicate).
+ *
+ *   dotads-meta-mcp tools    --bm <KEY>
+ *   dotads-meta-mcp accounts --bm <KEY>
+ *   dotads-meta-mcp entities --bm <KEY> --account <id> [--level campaign|adset|ad] [--status A,B] [--fields a,b]
+ *   dotads-meta-mcp tool     --bm <KEY> --name <read-only tool> [--args '<json object>']
+ *   dotads-meta-mcp duplicate --bm <KEY> --account <id> --type campaign|ad_set|ad --source <id>
+ *                             [--dest <parent id>] [--apply --journal <file>]
+ *
+ * Token: `secrets-env get META_ACCESS_TOKEN_<KEY>` (or --token-env). It is never printed or put in argv.
+ * `entities` asks for every status including ARCHIVED, which the official `meta campaign list` hides.
+ * `tool` only runs read tools. `duplicate` is a dry run unless --apply, and --apply needs --journal so a
+ * second copy of the same source/destination is refused (Meta: do not repeat a duplication that returned).
+ * Duplicates are PAUSED. Nothing here activates, updates or deletes anything.
+ * Test hook: DOTADS_MCP_URL may point to a loopback URL only (mock server).
+ */
+import fs from "node:fs";
+import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
+
+const DEFAULT_URL = "https://mcp.facebook.com/ads";
+const STATUSES = "ACTIVE,PAUSED,ARCHIVED,CAMPAIGN_PAUSED,ADSET_PAUSED,IN_PROCESS,WITH_ISSUES";
+const READ_ONLY = /^(ads_get_|ads_insights_|ads_library_search$|ads_catalog_(list|get)_|ads_pixel_(event|parameter)_read$|ads_experiment_(get|list|check)_|ads_account_get_)/;
+const TYPES = new Set(["campaign", "ad_set", "ad"]);
+
+function die(msg, code = 1) { process.stderr.write(`dotads-meta-mcp error: ${msg}\n`); process.exit(code); }
+
+function parse(argv) {
+  const [cmd, ...rest] = argv;
+  const o = { cmd, flags: {} };
+  for (let i = 0; i < rest.length; i++) {
+    if (!rest[i].startsWith("--")) die(`unexpected argument ${rest[i]}`);
+    const k = rest[i].slice(2);
+    if (k === "apply") { o.flags.apply = true; continue; }
+    if (i + 1 >= rest.length) die(`--${k} needs a value`);
+    o.flags[k] = rest[++i];
+  }
+  return o;
+}
+
+function endpoint() {
+  const u = process.env.DOTADS_MCP_URL;
+  if (!u) return DEFAULT_URL;
+  const { protocol, hostname } = new URL(u);
+  if (protocol !== "http:" || !["127.0.0.1", "localhost"].includes(hostname)) die("DOTADS_MCP_URL may only be a loopback http URL");
+  return u;
+}
+
+function token(flags) {
+  const name = flags["token-env"] || (flags.bm ? `META_ACCESS_TOKEN_${String(flags.bm).toUpperCase()}` : null);
+  if (!name || !/^[A-Z0-9_]+$/.test(name)) die("select a business manager with --bm <KEY> (or --token-env NAME)");
+  const bin = process.env.SECRETS_ENV_BIN || "secrets-env";
+  const r = spawnSync(bin, ["get", name], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  if (r.status !== 0 || !r.stdout.trim()) die(`cannot read ${name} through secrets-env`);
+  return r.stdout.trim();
+}
+
+const conversation = `dotads-meta-mcp-${crypto.randomBytes(6).toString("hex")}`;
+let seq = 0;
+
+async function rpc(tok, method, params) {
+  const body = { jsonrpc: "2.0", method, id: ++seq, ...(params ? { params } : {}) };
+  const res = await fetch(endpoint(), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120000),
+  });
+  const text = await res.text();
+  if (!res.ok) die(`MCP HTTP ${res.status}: ${text.slice(0, 300).replace(tok, "[redacted]")}`);
+  const data = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim())[0];
+  let json;
+  try { json = JSON.parse(data ?? text); } catch { die("MCP returned an unreadable response"); }
+  if (json.error) die(`MCP error ${json.error.code}: ${String(json.error.message).slice(0, 300)}`);
+  return json.result;
+}
+
+async function call(tok, name, args, job) {
+  const result = await rpc(tok, "tools/call", {
+    name,
+    arguments: { ...args, client_conversation_id: conversation, advertiser_job: job },
+  });
+  const txt = (result.content || []).map((c) => c.text || "").join("");
+  let parsed;
+  try { parsed = JSON.parse(txt); } catch { parsed = { text: txt }; }
+  if (result.isError) die(`${name} failed: ${txt.slice(0, 400)}`);
+  return parsed;
+}
+
+const show = (v) => process.stdout.write(`${JSON.stringify(v, null, 2)}\n`);
+const accountId = (f) => { const a = String(f.account || "").replace(/^act_/, ""); if (!/^\d+$/.test(a)) die("--account must be a numeric ad account id"); return a; };
+
+function journalRead(file) {
+  try { return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)); } catch { return []; }
+}
+
+async function duplicate(tok, f) {
+  const account = accountId(f);
+  if (!TYPES.has(f.type)) die("--type must be campaign, ad_set or ad");
+  if (!/^\d+$/.test(f.source || "")) die("--source must be a numeric entity id");
+  if (f.dest && !/^\d+$/.test(f.dest)) die("--dest must be a numeric parent id");
+  if (f.type === "campaign" && f.dest) die("a campaign copy has no destination parent");
+  const key = `${account}:${f.type}:${f.source}:${f.dest || "same-parent"}`;
+  const row = { entity_id: f.source, ...(f.dest ? { destination_parent_id: f.dest } : {}), copy_count: 1 };
+  const request = { ad_account_id: account, entity_type: f.type, copy_requests: [row] };
+  if (!f.apply) { show({ mode: "dry-run", would_call: "ads_duplicate_entity", request, note: "Add --apply --journal <file> after owner approval. The copy is created PAUSED." }); return; }
+  if (!f.journal) die("--apply needs --journal <file>");
+  const prior = journalRead(f.journal).filter((e) => e.key === key);
+  if (prior.length) die(`already attempted (${prior.at(-1).state}); inspect the account and the journal before any retry: ${f.journal}`);
+  fs.appendFileSync(f.journal, `${JSON.stringify({ key, state: "pending", at: new Date().toISOString() })}\n`, { mode: 0o600 });
+  const out = await call(tok, "ads_duplicate_entity", request, "create_and_launch_new_ads");
+  fs.appendFileSync(f.journal, `${JSON.stringify({ key, state: "done", at: new Date().toISOString(), result: out })}\n`);
+  show({ mode: "applied", result: out, next: "Read the copy back and compare it with the source field by field. Do not repeat this call." });
+}
+
+const { cmd, flags } = parse(process.argv.slice(2));
+if (!cmd || cmd === "--help" || cmd === "help") { process.stdout.write(fs.readFileSync(new URL(import.meta.url), "utf8").split("*/")[0].split("\n").slice(2).map((l) => l.replace(/^ \* ?/, "")).join("\n") + "\n"); process.exit(0); }
+const tok = token(flags);
+
+if (cmd === "tools") {
+  const { tools } = await rpc(tok, "tools/list");
+  show({ count: tools.length, names: tools.map((t) => t.name).sort() });
+} else if (cmd === "accounts") {
+  show(await call(tok, "ads_get_ad_accounts", {}, "report_measure_or_look_up"));
+} else if (cmd === "entities") {
+  const level = flags.level || "campaign";
+  if (!["campaign", "adset", "ad"].includes(level)) die("--level must be campaign, adset or ad");
+  const fields = (flags.fields || "id,name,status,effective_status").split(",").filter(Boolean);
+  const statuses = (flags.status || STATUSES).split(",").filter(Boolean);
+  show(await call(tok, "ads_get_ad_entities", {
+    ad_account_id: accountId(flags), level, fields,
+    filtering: [{ field: `${level}.effective_status`, operator: "IN", value: statuses }],
+  }, "report_measure_or_look_up"));
+} else if (cmd === "tool") {
+  if (!READ_ONLY.test(flags.name || "")) die("only read-only tools can run through `tool`");
+  let args = {};
+  if (flags.args) { try { args = JSON.parse(flags.args); } catch { die("--args must be a JSON object"); } if (!args || Array.isArray(args) || typeof args !== "object") die("--args must be a JSON object"); }
+  show(await call(tok, flags.name, args, "report_measure_or_look_up"));
+} else if (cmd === "duplicate") {
+  await duplicate(tok, flags);
+} else {
+  die(`unknown subcommand ${cmd}`);
+}

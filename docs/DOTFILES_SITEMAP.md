@@ -115,8 +115,8 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 85 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
 | Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
-| Commands | [`bin/`](../bin/) | 65 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 79 | linked from this page |
+| Commands | [`bin/`](../bin/) | 66 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 80 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 20 | linked from this page |
@@ -127,9 +127,9 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Registry indexes | [`devices/`](../devices/) | 1 | linked from this page |
 | Command helpers | [`bin/`](../bin/) | 8 | linked from this page |
 | Research records | [`docs/research/`](../docs/research/) | 6 | linked from this page |
-| Environment and bootstrap | [`config/`](../config/) | 35 | linked from this page |
+| Environment and bootstrap | [`config/`](../config/) | 36 | linked from this page |
 | Device reports | [`docs/device-reports/`](../docs/device-reports/) | 21 | count only |
-| Archived task records | [`docs/archive/`](../docs/archive/) | 71 | count only |
+| Archived task records | [`docs/archive/`](../docs/archive/) | 72 | count only |
 
 <!-- system-map:inventory:end -->
 
@@ -468,6 +468,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`dotfiles-a1-coolify`](../bin/dotfiles-a1-coolify): `coolify` CLI for the `99ribu-prod` instance (host recorded device-locally); the CLI context holds only the URL and the token comes from `secrets-env` (`COOLIFY_99RIBU_PROD_TOKEN`) per call.
 - [`shopify-content-helper`](../bin/shopify-content-helper) (+ [`test`](../bin/shopify-content-helper-test)): Shopify SEO and content utilities: SEO audit and limits, sitemap entries, meta and brief templates, RSS and JSON-LD skeletons.
 - [`dotads-meta`](../bin/dotads-meta) (+ [`test`](../bin/dotads-meta-test)): Per-project Meta Ads campaign validator, dry-run planner, stateful deployer, and `secrets-env` bridge for Meta's official CLI; offline Indonesia market baseline and scoped economics observations. Named BM env auto-setup (also post-pull), explicit multi-BM selection, readable account folders, shared BM assets/optional temporary copies, SDK account discovery, scoped snapshots, immutable Markdown reports (legacy CSV retained), selected media import and reference-only adoption.
+- [`dotads-meta-mcp`](../bin/dotads-meta-mcp) (+ [`test`](../bin/dotads-meta-mcp-test)): Read-only client for Meta's hosted ads MCP server (accounts, all-status entities including ARCHIVED, read-only tool calls) with one guarded `duplicate` (dry run by default; `--apply` needs a private journal and never repeats a copy; PAUSED only). Credentials via `secrets-env`; offline mock-server tests.
 - [`_dotads-meta-provider.py`](../bin/_dotads-meta-provider.py) (+ [`SDK tests`](../bin/_dotads-meta-provider-test.py)): Private read adapter for official-SDK account inventory and Insights; bounded paging, retries and isolated transport tests.
 - [`_dotads-workspace.mjs`](../bin/_dotads-workspace.mjs) (+ [`filesystem tests`](../bin/_dotads-workspace-test.mjs)): Private account registry, immutable snapshots/reports, media import and reference-only adoption; filesystem safety and recovery checks.
 - [`dotuiux`](../bin/dotuiux) (+ [`test`](../bin/dotuiux-test)): Zero-dependency UI/UX helper on `ui-ref.mjs`: `init` scaffolds `design/brief.md` and `DESIGN.md`, `teardown` captures live references at 360/768/1440, `check` runs floor (fail) and slop-signal (warn, `allow:`-able) gates on a rendered page, `compare` writes reference-vs-build sheets, outline report and an independent-review prompt, `validate` checks the project files.
