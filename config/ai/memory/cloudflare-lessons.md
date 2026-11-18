@@ -66,3 +66,26 @@ ALTER TABLE ... ADD COLUMN x TEXT GENERATED ALWAYS AS (expr) VIRTUAL; CREATE IND
 SQLite run 2026-10-29: '/Promo-A/'->'promo-a', '/produk/kopi'->'kopi', '/'->'beranda', NULL->NULL, EXPLAIN QUERY PLAN uses the index. D1 still to be proven on local D1. Docs: https://developers.cloudflare.com/d1/reference/generated-columns/
 
 > Promoted from a reviewed local candidate on 2026-10-29.
+
+
+---
+
+
+## Lesson: Multi-tenant ad-traffic storefronts need versioned Cache API keys + atomic `cache_version` bump on admin edits
+
+### Symptom
+Either (a) 5,000 ad clicks/minute hammer the tenant D1/Durable Object on identical product HTML, or (b) after caching HTML for 120 s, an admin price/product/pixel edit takes 2 minutes to appear (breaking instant live verification and confusing sellers).
+
+### Root cause
+Automatic Workers Cache skips the Worker (losing `?fbclid`/`?ttclid`/`?gclid` first-party cookie capture), while URL-based Cache API keys without a version integer in `PLATFORM_DB` have no instant cross-URL purge when storefront data changes.
+
+### Durable invariant
+Every multi-tenant Cloudflare SaaS storefront uses a tenant-versioned `caches.default` key (`https://cache.<platform>/t/<tenantId>/v<cacheVersion>/<host><path>`), strips ad click/UTM/`ref` params from the key while still writing attribution `Set-Cookie` on hits, scopes geo-variant pages by internal `__prov`, and increments `tenants.cache_version` on both lifecycle events and storefront-affecting admin saves (products, landing pages, store settings, ad pixels).
+
+### Fix
+Run `caches.default.match()` after authoritative host resolution (5 s in-isolate cache) and before opening the tenant DB; call `bumpTenantCacheVersion(platformDb, tenantId)` on admin mutations that alter rendered storefront HTML.
+
+### Regression check
+Load `/produk/x?fbclid=1` twice -> second hit skips tenant DB (`X-Edge-Cache: HIT`) yet sets `adsbook_click_ids` cookie; edit product price or pixel in admin -> very next anonymous GET sees the new value (`v<n+1>`).
+
+> Recorded on Paduka Ongki's instruction on 2026-11-18 (`adsbook.id`).
