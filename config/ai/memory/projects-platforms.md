@@ -21,9 +21,9 @@
 - **adsbook.id** (new project, 2026-11-13, ADR-038): a **multi-tenant SaaS** on
   Cloudflare (one Worker, one SQLite Durable Object per tenant in APAC/Singapore,
   Cloudflare for SaaS hostnames; ADR-039 Option D; spec pack `docs/spec/`, queue
-  `docs/product/TASKS.md` + `tasks/`). Domains (being bought): `adsbook.id` = platform,
-  `belanja.cc` = seller subdomains + CNAME target `cname.belanja.cc`; sellers may connect
-  their root domain (skill `cloudflare-for-saas`). Code `ongkipro/adsbook.id` → `~/Projects/adsbook.id`, docs
+  `docs/product/TASKS.md` + `tasks/`). Live domains: `adsbook.id` = platform (`981e819270e74998956d0f45abbfaecf`),
+  `adsbook.my.id` = seller subdomains + CNAME target `cname.adsbook.my.id` (`2f704188a5333380dd6082f25d6bd74a`, replaced Trust+-blocked `adsbook.cc`).
+  **Shared Cloudflare Zone/SaaS Token (owner update 2026-11-18):** `ADSBOOK_CF_SAAS_TOKEN` (and alias `CF_ALL_ZONES_SAAS_DNS_TOKEN`) in `~/.config/ai-local/secrets.env` was broadened by Paduka to **All Zones** on account `ca58f2ac62b7c66e46e6ce654f585034` (`DNS: Edit`, `SSL and Certificates: Edit`, `Zone: Read`), shared across `adsbook.id`, `geraiexpress-cfv2`, and sibling zones on that account (never rotate/delete it from one project alone; use `env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN` for account-level Wrangler commands). Code `ongkipro/adsbook.id` → `~/Projects/adsbook.id`, docs
   `ongkipro/adsbook.id-docs` → `~/Projects/adsbook.id-docs`, both private; started
   from the AdsBookCMS tree.
   Never commit, push or add a remote toward `ongkipro/adsbookcms` from it, and
