@@ -271,7 +271,7 @@ try {
   // Stand-in for Pi's built-in catalogs, shaped like pi-ai's generated modules.
   const official=join(fixture,'official'); await mkdir(official);
   await writeFile(join(official,'anthropic.models.js'),`export const ANTHROPIC_MODELS={'claude-opus-5-5':{id:'claude-opus-5-5',thinkingLevelMap:{low:'low',max:'max'},promptCache:{short:300,long:3600},compat:{forceAdaptiveThinking:true,supportsStrictTools:true,supportsTemperature:false,supportsMidConvoEffort:true,supportsMidConvoSystemMessages:true,supportsMidConvoToolChanges:true,allowedFallbackModels:[]}}};`);
-  await writeFile(join(official,'openai-codex.models.js'),`export const OPENAI_CODEX_MODELS={'gpt-6.1-sol':{id:'gpt-6.1-sol',thinkingLevelMap:{xhigh:'xhigh',max:'max'},compat:{supportsToolSearch:true}}};`);
+  await writeFile(join(official,'openai-codex.models.js'),`export const OPENAI_CODEX_MODELS={'gpt-6.1-sol':{id:'gpt-6.1-sol',thinkingLevelMap:{xhigh:'xhigh',max:'max'},compat:{supportsToolSearch:true}},'gpt-6-astra':{id:'gpt-6-astra',thinkingLevelMap:{off:null,minimal:null,xhigh:'xhigh'},compat:{supportsToolSearch:true}}};`);
   const dir=join(fixture,'.pi/agent'); await mkdir(dir,{recursive:true});
   const file=join(dir,'models.json');
   const baseUrl=`http://127.0.0.1:${server.address().port}/v1`;
@@ -333,11 +333,13 @@ try {
   assert.equal(hydrogen.contextWindow,1048576);assert.equal(hydrogen.reasoning,true);
   const gpt=(await carbonRun('ok')).map(m=>m.id).filter(id=>id.startsWith('cx/gpt-6.2'));
   assert.deepEqual(gpt.sort(),['cx/gpt-6.2-astra','cx/gpt-6.2-sol']); // borrowed from 6.1 Sol
+  const astra62=(await carbonRun('ok')).find(m=>m.id==='cx/gpt-6.2-astra');
+  assert.equal(astra62.thinkingLevelMap.off,null);assert.equal(astra62.thinkingLevelMap.minimal,null); // Astra rejects off/minimal upstream
   await writeFile(file,good);
   for (mode of ['http-error','empty','duplicate','invalid','redirect']) {
     await assert.rejects(run());assert.equal(await readFile(file,'utf8'),good);
   }
-  assert.equal(sentCredential,false);assert.equal(catalogCalls,12);
+  assert.equal(sentCredential,false);assert.equal(catalogCalls,13);
   console.log('pi-catalog-sync: PASS (official metadata, managed install, unlisted Hydrogen, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
 } finally {
   await new Promise(resolve=>server.close(resolve));

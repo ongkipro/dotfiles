@@ -110,7 +110,9 @@ function modelMeta(row, existing = {}, official = { anthropic: {}, codex: {} }, 
     // Codex compat is copied whole: verified 2026-10-31 that effort reaches the
     // gateway as sent and tool calls work through additional_tools/tool search.
     model.api = 'openai-responses';
-    const o = official.codex[row.id.slice(3)];
+    // Unlisted 6.2 rows have no official Pi entry; borrow the closest release's
+    // compat and thinking levels (Astra rejects off/minimal, so it follows 6-astra).
+    const o = official.codex[row.id.slice(3)] || official.codex[CODEX_LEVELS_FROM[row.id.slice(3)]];
     if (o?.compat) model.compat = clone(o.compat);
     if (o?.thinkingLevelMap) model.thinkingLevelMap = clone(o.thinkingLevelMap);
   }
@@ -130,6 +132,8 @@ async function isChatModel(base, id) {
     return true;
   }
 }
+
+const CODEX_LEVELS_FROM = { 'gpt-6.2-sol': 'gpt-6.1-sol', 'gpt-6.2-astra': 'gpt-6-astra' };
 
 // Rows the gateway serves but does not list yet. Each borrows the limits and
 // capabilities of a listed sibling and is added only while that sibling is
@@ -152,10 +156,6 @@ const UNLISTED = [
   // reply names the 6.2 model) but the catalog lists only 6.1 Sol; both borrow its limits.
   ['cx/gpt-6.2-sol', 'cx/gpt-6.1-sol'],
   ['cx/gpt-6.2-astra', 'cx/gpt-6.1-sol'],
-  // Verified 2026-11-14: ag/gemini-3.8-flash-{low,medium,high} answer (agy lists them).
-  ['ag/gemini-3.8-flash-low', 'ag/gemini-3.8-flash'],
-  ['ag/gemini-3.8-flash-medium', 'ag/gemini-3.8-flash'],
-  ['ag/gemini-3.8-flash-high', 'ag/gemini-3.8-flash'],
 ];
 
 function withUnlisted(rows) {
