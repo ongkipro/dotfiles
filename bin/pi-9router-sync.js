@@ -134,19 +134,24 @@ async function isChatModel(base, id) {
 // Rows the gateway serves but does not list yet. Each borrows the limits and
 // capabilities of a listed sibling and is added only while that sibling is
 // listed and the row itself is not, so the gateway's own row wins once it
-// appears. Verified 2026-11-10: 9Router serves ag/gemini-4-carbon-{low,medium,high}
-// (Antigravity lists Gemini 4 Carbon) with tools and thinking, but omits them
-// from /v1/models.
+// appears. The owner hides the -low/-medium/-high variants in 9Router so /think
+// is the only thinking control (2026-11-18: reasoning_effort overrides the
+// variant suffix); plain ag/gemini-4-carbon is the one listed Gemini 4 row.
 const UNLISTED = [
-  ['ag/gemini-4-carbon-high', 'ag/gemini-4-argon-high'],
-  ['ag/gemini-4-carbon-medium', 'ag/gemini-4-argon-medium'],
-  ['ag/gemini-4-carbon-low', 'ag/gemini-4-argon-low'],
-  // Verified 2026-11-14: ag/gemini-4-hydrogen-{low,medium,high,xhigh} answer
-  // (agy 1.5.9 ships Gemini 4 Hydrogen) but the catalog omits them.
-  ['ag/gemini-4-hydrogen-xhigh', 'ag/gemini-4-argon-high'],
-  ['ag/gemini-4-hydrogen-high', 'ag/gemini-4-argon-high'],
-  ['ag/gemini-4-hydrogen-medium', 'ag/gemini-4-argon-medium'],
-  ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-argon-low'],
+  // Verified 2026-11-18: with the -low/-medium/-high variants hidden in 9Router,
+  // the gateway lists only plain ag/gemini-4-carbon, yet plain ag/gemini-4-argon
+  // answers (reasoning_effort controls depth) and ag/gemini-4-hydrogen-{low,
+  // medium,high,xhigh} answer (plain hydrogen 404s upstream). Both borrow
+  // Carbon's limits while Carbon is listed.
+  ['ag/gemini-4-argon', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-xhigh', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-high', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-medium', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-carbon'],
+  // Verified 2026-11-18: cx/gpt-6.2-{sol,astra} answer with tool calls (the
+  // reply names the 6.2 model) but the catalog lists only 6.1 Sol; both borrow its limits.
+  ['cx/gpt-6.2-sol', 'cx/gpt-6.1-sol'],
+  ['cx/gpt-6.2-astra', 'cx/gpt-6.1-sol'],
   // Verified 2026-11-14: ag/gemini-3.8-flash-{low,medium,high} answer (agy lists them).
   ['ag/gemini-3.8-flash-low', 'ag/gemini-3.8-flash'],
   ['ag/gemini-3.8-flash-medium', 'ag/gemini-3.8-flash'],

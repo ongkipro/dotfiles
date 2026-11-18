@@ -50,10 +50,10 @@ implementation and is reviewed like any Gemini row.
 
 | Implementer (model in use) | Reviewer, first choice | Reviewer, second choice |
 |---|---|---|
-| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-carbon-high` | `cx/gpt-6.1-sol` |
-| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-carbon-high` | `cx/gpt-6.1-sol` |
-| Gemini (`ag/gemini-4-carbon-*`, `ag/gemini-4-argon-*`) | `cc/claude-opus-5-5` | `cx/gpt-6.1-sol` |
-| GPT-6.1 Sol (`cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-carbon-high` |
+| Opus 5.5 (`cc/claude-opus-5-5`, `ag/claude-opus-5-5*`) | `ag/gemini-4-carbon` (high thinking) | `cx/gpt-6.2-sol` |
+| Sonnet 5.5 (`cc/claude-sonnet-5-5`, `ag/claude-sonnet-5-5*`) | `ag/gemini-4-carbon` (high thinking) | `cx/gpt-6.1-sol` |
+| Gemini (`ag/gemini-4-carbon`, `ag/gemini-4-argon`) | `cc/claude-opus-5-5` | `cx/gpt-6.2-sol` |
+| GPT-6.2 / 6.1 Sol (`cx/gpt-6.2-sol`, `cx/gpt-6.1-sol`) | `cc/claude-opus-5-5` | `ag/gemini-4-carbon` (high thinking) |
 
 - Opus and Sonnet are one family (Anthropic), so neither reviews the other's
   work; Carbon and Argon are one family (Gemini) likewise. Sonnet 5.5
@@ -62,13 +62,13 @@ implementation and is reviewed like any Gemini row.
 - Choose by the substance: Carbon for a broad second read of plans and
   architecture, Sol for correctness, edge cases and code-level findings, Opus
   for judgment-heavy or security-sensitive review of non-Anthropic work.
-- The `reviewer` subagent defaults to `cx/gpt-6.1-sol` at high thinking
+- The `reviewer` subagent defaults to `cx/gpt-6.2-sol` (since 2026-11-18, owner decision; 6.1 Sol stays usable) at high thinking
   (`subagents.agentOverrides` in `settings.json`, kept in step by
   `pi-9router-restore`). The parent passes `model` explicitly for
   any other pairing, for example
-  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-carbon-high", task: ...}`.
+  `{agent: "reviewer", model: "9router-fantastico/ag/gemini-4-carbon", thinking: "high", task: ...}`.
 - The `oracle` subagent (alias `advisor`: read-only plan, architecture and
-  decision-drift checks) defaults to `ag/gemini-4-carbon-high` at high
+  decision-drift checks) defaults to `ag/gemini-4-carbon` (high thinking) at high
   thinking, seeded per agent the same way. Without an override it would
   inherit the session model and advise from the implementer's own blind
   spots. Carbon leads on long context (GraphWalks) and is outside the Claude
@@ -78,8 +78,8 @@ implementation and is reviewed like any Gemini row.
   Claude, outside both families; Opus 5.5 is the fallback).
 - Recon and research agents are pinned too (2026-11-13): `scout` runs
   `cc/claude-haiku-5-5` at low thinking (speed over the parent's heavy model),
-  `researcher` runs `ag/gemini-4-carbon-medium` (1M context), and
-  `evidence-auditor` runs `cx/gpt-6.1-sol` at high thinking so it audits the
+  `researcher` runs `ag/gemini-4-carbon` at medium thinking (1M context), and
+  `evidence-auditor` runs `cx/gpt-6.2-sol` at high thinking so it audits the
   researcher from another family. `worker` and `delegate` inherit the session
   model, because the implementer's family decides the review pairing.
 - `enabledModels` (Ctrl+P cycling and the `/model` list) holds every active
@@ -87,11 +87,18 @@ implementation and is reviewed like any Gemini row.
   the picker; add a new gateway row here when it should show up on all devices.
 - `pi-9router-restore` sets every tracked `agentOverrides` entry on each device
   (see the ownership rule below); agents only a device overrides stay.
-- 9Router serves `ag/gemini-4-carbon-{low,medium,high}` and
-  `ag/gemini-4-hydrogen-{low,medium,high,xhigh}` but omits them from
-  `/v1/models`; `pi-9router-sync.js` adds them from their Argon siblings
-  until the gateway lists them itself (then the gateway's row wins). Without
-  that, a subagent call fails with "Unknown subagent model".
+- Gemini 4 Carbon is used as plain `ag/gemini-4-carbon`; thinking comes from
+  `/think` or the agent's `thinking` field. Measured 2026-11-18: with
+  `reasoning_effort` set, it overrides the `-low/-medium/-high` suffix
+  (carbon-low + high: 12.6k reasoning tokens; carbon-high + low: 1.1k), so the
+  variants only confuse. The owner hides them in the 9Router dashboard.
+- With the Gemini 4 variants hidden in 9Router (2026-11-18), the gateway lists
+  only plain `ag/gemini-4-carbon`. Plain `ag/gemini-4-argon` and
+  `ag/gemini-4-hydrogen-{low,medium,high,xhigh}` answer but are unlisted (plain
+  Hydrogen 404s upstream); `pi-9router-sync.js` adds them with Carbon's limits
+  and the gateway's own row wins once listed. Without that, a subagent call
+  fails with "Unknown subagent model". Opus 5.5 and Sonnet 5.5 are plain rows;
+  their `-high/-medium` variants are retired.
 - If the first choice fails (quota, 401, gateway down), use the second and say
   so. If both fail, report it; never replace the review with self-review.
 - Record the reviewer's real model in `delivery-ledger review-boundary

@@ -157,7 +157,8 @@ if "enabledModels" in seed or "enabledModels" in settings:
     retired = {
         "9router-fantastico/" + m for m in (
             "cx/gpt-6.1-terra", "cx/gpt-6-astra", "ag/gemini-4-carbon-low",
-            "ag/gemini-4-carbon", "cc/claude-opus-5", "ag/claude-opus-5-5-high",
+            "ag/gemini-4-carbon-high", "ag/gemini-4-carbon-medium",
+            "ag/gemini-4-argon-high", "ag/gemini-4-argon-medium", "ag/gemini-4-argon-low", "cc/claude-opus-5", "ag/claude-opus-5-5-high",
             "ag/claude-opus-5-5-medium", "cc/claude-fable-5-1", "cc/claude-fable-5",
             "cc/claude-sonnet-5", "ag/claude-sonnet-5-5", "ag/claude-sonnet-5-5-high",
             "ag/claude-sonnet-5-5-medium", "cc/claude-haiku-4-5-20251001",
