@@ -10,7 +10,8 @@
 - [Dealer Truk Hino](dealertrukhino.md) — `dealertrukhino.com` product-intent catalogue; private repository `ongkipro/dealertrukhino`. It is distinct from Dealer Hino Official.
 - [AUSSIE Sawit Malaysia](aussie-sawit-malaysia.md) — Malaysian COD palm-care storefront; repository `ongkipro/aussiemalaysia`. Repository contracts own execution truth.
 - [Petani Sejahtera](petanisejahtera.md) — COD landing-page funnel; repository `ongkipro/petanisejahtera`. Read repository contracts before implementation.
-- [TravelOS](travelos.md) — AI-native travel discovery, planning, and affiliate platform; repository `ongkipro/travelos`. Repository specifications and task records are authoritative.
+- [PunyaSitus](punyasitus.md) — multi-tenant business-profile (compro) CMS for Indonesian businesses; repository `ongkipro/punyasitus`. Repository contracts own execution truth.
+- [TravelOS](travelos.md) — AI-native travel discovery, planning, and affiliate platform; repository `ongkipro/travelos`. Separate product, not part of PunyaSitus/CMSPRO. Repository specifications and task records are authoritative.
 - [Formalin](formalin.md) — VolumX engine monorepo; canonical repository `irwansyah10/formalin`. Repository documents own implementation truth.
 - [TokoΦ](tokophi.md) — Indonesian commerce SaaS; repository `ongkipro/tokophi`. The older `indostore` repository is not the active product.
 - [Linux `rich` maintenance](linux-rich-maintenance.md) — headless OptiPlex dev server: host facts that decide whether a fix is safe, boot failure cases, and remote access (Tailscale CGNAT, `ssh rich` + tmux client config). `cuan` is a different machine with its own file.
