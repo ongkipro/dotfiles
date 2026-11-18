@@ -1,6 +1,6 @@
 # Meta Ads API and Evidence Record
 
-Reviewed: **2026-10-27**. Read this for changing API/algorithm claims, then fetch
+Reviewed: **2026-11-13**. Read this for changing API/algorithm claims, then fetch
 the relevant current official page and installed command help. Documentation
 dates do not prove a live account's eligibility or successful request.
 
@@ -8,9 +8,10 @@ dates do not prove a live account's eligibility or successful request.
 
 | Source | Verified fact / application |
 | --- | --- |
-| [Marketing API changelog](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/) | Rechecked 2026-11-05: page header names **v27.0** as latest Graph API version, while its Marketing API table lists v26.0 (2026-07-29, TBD), v25.0 (until 2027-02-23) and v24.0 (until **2026-11-10**). No v27 changelog page was retrievable. 2026-05-04: access tiers renamed Limited/Full; auto-approval at 500 calls in 15 days. Recheck before use. |
+| [Marketing API changelog](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/) | Rechecked 2026-11-13: **v27.0** (released **2026-11-04**) is latest; **v24.0** retired on **2026-11-10**; **v25.0** supported until **2027-02-23**; **v26.0** cross-version rules active since **2026-10-27**. 2026-05-04: access tiers renamed Limited/Full; auto-approval at 500 calls in 15 days. Recheck before use. |
 | [v25 changes](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/version25.0/) | Legacy ASC/AAC creation, duplication, and updates retired in v25; all versions since 2026-05-19. The earlier claim that updates were first blocked in v26 was wrong. |
-| [v26 changes](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/version26.0/) | Poll retirement, Web and App web_only deprecation, and explicit HEF audience choice apply in v26 and across versions from 2026-10-27. Scope is detailed below. |
+| [v26 changes](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/version26.0/) | Active across versions from **2026-10-27**: poll creative retirement, Web+App `applink_treatment=web_only` block, explicit HEF audience choice, removal of Instagram Explore Feed (`explore` in `instagram_positions`) and Messenger Stories (`messenger_positions`), and removal of `daily_outcomes_curve`, `estimate_dau`, and `budget_guardrail` from `/delivery_estimate`. |
+| [v27 changes](https://developers.facebook.com/documentation/ads-commerce/marketing-api/marketing-api-changelog/version27.0/) | Released **2026-11-04**: legacy Graph API patterns blocked for new apps/new usage (multi-ID `?ids=`, async batch, HTTP method override, field aliases, date/time format overrides, JSONP); Catalog `POST /{catalog-id}/batch` deprecated for `POST /{catalog-id}/items_batch`; `lookalike_spec` drops embedded location (inherits geo dynamically from target ad sets); new `OUTCOME_SALES` ad sets with specific mobile OS/device filters auto-enable *Expanded Mobile Device Reach* unless set to `0`; *Product showcase* auto-enrollment controlled via `creative_features_spec.product_extensions` (`OPT_OUT`). |
 | [Official CLI command reference](https://developers.facebook.com/documentation/ads-commerce/ads-ai-connectors/ads-cli/command-reference.md) | Incremental attribution and explicit attribution windows are mutually exclusive. Verify actual flag support with installed help. |
 | [Ad set creation reference](https://developers.facebook.com/documentation/ads-commerce/marketing-api/reference/ad-account/adsets/) | The engaged-video attribution event is ENGAGED_VIDEO_VIEW, not ENGAGED_VIEW. Windows and optimization goals have their own compatibility rules. |
 | [Advantage Audience reference](https://developers.facebook.com/documentation/ads-commerce/marketing-api/audiences/reference/targeting-expansion/advantage-audience.md) | Nested targeting_automation.advantage_audience expresses the explicit 0/1 choice. Create/update behavior and targeting constraints matter. |
@@ -41,11 +42,12 @@ eligibility. Effective API/attribution values remain unknown unless observed.
 
 ## Installed CLI versus effective API version
 
-**Update 2026-11-04 (device `rich`):** installed `meta-ads` **1.3.1** with
-`facebook-business` **26.0.2**; `FacebookAdsApi.API_VERSION` is **v26.0**, and
-real read-only collections used v26.0 successfully. The 1.2.0/24.x notes below
-are historical. v24.0 leaves Marketing API support on 2026-11-10; any device
-still on SDK 24.x must upgrade before then.
+**Update 2026-11-13:** verified on macOS (`meta-ads` **1.3.1**, `facebook-business`
+**26.0.3**, `FacebookAdsApi.API_VERSION` **v26.0**) and on 2026-11-04 on `rich`
+(`meta-ads` **1.3.1**, `facebook-business` **26.0.2**, **v26.0**); read-only and
+live campaign collections ran on **v26.0**. Marketing API **v24.0** retired on
+**2026-11-10**, and **v27.0** launched on **2026-11-04** while `facebook-business`
+26.0.x remains pinned to **v26.0**. The 1.2.0/24.x notes below are historical.
 
 The inspected local package was meta-ads **1.2.0**, with facebook-business
 **24.0.1**. Package metadata requires facebook-business >=24.0,<25.0; the
@@ -173,7 +175,7 @@ boundary approval; the global policy gate remains separately visible.
 
 ## API compatibility and delivery architecture
 
-Reviewed **2026-10-27**. Meta operates the recommendation systems on its servers;
+Reviewed **2026-11-13**. Meta operates the recommendation systems on its servers;
 there is no Andromeda/GEM/Lattice switch to install in this helper. Official
 sources describe retrieval, foundation-model knowledge transfer, cross-domain
 ranking, and newer semantic tokenization. They do not establish a fixed

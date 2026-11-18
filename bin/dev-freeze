@@ -22,6 +22,10 @@ if [ $# -eq 0 ]; then
 fi
 
 q() { printf '%q' "$1"; }   # shell-quote for generated restore commands
+if command -v sha256sum >/dev/null 2>&1; then _sha=(sha256sum)
+elif [ -x /sbin/sha256sum ]; then _sha=(/sbin/sha256sum)
+else _sha=(shasum -a 256); fi
+sha256() { "${_sha[@]}" "$@"; }
 INDEX="$OUT/INDEX.md"
 {
   echo "# Development freeze $(date -Iseconds)"
@@ -55,13 +59,14 @@ snap_tree() { # $1=worktree path, $2=dest dir; sets errors
   for f in uncommitted.patch staged.patch; do [ -s "$dest/$f" ] || rm -f "$dest/$f"; done
 }
 
-declare -A seen=()
+seen=""
+NL=$'\n'
 for arg in "$@"; do
   repo=$(cd "$arg" 2>/dev/null && pwd -P) || { echo "dev-freeze: not a directory: $arg" >&2; failed_total=$((failed_total + 1)); continue; }
   [ -e "$repo/.git" ] || continue
   name=$(basename "$repo"); key="$name"
-  [ -n "${seen[$key]:-}" ] && key="$name-$(printf '%s' "$repo" | sha256sum | cut -c1-8)"
-  seen[$key]=1
+  case "$NL$seen$NL" in *"$NL$key$NL"*) key="$name-$(printf '%s' "$repo" | sha256 | cut -c1-8)" ;; esac
+  seen="${seen:+$seen$NL}$key"
   dest="$OUT/$key"; mkdir -p "$dest"
   errors=()
   branch=$(git -C "$repo" branch --show-current)
@@ -93,11 +98,11 @@ for arg in "$@"; do
     dirty_total=$((dirty_total + d))
     if [ "$wt" = "$repo" ]; then snap_tree "$wt" "$dest/main-tree"
     elif [ "$d" -gt 0 ]; then
-      wkey=$(printf '%s' "$wt" | sha256sum | cut -c1-12)
+      wkey=$(printf '%s' "$wt" | sha256 | cut -c1-12)
       snap_tree "$wt" "$dest/worktrees/$wkey"; printf '%s\n' "$wt" > "$dest/worktrees/$wkey/PATH"
       wt_dirty="$wt_dirty\n- \`$wt\` ($(git -C "$wt" branch --show-current)): $d changed → \`worktrees/$wkey/\`"
     fi
-  done < <(printf '%s\n' "${worktrees[@]}")
+  done < <(printf '%s\n' ${worktrees[@]+"${worktrees[@]}"})
   unpushed=$(git -C "$repo" rev-list --count '@{u}..HEAD' 2>/dev/null || echo "no upstream")
   {
     echo "# $name — resume"
@@ -128,7 +133,7 @@ for arg in "$@"; do
   # Required artifacts must exist before the snapshot can be called complete.
   if [ "$kind" = bundle ]; then [ -s "$dest/all-refs.bundle" ] && [ -f "$dest/main-tree/status.txt" ] || errors+=("missing bundle or main-tree")
   else [ -s "$dest/working-tree.tar.gz" ] || errors+=("missing working-tree tarball"); fi
-  (cd "$dest" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS) || errors+=("checksums")
+  (cd "$dest" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 -r "${_sha[@]}" > SHA256SUMS) || errors+=("checksums")
   if [ ${#errors[@]} -gt 0 ]; then result="**INCOMPLETE**: ${errors[*]}"; failed_total=$((failed_total + 1)); else result="ok ($kind)"; fi
   echo "| [$key]($key/RESUME.md) | \`$branch\` | $dirty_total | $unpushed | $wt_count | $result |" >> "$INDEX"
   echo "done $key: $result"

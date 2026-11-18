@@ -5,23 +5,30 @@ set -euo pipefail
 bin="$(cd "$(dirname "$0")" && pwd)"; t=$(mktemp -d); trap 'chmod -R u+rwx "$t" 2>/dev/null; rm -rf "$t"' EXIT
 export DEV_FREEZE_NICE=1
 g() { git -C "$1" -c user.name=t -c user.email=t@example.invalid "${@:2}"; }
-mkdir -p "$t/p/a" "$t/p/empty" "$t/p/sp ace" "$t/q/a"
+sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; elif [ -x /sbin/sha256sum ]; then /sbin/sha256sum "$@"; else shasum -a 256 "$@"; fi; }
+sha256_check() { if command -v sha256sum >/dev/null 2>&1; then sha256sum -c --quiet "$@"; elif [ -x /sbin/sha256sum ]; then /sbin/sha256sum -c --quiet "$@"; else shasum -a 256 -c -s "$@"; fi; }
+mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"; }
+fmode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
+mkdir -p "$t/p/a" "$t/p/empty" "$t/p/sp ace" "$t/q/a" "$t/q/sp ace"
 g "$t/p/a" init -q -b main; echo one > "$t/p/a/f"; g "$t/p/a" add f; g "$t/p/a" commit -qm one
 g "$t/p/a" checkout -qb work; echo two >> "$t/p/a/f"; g "$t/p/a" commit -qam two; echo dirty >> "$t/p/a/f"; echo new > "$t/p/a/u.txt"
-touch -d '2001-01-01' "$t/p/a/f"   # stale stat info: a plain `git status` would rewrite the index
+touch -t 200101010000 "$t/p/a/f"   # stale stat info: a plain `git status` would rewrite the index
 g "$t/p/empty" init -q; echo draft > "$t/p/empty/d.txt"
 g "$t/p/sp ace" init -q -b main; echo s > "$t/p/sp ace/s"; g "$t/p/sp ace" add s; g "$t/p/sp ace" commit -qm s
+g "$t/q/sp ace" init -q -b main; echo s2 > "$t/q/sp ace/s2"; g "$t/q/sp ace" add s2; g "$t/q/sp ace" commit -qm s2
 g "$t/q/a" init -q -b main; echo other > "$t/q/a/o"; g "$t/q/a" add o; g "$t/q/a" commit -qm other
-before=$(cd "$t/p/a" && git rev-parse HEAD; sha256sum .git/index; stat -c %Y .git/index)
+before=$(cd "$t/p/a" && git rev-parse HEAD; sha256 .git/index; mtime .git/index)
 
-# Relative output and repo paths with trailing slashes, a spaced path, and two repos named "a".
-(cd "$t" && "$bin/dev-freeze" out p/a/ "p/sp ace" p/empty/ q/a >/dev/null)
-[ "$before" = "$(cd "$t/p/a" && git rev-parse HEAD; sha256sum .git/index; stat -c %Y .git/index)" ] || { echo "repo or index modified"; exit 1; }
+# Relative output and repo paths with trailing slashes, spaced duplicate basenames, and two repos named "a".
+(cd "$t" && "$bin/dev-freeze" out p/a/ "p/sp ace" p/empty/ q/a "q/sp ace" >/dev/null)
+[ "$before" = "$(cd "$t/p/a" && git rev-parse HEAD; sha256 .git/index; mtime .git/index)" ] || { echo "repo or index modified"; exit 1; }
 [ -f "$t/out/a/all-refs.bundle" ] && [ ! -e "$t/p/a/out" ]                # output relative to the caller, not the repo
 [ -f "$t/out/a/main-tree/uncommitted.patch" ]                              # trailing-slash repo recognised as main tree
 other=$(ls -d "$t"/out/a-* | head -1); [ -f "$other/all-refs.bundle" ]    # duplicate basename gets its own folder
-for d in "$t"/out/*/; do (cd "$d" && sha256sum -c --quiet SHA256SUMS); done
-! grep -q INCOMPLETE "$t/out/INDEX.md"; [ "$(stat -c %a "$t/out")" = 700 ]
+[ -f "$t/out/sp ace/all-refs.bundle" ]
+other_sp=$(ls -d "$t/out/sp ace-"* | head -1); [ -f "$other_sp/all-refs.bundle" ] # spaced duplicate basename gets its own folder
+for d in "$t"/out/*/; do (cd "$d" && sha256_check SHA256SUMS); done
+! grep -q INCOMPLETE "$t/out/INDEX.md"; [ "$(fmode "$t/out")" = 700 ]
 
 # Restore by executing the generated instructions (quoted paths), for bundle, spaced and no-commit repos.
 (cd "$t" && mkdir r1 && cd r1 && sed -n '/^```bash$/,/^```$/p' "$t/out/a/RESUME.md" | sed '1d;$d' | bash >/dev/null 2>&1)
