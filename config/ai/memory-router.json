@@ -306,7 +306,12 @@
         "token optimization",
         "prompt optimization",
         "minimal diff",
-        "small diff"
+        "small diff",
+        "delivery-ledger",
+        "heavy-run",
+        "review loop",
+        "panel 1",
+        "vitest"
       ]
     },
     {

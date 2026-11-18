@@ -21,3 +21,17 @@ Use the repository’s existing convention and stop at the first rung that holds
 - A small diff is only good after tracing the real flow. Migrate every affected caller and remove obsolete aliases, comments, and dead branches in the same cutover.
 - Validate with the smallest executable evidence that would fail for the plausible bug. A broad suite cannot replace reproducing the changed behavior.
 - Compress checkpoints into durable facts and paths. Do not preserve verbose tool output when the command, observed result, and causal conclusion are sufficient.
+
+## 4. Zero-waste supervised verification & review pipeline (Owner mandate 2026-11-19)
+
+Eliminate multi-round review ping-pong, duplicate full-suite runs, `workerd`/Playwright CPU thrashing, and subagent context duplication:
+
+1. **Supervisor pre-review BEFORE external review:** Before invoking an independent `reviewer` subagent, the Supervisor MUST inspect the git diff and screenshots directly against domain invariants (money/fee rules, masking/privacy ADRs, keyboard/ARIA contracts, input validation, mobile/desktop overflow). Fix obvious gaps in one fast pass before spending an external review round.
+2. **Risk-proportional review (`R0–R2` vs `R3–R4`):**
+   - **R0 / R1 / R2** (copy, CSS, marketing layout, SVG/logo, animations, docs, dev tooling): Supervisor direct code + screenshot review is sufficient — do NOT run multi-round external reviewer loops.
+   - **R3 / R4** (auth/session, money/ledger, tenant isolation, DB/DO migrations, security boundaries): run independent cross-family review (`reviewer` / GPT-6.2 Sol) AFTER Supervisor pre-review, aiming for single-round `APPROVE`.
+3. **Focused checks during iteration, full gate ONCE at the end:**
+   - While building or fixing review items, run ONLY `typecheck` + touched unit/worker test files + touched Playwright spec (`GX_SKIP_BUILD=1` / server reuse after one build).
+   - NEVER run `pnpm test:worker` and `pnpm check` separately on the same tree when `pnpm check` already includes `test:unit` + `test:worker`.
+   - NEVER run a full `delivery-ledger` suite *before* review if the run must close `BLOCKED` pending review and then re-run everything in a "release run" afterward. Keep iteration checks focused; run ONE final `delivery-ledger` gate (`PASS`) right before merge & deploy.
+4. **No heavy parallel subagents fighting one lock:** Inside an Executor session, do not spawn multiple `general-purpose` subagents that each re-read 200k–300k tokens of repo context only to queue behind the same `heavy-run` lock. Execute edits sequentially in the main thread and run one combined verification pass. Cap local `workerd`/Vitest concurrency (`maxWorkers: 3`) on shared multi-project hosts to prevent port/teardown flakes.
