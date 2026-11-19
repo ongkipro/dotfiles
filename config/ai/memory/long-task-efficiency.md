@@ -13,6 +13,15 @@
 - Give delegated prompts only the slice contract: target, change, acceptance, constraints, and shared interface. Exclude unrelated conversation and speculative advice.
 - GitHub-harvested architecture patterns belong in skill `references/`, not in memory. Current pattern references: `admin-dashboard/references/github-admin-patterns.md` and `next-shadcn-starter-patterns.md` (admin table/form/RBAC contracts from Refine, Payload CMS, Medusa, next-shadcn-dashboard-starter); `storefront-development/references/next-commerce-patterns.md` (commerce catalog/cart/checkout contracts from Next Commerce). These are loaded on demand by the owning skill; do not duplicate their content into memory or always-loaded policy.
 
+### Delegated & handoff prompt discipline (`writer` skill)
+
+Apply `skills/local/writer/SKILL.md` and `skills/local/writer/references/prompt-writing.md` whenever drafting prompts, subagent tasks, runbooks, or tmux/CLI handoffs:
+
+- Write agent/CLI handoff prompts in concise English with calm, operational wording (no ALL-CAPS shouting or conversational filler).
+- State the target behavior and a testable completion criterion per step rather than repeating negative bans.
+- Keep one source of truth: point to the owning specification/runbook path and line range instead of restating prose inline.
+- Specify inputs, allowed boundaries, reply format, and explicit stop/report behavior when blocked.
+
 ### Minimal-diff discipline
 
 Use the repository’s existing convention and stop at the first rung that holds: no change, existing helper, standard library, native platform, installed dependency, one line, then minimum new code.
