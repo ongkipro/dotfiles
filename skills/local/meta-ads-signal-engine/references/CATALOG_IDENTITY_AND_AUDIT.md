@@ -43,8 +43,9 @@ handed out twice. Use it.
 a numeric value. What breaks ids where feeds travel is coercion — a JavaScript
 `number`, a spreadsheet dropping leading zeros, two sources merging. The shared
 memory rule (`development.md` § Commerce catalog identity) is the default: a
-digit-only value of at least five digits, never starting with `0`, carried as a
-string at every boundary, separate from the database primary key, generated
+digit-only value of at least five digits, carried as a string at every
+boundary (a leading `0`, as in a `ddmmyy` id for the 1st–9th, is kept, never
+stripped), separate from the database primary key, generated
 server-side with a collision-safe counter. A tiny bare id such as `1` is the
 real hazard; an id like `1911261001` is not. A prefix (`p1-v12`) is acceptable
 when an existing contract already uses one; do not mix both styles in one
@@ -52,7 +53,7 @@ catalog. Padding an existing id only invents a new value that matches nothing.
 
 Worked example (99ribu-cf `DEC-040`): `ddmmyy` of the WIB creation date plus a
 daily sequence from `1001` — the first variant created on 19 Nov 2026 is
-`1911261001`. Parent product and variants draw from the same counter; the
+`1911261001`; on 5 Nov it would be `0511261001`. Parent product and variants draw from the same counter; the
 parent's id is the `item_group_id`, each variant's id is the item id. The
 public URL carries no id at all (`/produk/<slug>`, `/produk/<slug>/<variant-slug>`);
 the id lives only in feeds, events and the admin. Moving to a new id scheme
