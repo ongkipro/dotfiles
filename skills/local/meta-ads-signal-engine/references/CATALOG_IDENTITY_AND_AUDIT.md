@@ -4,7 +4,26 @@ Moved from SKILL.md 2026-10-30.
 
 ## Catalog identity: the id that must match
 
-Verified against the platform specs, 2026-08-17.
+Verified against the platform specs, 2026-08-17; Meta/TikTok naming re-checked 2026-11-19.
+
+### Who creates the id
+
+The merchant does, at the moment the product or variant is created in its own
+system. No platform hands one back that you should use:
+
+- **Meta has two ids per item.** Meta generates its own numeric item id (the
+  Graph API product item `id`) when the item enters the catalog; ignore it for
+  tracking. The id that matters is the merchant's: the `id` column of a data
+  feed, shown in Commerce Manager as **Content ID**, called `retailer_id` in the
+  Catalog / Items Batch API (WhatsApp: `product_retailer_id`). The Pixel's
+  `content_ids` / `contents[].id` and CAPI must equal this value exactly. If two
+  catalog items share it, Meta ignores **all** of them.
+- **Google:** the feed `id` / `<g:id>` (Merchant API `offerId`).
+- **TikTok:** the catalog `sku_id`; Pixel/Events API `content_id` must equal it
+  exactly (no prefix added on one side only, same case).
+
+So one value is minted once and copied everywhere: catalog row, feed, Pixel,
+CAPI/Events API, GA4 `item_id`, order-line snapshot.
 
 | | Google Merchant Center | Meta Catalog |
 | --- | --- | --- |
@@ -20,17 +39,30 @@ rule is that an id, once assigned, never changes, and an editable field is
 precisely the one that will. A database primary key never changes and is never
 handed out twice. Use it.
 
-**Prefix it.** No spec requires it, but a bare `1` is fragile exactly where feeds
-travel — spreadsheet and CSV coercion, dropped leading zeros, collisions when two
-sources merge. Three characters remove all of it and make the id self-describing:
-`p1-v12` says what it is, `12` does not. Padding to a fixed width buys none of
-this; it only invents a new value that matches nothing.
+**Format: digits are fine, typed as a string.** No spec requires a prefix or
+a numeric value. What breaks ids where feeds travel is coercion — a JavaScript
+`number`, a spreadsheet dropping leading zeros, two sources merging. The shared
+memory rule (`development.md` § Commerce catalog identity) is the default: a
+digit-only value of at least five digits, never starting with `0`, carried as a
+string at every boundary, separate from the database primary key, generated
+server-side with a collision-safe counter. A tiny bare id such as `1` is the
+real hazard; an id like `1911261001` is not. A prefix (`p1-v12`) is acceptable
+when an existing contract already uses one; do not mix both styles in one
+catalog. Padding an existing id only invents a new value that matches nothing.
+
+Worked example (99ribu-cf `DEC-040`): `ddmmyy` of the WIB creation date plus a
+daily sequence from `1001` — the first variant created on 19 Nov 2026 is
+`1911261001`. Parent product and variants draw from the same counter; the
+parent's id is the `item_group_id`, each variant's id is the item id. The
+public URL carries no id at all (`/produk/<slug>`, `/produk/<slug>/<variant-slug>`);
+the id lives only in feeds, events and the admin. Moving to a new id scheme
+means **new** catalogs on every platform, not an edit of the old one.
 
 **Decide the grain before anything else.** A variant-level feed publishes one item
 per variant, so:
 
-- item id = `p{product}-v{variant}`, unique per variant
-- `item_group_id` = `p{product}`, shared by every variant of the product
+- item id = the variant's own catalog id, unique per variant
+- `item_group_id` = the product's catalog id, shared by every variant of the product
 - the group id is **never** published as an item id
 
 Both of the following have shipped and neither errors: publishing the first
@@ -64,7 +96,13 @@ The reliable check is end-to-end: fire a real event, then confirm the value, `co
 
 ---
 
-## Sources (accessed 2026-10-02)
+## Sources (accessed 2026-10-02; catalog id rows 2026-11-19)
+
+- Meta catalog fields (`id` ≤100 chars, unique, duplicates all ignored, must match Pixel content ID; `item_group_id` for variants): https://developers.facebook.com/docs/commerce-platform/catalog/fields/
+- Meta Pixel for Advantage+ catalog ads (`content_ids` / `contents[].id` must match catalog ids on ViewContent, AddToCart, Purchase): https://developers.facebook.com/docs/meta-pixel/get-started/advantage-catalog-ads/
+- Meta Items Batch API (`retailer_id`): https://developers.facebook.com/docs/marketing-api/catalog-batch/reference/
+- Google Merchant `id` (1–50 chars, stable, never recycled, unique per variant, parent in `item_group_id`): https://support.google.com/merchants/answer/6324405
+- TikTok catalog match rate (`content_id` must equal catalog `sku_id`): https://ads.tiktok.com/resources/help/article/how-to-troubleshoot-catalog-match-rate-issues
 
 - Graph API changelog (version/expiry dates): https://developers.facebook.com/docs/graph-api/changelog
 - Deduplication (event_id+event_name, 48 h, first-received kept; fbp/external_id fallback only browser-first): https://developers.facebook.com/docs/marketing-api/conversions-api/deduplicate-pixel-and-server-events
