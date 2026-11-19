@@ -62,7 +62,20 @@ now understands fails the case regardless of total score. Naturalness needs read
 self-awarded scores cannot establish it.
 
 Compare before/after guidance using more than one run when making a model-level
-claim. Prefer blinded reader comparison where available. Report case-level
+claim. Measure a guidance change against a plain control arm ("Answer
+concisely.") as well as no guidance: the honest delta is guidance vs control,
+not guidance vs nothing. Isolate each arm from ambient global context; a fresh
+session still loads the rendered `CORE.md` (for Claude Code, run from an empty
+temp directory with `claude -p --setting-sources project --strict-mcp-config
+--disable-slash-commands --no-session-persistence`, flags present in 2.1.328;
+confirm the user `CLAUDE.md` is absent from the arm before trusting it; check other runtimes' help
+for equivalents before claiming isolation). Hard-fail conditions (lost negation,
+changed command, number, or identifier) can be scored offline with per-case
+`must_include`/`must_not_include` patterns, provided each pattern is first shown
+to accept a known-good and reject a known-bad sample answer; patterns never
+score naturalness. `ai-workflow-eval` implements this as per-case `replyChecks`
+in `config/ai/evals/workflow-scenarios.json`; `ai-workflow-eval check` rejects
+patterns that do not separate their own examples. Prefer blinded reader comparison where available. Report case-level
 failures, reviewer provenance, sample count, and untested models. Self-review is
 useful for obvious instruction conflicts but is not independent model evidence.
 Store requested evaluation reports under the user's research-output convention;

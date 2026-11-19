@@ -107,6 +107,29 @@ not tracked). Applied here only where the claim was checked locally.
 | Vendor skills: `vercel/next.js` skills, `vercel-labs/agent-skills`, `cloudflare/skills`, `neondatabase/agent-skills`, `planetscale/skills`, `better-auth/skills` | None yet. | Pending per owning skill; each claim names version-gated APIs that must be checked against the installed version first. `better-auth/skills` has no license: no text reuse. |
 | Memory designs: `tigerless-labs/agent-memory`, `siimvene/memspec`, `0Mattias/bettermemory`, `xChuCx/agent-memory`, `okf-memory/okf-agent-memory` | None yet. | Pending as tool work: section routing, bilingual staleness, outcome receipts, inbox triage, two-tier recall. Daemons, transcript ingestion and autonomous consolidation are rejected. |
 
+## Full-repository recheck — 2026-11-20
+
+Ponytail `96608e07` (MIT), Graphify `340268a` (0.9.112) with claims re-checked
+at the pinned 0.9.111 tag `2b28033`, and Caveman `a192894` (Apache-2.0 since
+3.0.0) were cloned read-only into `~/Documents/work/research/upstream-2026-11-19/`
+and their source, skills, evals, and tests were read, not only the READMEs. Nothing
+was installed. Adaptations use local wording.
+
+| Upstream | Local adoption | Deliberate non-adoption |
+|---|---|---|
+| Ponytail `skills/ponytail-debt`, `ponytail-review` | `lean-code-review`: shortcut ledger for `lazy:` markers with a `no-trigger` tag; a marker naming its ceiling is a decision, not a finding, unless the expected load crosses it. | Session mode toggles, statusline/hooks, the `/ponytail-gain` benchmark card, a separate audit skill. |
+| Graphify `cli.py`, `detect.py`, `__main__.py`, `llm.py` | `codebase-navigation`: `GRAPHIFY_BACKEND=none` (extract ignores unknown flags), `GRAPHIFY_NO_AUTO_REFRESH`, `GRAPHIFY_NO_CTA`; `--exclude`; built-in sensitive-file filter and tracked-file caveat; exit 3 ambiguous / 4 missing; `affected` for change impact; incremental merge reuses saved settings; avoid `graphify update`. Pilot now asserts `affected`, `--exclude` (proven by a mutation), `.env` skip, and exit 3. Pin stays 0.9.111: 0.9.112 fixes Java/Go/Rust/JS/C/SQL extractors only. | HTML exports (CDN scripts), `--postgres`, `--cargo`, `ingest`, query log, `.graphifyrc`, cloud. |
+| Caveman `skills/caveman/SKILL.md`, `evals/` | `writer/terminal-dialogue.md`: brevity exemptions (security, irreversible, ordered steps, confused reader, questions), comments as payload, pre-send check. `dialogue-evaluation.md`: plain-concise control arm, host isolation, self-tested `must_include`/`must_not_include` hard-fail patterns, implemented in `ai-workflow-eval` as per-case `replyChecks` (three cases; `check` rejects patterns that do not separate their examples; grading proven by a mutation). | `caveman-compress` (sends files to a provider, overwrites), ultra/mega modes, proxy/engine/middleware, cavecrew agents, profile registry and drift bot, unmeasured token claims. |
+
+Also considered and not adopted: a per-runtime "tested version" pin with drift
+warnings in `ai-doctor` (Caveman `agents/profiles/*.json`). Runtime versions
+change weekly, so the warning would fire constantly while proving nothing about
+context loading; the live-path verification table in `config/ai/README.md`
+stays the record. A deterministic before/after invariant checker for
+wording-only rewrites (`caveman-compress/scripts/validate.py`) waits until such a
+rewrite has actually regressed; `writer/references/preservation.md` covers it by
+hand.
+
 ## PRD conclusion
 
 No first-party Anthropic, OpenAI, shadcn, or Kimi source above defines a

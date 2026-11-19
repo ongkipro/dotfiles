@@ -25,9 +25,27 @@ the user explicitly requests a repo-wide audit.
    positives. Do not install one for a diff review.
 4. Separate measurable complexity from taste. Report only findings with a
    concrete deletion or smaller replacement.
-5. Rank findings by maintenance reduction, dependency removal, and blast radius.
-6. If the replacement depends on a stack-specific native feature, consult
+5. Treat a `lazy:` marker that names its ceiling as a recorded decision, not a
+   finding, unless the expected load in the repository already crosses it.
+6. Rank findings by maintenance reduction, dependency removal, and blast radius.
+7. If the replacement depends on a stack-specific native feature, consult
    `native-first` for that stack.
+
+## Shortcut ledger
+
+When the user asks what was deferred, or as part of a repo-wide audit, list the
+deliberate ceilings from tracked files:
+
+```bash
+git grep -nE '(#|//|/[*]) ?lazy:'
+```
+
+Output one row per hit, as `<file>:<line> — ceiling: <limit>. upgrade: <trigger>.`
+Skip hits that only mention the convention (policy text, docs, reviews). Read
+the whole comment block at each hit before judging; the trigger often sits on
+the following lines (`git grep -n -A3`).
+Tag `no-trigger` on a marker that names no upgrade path or trigger; those rot
+silently. End with `<N> markers, <M> no-trigger.` Report only; change nothing.
 
 ## Finding tags
 

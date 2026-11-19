@@ -126,6 +126,15 @@ identifiers, uncertainty, authorization boundaries, verification results, and
 unresolved limitations. Do not shorten an untested claim into a success claim.
 Full requested code, schemas, artifacts, and reproducible checks remain complete.
 
+Brevity yields to full sentences for security warnings, irreversible or
+destructive actions awaiting confirmation, ordered steps a fragment could
+scramble, a reader who is confused or repeats the question, and questions or
+options put to the owner. Persisted text (commits, PRs, docs, memory) follows
+its own artifact rules, not chat brevity. Existing comments in an edited file
+are payload: do not shorten or delete one outside the request. Before sending a
+compressed reply, check that every not/never/only, code span, path, number, and
+error string survived verbatim and that no sentence has two readings.
+
 Treat an explicit request for a persistent concise/Caveman mode as a session
 style preference until changed. A mention, comparison, installation question,
 or "is Caveman enabled?" asks for information; it does not activate a mode.
@@ -145,7 +154,8 @@ missing decision; do not fabricate continuity.
 ## Cross-CLI decision checks
 
 `ai-workflow-eval prompt` supplies synthetic communication and development cases
-without the answer key. Its grader checks structured decisions only. Apply the
+without the answer key. Its grader checks structured decisions, plus self-tested
+reply hard-fail patterns (`replyChecks`) on a few cases. Apply the
 [dialogue evaluation rubric](dialogue-evaluation.md) independently to the replies;
 matching labels cannot establish naturalness, correct execution, or model reliability.
 

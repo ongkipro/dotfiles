@@ -4,6 +4,14 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-20 — Full-repository recheck of Ponytail, Graphify, and Caveman
+
+- Upstream repos cloned read-only and read beyond their READMEs (source, skills, evals, tests): Ponytail `96608e07`, Graphify `340268a` (claims re-checked at the pinned 0.9.111 tag), Caveman `a192894`. Nothing installed. Adoption and non-adoption recorded in `ecosystem-adoption.md`.
+- `codebase-navigation`: runs set `GRAPHIFY_BACKEND=none` (`extract` silently ignores unknown flags, so a typo could enable the LLM pass), `GRAPHIFY_NO_AUTO_REFRESH=1`, `GRAPHIFY_NO_CTA=1`; `--exclude`, the built-in sensitive-file filter and its tracked-file caveat, exit 3 (ambiguous) and 4 (missing), `affected` for change impact, incremental-merge reuse of saved settings, no `graphify update`. The pilot also asserts `affected`, `--exclude` (proven by a mutation), the `.env` skip, and exit 3. Pin stays 0.9.111.
+- `lean-code-review`: `lazy:` shortcut ledger with a `no-trigger` tag; a marker that names its ceiling is a decision, not a finding.
+- `writer`: brevity exemptions (security, irreversible actions, ordered steps, a confused reader, questions to the owner), existing comments as payload, a pre-send check; evaluation adds a plain-concise control arm and host isolation (Claude Code flags present in 2.1.328).
+- `ai-workflow-eval`: optional per-case `replyChecks` (`must_include`/`must_not_include` regexes with pass/fail examples that `check` verifies) on `language-and-command`, `continue-with-negation`, and `english-terms-not-malay`; a reply hard-fail fails the case. A mutation that disables reply grading is caught by `ai-workflow-eval-test`.
+
 ## 2026-11-15 — Owner-facing language contract and writer handoff rules (TASK-216)
 
 - `CORE.md` (8,057 of 8,192 bytes): replies are Indonesian and not Malay; technical and marketing terms stay English (campaign, pause, tracking); foreign text shown to the owner (e.g. Chinese) is translated; analyses end with the point, next step and recommendation. Three older phrases were shortened to fit the budget; "invented API/tool specifics" left "Avoid" because Hard rules already states it.
