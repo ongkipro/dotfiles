@@ -328,7 +328,7 @@ try {
   assert.equal(byId['ag/gemini-4-argon'],undefined);assert.equal(byId['ag/gemini-4-hydrogen-high'],undefined);
   let ms=await carbonRun('carbon');
   const ids=ms.map(m=>m.id).filter(id=>id.startsWith('ag/gemini-4'));
-  assert.deepEqual(ids.sort(),['ag/gemini-4-argon','ag/gemini-4-carbon','ag/gemini-4-hydrogen-high','ag/gemini-4-hydrogen-low','ag/gemini-4-hydrogen-medium','ag/gemini-4-hydrogen-xhigh']);
+  assert.deepEqual(ids.sort(),['ag/gemini-4-argon','ag/gemini-4-carbon','ag/gemini-4-hydrogen-high','ag/gemini-4-hydrogen-low','ag/gemini-4-hydrogen-medium','ag/gemini-4-hydrogen-xhigh','ag/gemini-4-neon-high','ag/gemini-4-neon-low','ag/gemini-4-neon-medium','ag/gemini-4-neon-xhigh']);
   const hydrogen=ms.find(m=>m.id==='ag/gemini-4-hydrogen-xhigh');
   assert.equal(hydrogen.contextWindow,1048576);assert.equal(hydrogen.reasoning,true);
   const gpt=(await carbonRun('ok')).map(m=>m.id).filter(id=>id.startsWith('cx/gpt-6.2'));

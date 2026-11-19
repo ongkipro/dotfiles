@@ -99,6 +99,10 @@ implementation and is reviewed like any Gemini row.
   and the gateway's own row wins once listed. Without that, a subagent call
   fails with "Unknown subagent model". Opus 5.5 and Sonnet 5.5 are plain rows;
   their `-high/-medium` variants are retired.
+- Gemini 4 Neon (announced 2026-11-18): `ag/gemini-4-neon-{low,medium,high,xhigh}`
+  answer through 9Router (verified 2026-11-19) but are unlisted and plain
+  `ag/gemini-4-neon` 404s upstream, so `pi-9router-sync.js` adds them like
+  Hydrogen. Default to `-high`.
 - If the first choice fails (quota, 401, gateway down), use the second and say
   so. If both fail, report it; never replace the review with self-review.
 - Record the reviewer's real model in `delivery-ledger review-boundary

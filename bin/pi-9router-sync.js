@@ -154,6 +154,11 @@ const UNLISTED = [
   ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-carbon'],
   // Verified 2026-11-18: cx/gpt-6.2-{sol,astra} answer with tool calls (the
   // reply names the 6.2 model) but the catalog lists only 6.1 Sol; both borrow its limits.
+  ['ag/gemini-4-neon-xhigh', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-neon-high', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-neon-medium', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-neon-low', 'ag/gemini-4-carbon'],
+  // Verified 2026-11-19: plain ag/gemini-4-neon 404s; the four -level rows answer (Neon, announced 2026-11-18).
   ['cx/gpt-6.2-sol', 'cx/gpt-6.1-sol'],
   ['cx/gpt-6.2-astra', 'cx/gpt-6.1-sol'],
 ];
