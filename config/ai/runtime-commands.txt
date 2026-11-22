@@ -148,3 +148,5 @@ ai-schedule
 ai-schedule-test
 
 design-tools-test
+dottask
+dottask-test

@@ -55,6 +55,7 @@ Each line answers one question with the page that owns it.
 - [Ask another AI CLI for a second opinion](../bin/ai-ask): one read-only lane to claude, codex, agy, pi, or omp.
 - [Install or check Git safety hooks](../bin/ai-hooks-install): wires [`git-guard.sh`](../config/ai/hooks/git-guard.sh) and memory-usage hooks.
 - [Sync MCP servers across runtimes](../bin/ai-mcp-sync): one global MCP list, checked per runtime.
+- [Record tasks and IDR ledger entries](../bin/dottask) (+ [`test`](../bin/dottask-test)): sole write path for the dottask team app; guardrails in [`skills/local/dottask`](../skills/local/dottask/SKILL.md).
 - [Gate a production deploy](../bin/production-gate): safety verification before anything live.
 - [Understand learning, recall, and scheduled checks](../docs/adaptive-ai-system.md): how verified lessons, recall, and offline jobs fit together.
 - [Update this map](../bin/system-map): renders the inventory, gates coverage, answers `--find`; design sources in [system-map references](research/system-map-references-2026-10-25.md).
@@ -114,9 +115,9 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 28 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 86 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
-| Commands | [`bin/`](../bin/) | 67 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 81 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 78 | linked from this page |
+| Commands | [`bin/`](../bin/) | 68 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 82 | linked from this page |
 | Device profiles | [`devices/`](../devices/) | 10 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 20 | linked from this page |

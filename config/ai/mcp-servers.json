@@ -39,6 +39,13 @@
       "command": "ai-memory-mcp",
       "args": [],
       "description": "Read-only dotfiles memory router and SQLite FTS5 recall (memory_route, memory_recall)"
+    },
+    "dottask": {
+      "command": "dottask",
+      "args": [
+        "mcp"
+      ],
+      "description": "dottask team app stdio MCP (tasks, projects, DAG flow, IDR ledger); device token via secrets-env, sole write path for operational data"
     }
   },
   "retiredMcpServers": {
