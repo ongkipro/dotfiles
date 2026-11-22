@@ -4,6 +4,20 @@ Dated releases, newest first. `vYYYY.MM.DD`. Repository tests and runtime
 evidence outrank anything written here; where this file and `TASKS.md` disagree,
 `TASKS.md` and the `.delivery/` run records are authoritative.
 
+## 2026-11-23 — Skill audit (77 skills), REA 6.10.1, CI fix, Docker live-restore
+
+- Skill audit, three rounds: stale facts, dead links and versions re-checked against the real packages and CLIs.
+  - `hydrogen-*`, `headless-shopify`, `storefront-development`: Hydrogen 2026.10.3 (Classic 2026.4.8). `hydrogen-headless-tracking` corrected: ShopifyScripts props, consent modes, `setup()`, `getTrackingValues()`. Each was type-checked against `@shopify/hydrogen@2026.10.3`. The seven unreferenced blueprints moved to `references/archive/`.
+  - Upstream forks merged: `stripe-best-practices`, `workers-best-practices`, `durable-objects`, `cloudflare-email-service`, `cloudflare-one`.
+  - The `cloudflare` fork keeps `verified: 2026-10-02`; only one link divergence was recorded, because a full re-sync needs its own 3-way merge.
+  - Smaller fixes: `vercel` (`--wait` timeout exits 1), `meta-ads-cli` (`facebook-business<27.0`), `mermaid-diagram` (`System_Ext`), `shadcn-ui` 4.23.0.
+  - New `.upstream` watches for the Meta, TikTok, Google signal skills and `shopify-development`.
+- `black-magic` synced from tag `rea-agents-6.10.1` (not main, which documents features the release lacks): skill v55 → v63, new `desktop-build.md`, upstream dead links 23 → 0.
+- `rea-skill-sync` no longer erases local `.local-fork` notes and no longer rewrites the description. It reads both command-name file layouts and records `unknown` instead of a partial count. Its test no longer hard-requires PyYAML.
+- `skill-upstream`: a ref pinned to a full SHA no longer reports CURRENT while upstream has moved on.
+- CI: `dotads-meta-test` built its adapter fixture from a hard-coded runtime list and failed once `ai-memory-link` added `devin` (run 45049081684). It now reads `config/ai/adapters/`; a mutation that restores the old list fails again.
+- `rich`: Docker `live-restore` on via reload, with no container restarted (`docs/linux-maintenance-log.md`). `vps-deploy` gains the patch-only caveat.
+
 ## 2026-11-20 — Full-repository recheck of Ponytail, Graphify, and Caveman
 
 - Upstream repos cloned read-only and read beyond their READMEs (source, skills, evals, tests): Ponytail `96608e07`, Graphify `340268a` (claims re-checked at the pinned 0.9.111 tag), Caveman `a192894`. Nothing installed. Adoption and non-adoption recorded in `ecosystem-adoption.md`.
