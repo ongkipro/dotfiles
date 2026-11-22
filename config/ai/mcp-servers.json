@@ -34,6 +34,11 @@
         "MCP_REMOTE_CONFIG_DIR": "/tmp/mcp-remote-auth"
       },
       "description": "Official Astro docs search (search_astro_docs), remote server via a pinned stdio bridge; no credentials"
+    },
+    "ai-memory": {
+      "command": "ai-memory-mcp",
+      "args": [],
+      "description": "Read-only dotfiles memory router and SQLite FTS5 recall (memory_route, memory_recall)"
     }
   },
   "retiredMcpServers": {

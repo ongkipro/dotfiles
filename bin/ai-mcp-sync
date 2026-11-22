@@ -7,6 +7,7 @@ Declared in config/ai/mcp-servers.json and synchronized idempotently to:
   - Codex CLI:   ~/.codex/config.toml ("[mcp_servers.<name>]")
   - OMP:         ~/.omp/agent/mcp.json ("mcpServers")
   - Pi:          ~/.pi/agent/mcp.json ("mcpServers")
+  - Devin CLI:   ~/.config/devin/mcp_config.json ("mcpServers")
 
 Servers listed under "retiredMcpServers" are removed from every runtime config,
 and their device-local "paths" (relative to $HOME) are deleted, so a cleanup done
@@ -176,6 +177,12 @@ def sync_antigravity(home: Path, manifest: dict, check_only: bool, retired=()) -
     return sync_json(home / ".gemini/config/mcp_config.json", manifest, check_only, retired=retired)
 
 
+def sync_devin(home: Path, manifest: dict, check_only: bool, retired=()) -> tuple[bool, str]:
+    if not (home / ".config" / "devin").exists():
+        return True, "skipped (Devin CLI not configured on this device)"
+    return sync_json(home / ".config/devin/mcp_config.json", manifest, check_only, retired=retired)
+
+
 def toml_value(value):
     # Values retained inside a managed table; all unrelated tables stay verbatim.
     from datetime import date, time
@@ -265,6 +272,7 @@ def main() -> int:
         ("Codex CLI", lambda: sync_codex(home, manifest, args.check, retired)),
         ("OMP", lambda: sync_json_mcp(home / ".omp" / "agent", "OMP", manifest, args.check, retired=retired)),
         ("Pi", lambda: sync_json_mcp(home / ".pi" / "agent", "Pi", manifest, args.check, pi=True, retired=retired)),
+        ("Devin CLI", lambda: sync_devin(home, manifest, args.check, retired)),
         ("Retired files", lambda: remove_retired_paths(home, retired, args.check)),
     ]
 

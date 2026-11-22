@@ -19,7 +19,7 @@ Local directories, all clones of the product, none obvious from its name:
 - `~/Projects/permatamall` — joined the product's history the same day; same merge-based
   `sync-from-product.sh`; pushing `main` no longer deploys (see above).
 - **carukesi — decommissioned, no longer related to the fleet (Paduka, 2026-11-01).** Verified gone 2026-11-01: no local `~/Projects/carukesi`, Worker `carukesi` answers "does not exist" (10007), no D1/KV/R2 named carukesi, no store repo. Do not re-check or list it as an install.
-- `~/Projects/skincarebpom` — install `skincarebpom.shop` (**not** .com - that name is unregistered; both public resolvers answer NXDOMAIN), created 2026-08-21. Worker `skincarebpom`, D1 `skincarebpom-d1`, KV `skincarebpom-SESSION`, R2 `skincarebpom-assets`.
+- `~/Projects/skincarebpom` — install `skincarebpom.shop` (**not** `.com`). Worker `skincarebpom`, D1 `skincarebpom-d1`, KV `skincarebpom-SESSION`, R2 `skincarebpom-assets`.
 
 - `~/Projects/beranda-tani` — install `petanisejahtera.com` — main domain; the Worker also serves petanisawit.com and beranda.click (Petani Sejahtera theme), repo `ongkipro/beranda-tani`, branch `install/beranda-tani`, Worker `beranda-tani`; deployed manually with `npm run deploy`. Its breadcrumb and footer are install-themed, so product changes there conflict.
 - `~/Projects/revenleather` — install `page.revenleather.com`, repo `ongkipro/revenleather`, merges on `main`,

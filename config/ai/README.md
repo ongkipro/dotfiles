@@ -6,7 +6,7 @@ megaprompt for every CLI.
 
 ```text
 CORE.md             Shared policy every runtime needs in nearly every session (≤ 8 KB)
-adapters/<rt>.md    Runtime facts only: paths, hooks, skills, ownership (5 runtimes)
+adapters/<rt>.md    Runtime facts only: paths, hooks, skills, ownership (6 runtimes)
 context/<rt>.md     GENERATED: header + CORE.md + adapters/<rt>.md (committed, ≤ 10 KB)
 policies/           Shared policy referenced by several skills (planning artifacts)
 claude-home-memory/ Minimal bootstrap loaded only for Claude sessions at $HOME
@@ -38,6 +38,7 @@ the byte budgets, and `ai-doctor` checks the live links.
 | `~/.codex/AGENTS.md` | `context/codex.md` | Codex CLI | `codex debug prompt-input` renders it (Codex 0.154, 2026-09-15; needs no model quota) |
 | `~/.gemini/GEMINI.md` | `context/antigravity.md` | Antigravity (`agy`) | strace, agy 1.2.0, 2026-09-15 |
 | `~/.omp/agent/AGENTS.md` | `context/omp.md` | OMP | strace, OMP 18.1.x, 2026-09-15 |
+| `~/.config/devin/AGENTS.md` | `context/devin.md` | Devin CLI | `devin rules list`, Devin 3000.14.30821, 2026-11-22 |
 | `pi()` `--append-system-prompt` | `context/pi.md` | Pi | `config/shell-tools.sh` |
 
 agy opens only `~/.gemini/GEMINI.md` and probes `~/.gemini/AGENTS.md` and

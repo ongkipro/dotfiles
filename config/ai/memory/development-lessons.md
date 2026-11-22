@@ -112,3 +112,26 @@ Removed the line (4db202e); ai-policy-lint now fails on any leftover conflict ma
 ai-policy-lint-test conflict-marker fixture; git diff --cached --check is empty before every commit that followed a conflict.
 
 > Promoted from a reviewed local candidate on 2026-11-12.
+
+
+---
+
+
+## Lesson: Lazy-mounted drawers auto-close on first open when route-close useEffect lacks previous-location ref
+
+### Symptom
+First click/tap on a mobile menu or drawer trigger briefly opens and immediately closes the drawer, while subsequent taps work normally.
+
+### Root cause
+When a parent lazy-mounts a Drawer/Dialog only after first open (e.g. hasOpened && <Drawer isOpen={isOpen} />), an unguarded useEffect(() => { if (isOpen) onClose(); }, [location.pathname, location.search]) executes on initial mount while isOpen is already true and immediately calls onClose().
+
+### Durable invariant
+Route-change dismissal effects inside lazy-mounted overlays must compare current pathname/search against a ref initialized on mount and only invoke onClose() when the location actually changes after mount.
+
+### Fix
+Initialize const prevLocationRef = useRef(location.pathname + location.search) and only call onClose() when the concatenated location differs from prevLocationRef.current, updating the ref first.
+
+### Regression check
+In Playwright on a fresh page load, click the trigger once and assert the dialog/drawer remains [data-state=open] without needing a second click.
+
+> Promoted from a reviewed local candidate on 2026-11-22.

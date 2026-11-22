@@ -21,6 +21,7 @@ import subprocess
 import sys
 
 CONTRACTS = ('STATUS.md', 'TASKS.md', 'PRD.md', 'DECISIONS.md', 'ARCHITECTURE.md', 'RELEASE.md')
+MEMORY_SUBDIRS = (('memory', 'shared-memory'), ('project-memory', 'project-memory'))
 MAX_BYTES = 262144
 LESSON_FIELDS = ('title', 'symptom', 'rootCause', 'invariant', 'fix', 'check')
 PROVENANCE_FIELDS = ('task', 'requirement', 'risk', 'job', 'capability', 'worker', 'model', 'provider', 'reasoningEffort', 'sourceHead', 'finishedAt')
@@ -152,6 +153,77 @@ def source_rows(repo: Path, documents: list[str], learning) -> tuple[list[dict],
     return rows, warnings
 
 
+def default_memory_root() -> Path:
+    env = os.environ.get('DOTFILES_DIR')
+    if env:
+        cand = Path(env).expanduser().resolve() / 'config' / 'ai'
+        if cand.is_dir():
+            return cand
+    cand = Path(__file__).resolve().parent.parent / 'config' / 'ai'
+    if cand.is_dir():
+        return cand
+    return (Path.home() / '.config' / 'ai').resolve()
+
+
+def extract_title(text: str, fallback: str) -> str:
+    lines = text.splitlines()
+    meta_parts = []
+    body_start = 0
+    if lines and lines[0].strip() == '---':
+        for idx in range(1, min(len(lines), 40)):
+            if lines[idx].strip() == '---':
+                body_start = idx + 1
+                break
+            m = re.match(r'^(name|title|description):\s*(.+)$', lines[idx].strip())
+            if m:
+                val = m.group(2).strip().strip('"\'')
+                if val:
+                    meta_parts.append(val)
+    heading = next((line.lstrip('# ').strip() for line in lines[body_start:] if line.strip()), '')
+    combined = ' — '.join(dict.fromkeys(p for p in (*meta_parts, heading) if p))
+    return (combined or fallback)[:300]
+
+
+def memory_rows(memory_root: Path, learning) -> tuple[list[dict], list[dict]]:
+    rows, warnings = [], []
+    if not memory_root.is_dir():
+        raise ValueError(f'memory root not found: {memory_root}')
+
+    def excluded(relative, reason):
+        try:
+            reject_sensitive(relative, learning)
+        except ValueError:
+            relative = '<sensitive-source-excluded>'
+        warnings.append({'source': relative, 'reason': reason})
+
+    for subdir, kind in MEMORY_SUBDIRS:
+        folder = memory_root / subdir
+        if folder.is_symlink():
+            warnings.append({'source': subdir, 'reason': 'symlink memory directory excluded'})
+            continue
+        if not folder.is_dir():
+            continue
+        for path in sorted(folder.glob('*.md')):
+            relative = f'{subdir}/{path.name}'
+            if path.name.startswith('.'):
+                continue
+            try:
+                if path.is_symlink():
+                    raise ValueError('symlink sources are excluded')
+                info = path.lstat()
+                if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_BYTES or info.st_nlink != 1:
+                    raise ValueError('source must be a bounded regular file with one link')
+                text = path.read_text(encoding='utf-8')
+                title = extract_title(text, path.stem)
+                row = {'source': relative, 'kind': kind, 'title': title, 'body': text,
+                       'run_id': '', 'provenance': {'scope': kind}}
+                reject_sensitive('\n'.join((row['source'], row['kind'], row['title'], row['body'])), learning)
+                rows.append(row)
+            except (OSError, ValueError, UnicodeError) as exc:
+                excluded(relative, 'memory excluded: ' + type(exc).__name__)
+    return rows, warnings
+
+
 def open_index(path: Path, repos: list[Path]) -> sqlite3.Connection:
     path = path.expanduser().absolute()
     resolved = path.resolve()
@@ -192,8 +264,11 @@ def open_index(path: Path, repos: list[Path]) -> sqlite3.Connection:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, epilog=NOTICE)
     parser.add_argument('query', help='literal words to search; FTS operators are not executed')
-    parser.add_argument('--repo', action='append', help='explicit repository root; repeat for cross-repository recall (default: current directory)')
+    parser.add_argument('--repo', action='append', help='explicit repository root; repeat for cross-repository recall (default: current directory unless --memory is used alone)')
     parser.add_argument('--document', action='append', default=[], help='additional explicitly selected .md file under docs/, relative to each repository')
+    parser.add_argument('--memory', action='store_true', help='include curated shared and project memory (config/ai/memory + project-memory) in FTS5 recall')
+    parser.add_argument('--memory-root', type=Path, help='override curated memory root (default: dotfiles/config/ai)')
+    parser.add_argument('--any', action='store_true', help='match any query term (OR) instead of requiring all terms (AND); ranked by BM25')
     parser.add_argument('--limit', type=int, default=8)
     parser.add_argument('--index', type=Path, default=Path.home() / '.config/ai-local/recall/index.sqlite3', help='private device-local SQLite cache outside source repositories')
     parser.add_argument('--json', action='store_true')
@@ -208,25 +283,35 @@ def main() -> int:
             parts = Path(relative).parts
             if not parts or parts[0] != 'docs' or Path(relative).suffix != '.md' or '..' in parts or any(part.startswith('.') for part in parts):
                 raise ValueError('--document must be a non-hidden Markdown path under docs/')
-        repos = list(dict.fromkeys(repo_path(value) for value in (args.repo or ['.'])))
+        if args.memory_root is not None:
+            args.memory = True
+        repo_inputs = args.repo if args.repo else ([] if args.memory else ['.'])
+        repos = list(dict.fromkeys(repo_path(value) for value in repo_inputs))
         learning = learning_module()
         for repo in repos:
             reject_sensitive(str(repo), learning)
         collected = [(repo, *source_rows(repo, args.document, learning)) for repo in repos]
-        db = open_index(args.index, repos)
+        scope_roots = list(repos)
+        if args.memory:
+            mem_root = (args.memory_root.expanduser().resolve() if args.memory_root else default_memory_root())
+            reject_sensitive(str(mem_root), learning)
+            collected.append((mem_root, *memory_rows(mem_root, learning)))
+            scope_roots.append(mem_root)
+        db = open_index(args.index, scope_roots)
         try:
             with db:
                 for repo, rows, _ in collected:
                     db.execute('DELETE FROM documents WHERE repo=?', (str(repo),))
                     db.executemany('INSERT INTO documents(repo, source, kind, run_id, title, body, provenance) VALUES (?, ?, ?, ?, ?, ?, ?)',
                                    [(str(repo), row['source'], row['kind'], row['run_id'], row['title'], row['body'], json.dumps(row['provenance'], sort_keys=True)) for row in rows])
-            query = ' AND '.join('"' + term.replace('"', '""') + '"' for term in terms)
-            placeholders = ','.join('?' for _ in repos)
+            joiner = ' OR ' if args.any else ' AND '
+            query = joiner.join('"' + term.replace('"', '""') + '"' for term in terms)
+            placeholders = ','.join('?' for _ in scope_roots)
             found = db.execute(f'''SELECT repo, source, kind, run_id, title,
                 snippet(documents, 5, '', '', ' … ', 32), provenance
                 FROM documents WHERE documents MATCH ? AND repo IN ({placeholders})
                 ORDER BY bm25(documents, 0, 0, 0, 0, 4, 1, 0), repo, source LIMIT ?''',
-                               (query, *(str(repo) for repo in repos), args.limit)).fetchall()
+                               (query, *(str(repo) for repo in scope_roots), args.limit)).fetchall()
         finally:
             db.close()
         results = [{'repo': row[0], 'repo_id': hashlib.sha256(row[0].encode()).hexdigest()[:16],

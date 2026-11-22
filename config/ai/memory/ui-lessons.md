@@ -158,3 +158,26 @@ comfort.json contract, text-floor check (exact, no cap, sr-only skipped, SVG sca
 node bin/dotuiux-test; bash skills/local/admin-dashboard/scripts/test-admin-geometry.sh; node admin-geometry.mjs <url> --contract design/admin-contract.json --viewports 390,1366,1536
 
 > Promoted from a reviewed local candidate on 2026-11-13.
+
+
+---
+
+
+## Lesson: Hover-open plus click-toggle mega menu closes on first mouse click
+
+### Symptom
+Clicking a desktop nav trigger that also opens on mouse hover immediately closes the dropdown on the first click.
+
+### Root cause
+Mouse movement onto the trigger fires pointerenter/mouseenter (queuing open=true) milliseconds before click fires setOpen(prev => !prev), flipping queued prev=true back to false before or right after React flushes.
+
+### Durable invariant
+A trigger supporting both mouse hover-open and click/keyboard toggle must stay open when clicked immediately after mouse pointer entry, while still toggling closed on deliberate subsequent clicks, Escape, or touch/keyboard toggles.
+
+### Fix
+Record hoverOpenedAtRef.current = Date.now() in onPointerEnter when e.pointerType === 'mouse' and !isOpen, and inside onClick use functional state setOpen(prev => (prev && Date.now() - hoverOpenedAtRef.current < 400 ? true : !prev)).
+
+### Regression check
+Open page in Playwright at desktop viewport, click the closed nav trigger once from cold pointer position, assert aria-expanded='true' and menu visible, then press Escape and assert aria-expanded='false'.
+
+> Promoted from a reviewed local candidate on 2026-11-22.

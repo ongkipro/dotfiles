@@ -1,7 +1,5 @@
 # PunyaSitus
 
-Memory gives orientation only; repository specs, decisions, task state, and executable evidence are authoritative.
-
 ## What it is
 
 WordPress-like multi-tenant business CMS for Indonesian businesses: company profiles (compro), professional services, travel/Umrah, outlets. One website per tenant: pages, blog, media, menus, themes, settings, members, lead inbox, showcase catalog. Conversion via WhatsApp, external link, or lead form. Not a store: no cart, checkout, payment, order, or stock (DEC-008). Separate from TravelOS (own product).

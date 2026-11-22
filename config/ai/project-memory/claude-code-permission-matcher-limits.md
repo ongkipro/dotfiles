@@ -8,7 +8,7 @@ metadata:
   modified: 2026-08-09T02:49:34.355Z
 ---
 
-Two limits of the `permissions` matcher in `~/.claude/settings.json`, both verified on 2026-08-09 with decoy files rather than reasoning:
+Two limits of the `permissions` matcher in `~/.claude/settings.json` (verified with decoy files rather than reasoning):
 
 1. **No carve-outs inside a denied path.** `deny` always beats `allow`, and extglob negation does not work — `Read(~/.ssh/!(config|known_hosts))` was tested and denied *everything*, including the names inside `!( )`. So "block the keys but let me read `~/.ssh/config`" is not expressible. Name-based denies (`Read(~/.ssh/id_*)` and friends) leave a real hole: a key named `volumdev` was readable. Keep `Read(~/.ssh/**)` airtight and use **`ssh -G <host>`** to get host config instead — it does not name the path, so Bash gating lets it through. Read denies gate Bash too (`cat`, `ls`, even `rm` on those paths).
 
