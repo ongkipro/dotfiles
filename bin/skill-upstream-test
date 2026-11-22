@@ -15,6 +15,12 @@ printf 'upstream: https://raw.githubusercontent.com/acme/skills/main/skills/fork
 skill watched; printf 'watch: acme/framework docs\nwatch: acme/gone\nverified: 2026-10-10\nnote: two sources\n' > "$S/watched/.upstream"
 skill archived; printf 'watch: acme/old\nverified: 2026-10-10\n' > "$S/archived/.upstream"
 skill offsite; printf 'source: https://docs.example.com/.well-known/skills/offsite\nvendored: 2026-10-02\n' > "$S/offsite/.source"
+skill pinned
+printf 'source: https://raw.githubusercontent.com/acme/skills/0123456789abcdef0123456789abcdef01234567/skills/pinned\nvendored: 2026-09-01\n' > "$S/pinned/.source"
+printf 'upstream: https://raw.githubusercontent.com/acme/skills/0123456789abcdef0123456789abcdef01234567/skills/pinned/SKILL.md\nverified: 2026-10-01\n' > "$S/pinned/.local-fork"
+skill hexbranch
+printf 'source: https://raw.githubusercontent.com/acme/skills/dead/skills/hexbranch\nvendored: 2026-09-01\n' > "$S/hexbranch/.source"
+printf 'upstream: https://raw.githubusercontent.com/acme/skills/dead/skills/hexbranch/SKILL.md\nverified: 2026-10-01\n' > "$S/hexbranch/.local-fork"
 skill plain
 
 # --- Offline listing never calls gh -------------------------------------------
@@ -55,7 +61,9 @@ if os.environ.get('GH_BROKEN'): sys.stderr.write('HTTP 401: Bad credentials\n');
 if url in ('repos/acme/gone','repos/acme/gone/commits'): sys.stderr.write('gh: Not Found (HTTP 404)\n'); sys.exit(1)
 if url.endswith('/commits'):
     c=lambda d,s,t:{'sha':s*5,'commit':{'committer':{'date':d+'T01:00:00Z'},'message':t+'\nbody'}}
-    out={'skills/vendored':[c('2026-10-20','abcdefgh','Upstream rewrote vendored')],'docs':[c('2026-10-21','12345678','Docs moved')]}.get(q.get('path',''),[])
+    out={'skills/vendored':[c('2026-10-20','abcdefgh','Upstream rewrote vendored')],'docs':[c('2026-10-21','12345678','Docs moved')],
+         'skills/pinned':[] if len(q.get('sha',''))==40 else [c('2026-10-25','fedcba98','Moved on after the pin')],
+         'skills/hexbranch':[c('2026-10-26','0badf00d','Branch dead moved')] if q.get('sha')=='dead' else []}.get(q.get('path',''),[])
     print(json.dumps(out)); sys.exit(0)
 print(json.dumps({'archived': url=='repos/acme/old'}))
 PY
@@ -68,12 +76,15 @@ d=json.load(open(sys.argv[1])); st={(x['skill'],x.get('repo')):x for x in d['wat
 assert st[('vendored','acme/skills')]['status']=='CHANGED' and st[('vendored','acme/skills')]['recent'][0]=={'date':'2026-10-20','sha':'abcdefgh','title':'Upstream rewrote vendored'}
 assert st[('forked','acme/skills')]['status']=='CURRENT' and st[('forked','acme/skills')]['commits']==0
 assert st[('watched','acme/framework')]['status']=='CHANGED'
+assert st[('hexbranch','acme/skills')]['status']=='CHANGED', st[('hexbranch','acme/skills')]   # a hex-looking BRANCH is still queried by name; only a 40-hex SHA is a pin
+assert st[('pinned','acme/skills')]['status']=='CHANGED' and st[('pinned','acme/skills')]['recent'][0]['title']=='Moved on after the pin', st[('pinned','acme/skills')]   # a pinned fork must not read CURRENT
 assert st[('watched','acme/gone')]['status']=='MISSING'
 assert st[('archived','acme/old')]['status']=='ARCHIVED'
 assert st[('offsite',None)]['status']=='UNWATCHABLE'
 assert any('acme/gone is missing' in p for p in d['problems']) and any('acme/old is archived' in p for p in d['problems'])
 PY
 grep -qF 'repos/acme/skills/commits -f per_page=100 -f since=2026-10-01T00:00:00Z -f path=skills/forked -f sha=main' "$TMP/gh.log" || fail "fork not queried from its newest date, path, and ref"
+grep -E 'repos/acme/skills/commits .*path=skills/pinned' "$TMP/gh.log" | grep -q 'sha=' && fail "a commit-pinned ledger was queried with sha=<pin>, which can only report 0"
 grep -qF 'repos/acme/framework/commits -f per_page=100 -f since=2026-10-10T00:00:00Z -f path=docs' "$TMP/gh.log" || fail "watch query wrong"
 find "$S" -type f -exec sha256sum {} + | sort > "$TMP/after.sum"
 cmp -s "$TMP/before.sum" "$TMP/after.sum" || fail "report modified the skills tree"

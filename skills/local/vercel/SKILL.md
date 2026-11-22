@@ -7,7 +7,7 @@ description: >-
 # Vercel
 
 `vercel --version` first. Commands and flags in
-[cli-runbook.md](references/cli-runbook.md) were checked against CLI 62.7.0;
+[cli-runbook.md](references/cli-runbook.md) were checked against CLI 62.7.0 and re-read against 66.6.0 on 2026-11-22;
 the local `--help` and https://vercel.com/docs/cli win when they differ.
 Vercel's own agent plugin and `vercel-labs/agent-skills` exist; this skill's
 gates apply when they conflict.
@@ -59,7 +59,7 @@ target project.
 
 1. Local build (`npm run build` or the project script) before any deploy.
 2. `vercel deploy -y --no-wait` → `vercel inspect <url> --wait` until
-   `READY` (`--wait` exits 124 at its timeout: still building, not failed).
+   `READY`. `--wait` exits `1` at its timeout in 66.6.0 (it was `124` in 62.7.0), the same code as a failed deploy, so on a nonzero exit read `readyState` from `vercel inspect <url> --json` before calling it failed.
 3. Smoke: `curl -fsS -I <url>` or the protected-preview `vercel curl`;
    browser-visible changes go through `ui-validation`.
 4. Only then production, with approval.

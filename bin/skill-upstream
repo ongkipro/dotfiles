@@ -13,7 +13,10 @@ Every skill may name the upstream it learns from:
 
 This command is read-only. It lists the registry, asks GitHub (through `gh`)
 which commits touched each watched path after the verified date, and prints
-them so a person can decide what, if anything, to adopt. Adoption follows
+them so a person can decide what, if anything, to adopt.
+A ledger URL pinned to a full commit SHA is asked about the default branch instead:
+the commits after a pinned SHA are not reachable from it, so querying `sha=<pin>` can
+only report 0 and would show a stale fork as CURRENT. Adoption follows
 development-kit references/ecosystem-adoption.md; nothing here edits a skill.
 
   skill-upstream                 drift report for every watch
@@ -40,6 +43,7 @@ REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 RAW = re.compile(r"^https://raw\.githubusercontent\.com/([^/]+/[^/]+)/([^/]+)/?(.*)$")
 WEB = re.compile(r"^https://github\.com/([^/]+/[^/]+)/(?:tree|blob)/([^/]+)/?(.*)$")
+PINNED_SHA = re.compile(r"[0-9a-f]{40}")
 UPSTREAM_KEYS = {"watch", "verified", "note"}
 TITLES = 3
 
@@ -163,7 +167,10 @@ def query(rows: list[dict]) -> None:
             args += ["-f", f"since={row['since']}T00:00:00Z"]
         if row.get("path"):
             args += ["-f", f"path={row['path']}"]
-        if row.get("ref"):
+        # A 40-hex ref is an immutable pin: history after it is not reachable from it, so
+        # `sha=<pin>` would always come back empty (black-magic read CURRENT with 75 new
+        # upstream commits). Ask the default branch for anything pinned that way.
+        if row.get("ref") and not PINNED_SHA.fullmatch(row["ref"]):
             args += ["-f", f"sha={row['ref']}"]
         found = gh_json(args)
         if found is None:

@@ -1,6 +1,6 @@
 source: https://docs.stripe.com/.well-known/skills/stripe-best-practices
 index: https://docs.stripe.com/.well-known/skills/index.json
-vendored: 2026-10-02
-note: Refreshed from every file listed by the official hosted index on 2026-09-29 (7 files; no new files listed).
-note: Upstream content adopted; .local-fork records 16 corrected link targets (SKILL.md, references/tax.md).
+vendored: 2026-11-22
+note: Refreshed from every file listed by the official hosted index on 2026-11-22 (7 files; the index lists 10 other Stripe skills, none adopted).
+note: Upstream content adopted 2026-11-22 (API 2026-11-18.endive); .local-fork records 12 corrected link targets (SKILL.md, references/connect.md, references/treasury.md).
 note: _refresh-vendored.sh preserves this managed fork without fetching or writing.

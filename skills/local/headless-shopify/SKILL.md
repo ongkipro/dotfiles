@@ -27,7 +27,7 @@ Use this skill when deciding whether a Shopify project should go headless, selec
 
 1. **Challenge headless first**: Do not build a custom headless storefront when an Online Store 2.0 Liquid theme (`storefront-development`), Storefront Web Components (`<shopify-account>`, embedded buy widgets), or Checkout/Customer Account UI Extensions solve the business requirement with lower operational risk.
 2. **Choose the right headless tier**:
-   - **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.1`, current `latest`)**: Framework-agnostic storefront toolkit and server-handler library added to React Router 7 (Oxygen), Next.js App Router (Vercel), Astro, Nuxt, SvelteKit, or SolidStart. Preferred for all web headless builds (`hydrogen-development`).
+   - **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.3`, current `latest`)**: Framework-agnostic storefront toolkit and server-handler library added to React Router 7 (Oxygen), Next.js App Router (Vercel), Astro, Nuxt, SvelteKit, or SolidStart. Preferred for all web headless builds (`hydrogen-development`).
    - **Bring Your Own Stack (Raw Storefront API `2026-10`)**: Reserve for native mobile apps, kiosks, or non-JS server runtimes.
 
 ### 2. Token, Client & Privacy Boundaries
@@ -62,7 +62,7 @@ Use this skill when deciding whether a Shopify project should go headless, selec
 
 1. **Dual-Host Same-Root Domain Topology (`<brand>` + `checkout.<brand>`)**:
    - Point the primary storefront domain (`<brand>`, e.g. `brand.com` / `www.brand.com`) to Hydrogen/Oxygen (or your headless edge host), and assign `checkout.<brand>` (e.g. `checkout.brand.com`, matching `PUBLIC_CHECKOUT_DOMAIN`) to Shopify Online Store / Checkout with `Shopify/hydrogen-redirect-theme` active (`/checkpoint` bot protection, `gift_card.liquid`, and B2B location handoff).
-   - Keeping both hosts under the same registrable root domain preserves first-party cookies (`_shopify_y`, `_shopify_s`, `_fbp`, `_fbc`, `_ga`) across `cart.checkoutUrl` and eliminates `.myshopify.com` `301` hops.
+   - Keeping both hosts under the same registrable root domain preserves first-party cookies (`_fbp`, `_fbc`, `_ga`, Shopify's consent and session cookies) across `cart.checkoutUrl` and eliminates `.myshopify.com` `301` hops.
 2. **CMS, Navigation & Legal Policy Parity Gate**:
    - Before cutover, query the live Storefront API to verify `pages`, `blogs` (`articles`), `menu(handle: "main-menu")` / `menu(handle: "footer")`, and `shop { privacyPolicy { body } refundPolicy { body } shippingPolicy { body } termsOfService { body } }` are non-null and published in Shopify Admin.
    - **Never fake missing pages, menus, or legal policies with hardcoded frontend copy**: Shopify Checkout footer links read directly from Admin `shopPolicies`, so frontend-only policies create legal drift and broken checkout links. Hand off missing Admin content/publications to `shopify-development`.
@@ -76,7 +76,7 @@ Use this skill when deciding whether a Shopify project should go headless, selec
 | Suitability gate, surface selection, `<brand>` vs `checkout.<brand>` domain architecture, `$app:` custom data, and reversible migration | [`references/architecture-decisions.md`](references/architecture-decisions.md) |
 | Token/client boundaries, `buyerIp`, `applyResponseHeaders` privacy guard, live CMS/menu/policy Storefront API parity audit, `2026-10` schema rules, and UI extension contracts | [`references/delivery-contract.md`](references/delivery-contract.md) |
 | Progressive HTML-first variant/collection/cart primitives and Online Store 2.0 Metaobject Section CMS architecture | [`references/hydrogen-ui-ux-architecture.md`](references/hydrogen-ui-ux-architecture.md) |
-| Verified `2026-10-14` API/SDK matrix, `shopify.dev` URLs, and `@shopify/dev-mcp` retrieval workflow | [`references/official-sources.md`](references/official-sources.md) |
+| Verified `2026-11-22` package rows (`2026-10-14` API rows), `shopify.dev` URLs, and `@shopify/dev-mcp` retrieval workflow | [`references/official-sources.md`](references/official-sources.md) |
 
 ---
 

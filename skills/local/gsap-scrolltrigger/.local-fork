@@ -46,3 +46,8 @@ recheck: 2026-10-08 — second local correction: `refreshPriority` direction. Up
   will get refreshed earlier than one with refreshPriority: 0 (the default)." Local
   now says higher = refreshed first at SKILL.md lines ~61 and ~284. Reported upstream
   in issues #15 and #20 (open on 2026-10-08).
+recheck: 2026-11-22 — third local correction: the two GSAP docs links (`ScrollTrigger.batch()`, `ScrollTrigger.scrollerProxy()`) carried upstream's
+  `.../static.batch/` and `.../static.scrollerProxy/` forms, which return HTTP 404 on gsap.com (measured 2026-11-22). The live pages end in the call
+  parentheses: `.../static.batch()/` and `.../static.scrollerProxy()/` (HTTP 200). The trailing "in the GSAP docs" words were dropped from those two
+  sentences so the file does not grow past its .size-debt ceiling (18664; now 18634). Upstream still has the 404 forms as of this date (not reported).
+  Re-apply both after a re-sync.

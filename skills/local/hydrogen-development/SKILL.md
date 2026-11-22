@@ -6,7 +6,7 @@ description: >-
 
 # Shopify Hydrogen & Oxygen Development
 
-Use this skill when discovering, linking, implementing, debugging, migrating, auditing, or deploying a **Shopify Hydrogen storefront on Oxygen** across both **Hydrogen `2026.10+` (npm `latest` `2026.10.3` on 2026-11-11)** and **Classic Hydrogen (`<= 2026.4.7`, React Router 7 / Remix framework mode)**.
+Use this skill when discovering, linking, implementing, debugging, migrating, auditing, or deploying a **Shopify Hydrogen storefront on Oxygen** across both **Hydrogen `2026.10+` (npm `latest` `2026.10.3` on 2026-11-11)** and **Classic Hydrogen (`<= 2026.4.8`, React Router 7 / Remix framework mode)**.
 
 ## Role & Specialist Boundaries
 
@@ -34,14 +34,14 @@ When asked to pull, sync, or connect a Hydrogen storefront for `<shop>.myshopify
 
 ### 2. Detect the Hydrogen Generation (`package.json`)
 
-| Signal | Hydrogen `2026.10+` (`latest`: `2026.10.3`) | Classic Hydrogen (`<= 2026.4.7`) |
+| Signal | Hydrogen `2026.10+` (`latest`: `2026.10.3`) | Classic Hydrogen (`<= 2026.4.8`) |
 | --- | --- | --- |
-| Architecture | **Framework-agnostic storefront toolkit & server-handler library** added to React Router 7 (`future.v8_middleware: true`), Next.js, Astro, Nuxt, or SvelteKit. | **React Router 7 / Remix framework** where Hydrogen owns `createHydrogenContext()` in `server.ts` and the `hydrogen()` Vite plugin. |
+| Architecture | **Framework-agnostic storefront toolkit & server-handler library** added to React Router 7 (`future.v8_middleware: true`; React Router 8 removed that flag, middleware is always on there), Next.js, Astro, Nuxt, or SvelteKit. | **React Router 7 / Remix framework** where Hydrogen owns `createHydrogenContext()` in `server.ts` and the `hydrogen()` Vite plugin. |
 | Server & GraphQL | `createShopifyRequestContext` + `createStorefrontClient` + `handleShopifyRoutes` + `handleShopifyRedirects` + `applyResponseHeaders`; `storefrontClient.graphql(gql(...))`, `@shopify/hydrogen/ts-plugin`, `hydrogen gql check --fail-on-warn`, `Cache.short()`/`Cache.long()`. | `createHydrogenContext()` (`context.storefront`, `context.cart`, `context.customerAccount`); `context.storefront.query(#graphql...)`, `@shopify/hydrogen-codegen` (`.graphqlrc.ts` -> `storefrontapi.generated.d.ts`), `CacheShort()`/`CacheLong()`. |
 | Cart, Account & Analytics | `createCartServerHandlers` (`/api/cart`) + `createCartComponents`, `createCustomerAccountServerHandlers`, `<ShopifyScripts />` + `useCartAnalytics()`. | `createCartHandler` (`context.cart` + `/cart` action + `<CartForm>`), `context.customerAccount`, `<Analytics.Provider>` + `getShopAnalytics()` + `useNonce()`. |
 | Build & Deploy | `react-router build` (`buildDirectory: 'dist'`), `shopify hydrogen deploy --assets-dir dist/client --worker-dir dist/server`. | `shopify hydrogen check routes`, `shopify hydrogen codegen`, `shopify hydrogen build`, `shopify hydrogen deploy`. |
 
-- **SemVer Caret Trap (`^2026.4.0` vs `~2026.4.0`)**: Both lines share CalVer major `2026`. Pin Classic storefronts with `"~2026.4.0"` or exact `"2026.4.7"` so fresh installs do not resolve `2026.10.x` and break the build.
+- **SemVer Caret Trap (`^2026.4.0` vs `~2026.4.0`)**: Both lines share CalVer major `2026`. Pin Classic storefronts with `"~2026.4.0"` or exact `"2026.4.8"` (the `2026-04` dist-tag) so fresh installs do not resolve `2026.10.x` and break the build.
 
 ---
 
@@ -93,7 +93,7 @@ When asked to pull, sync, or connect a Hydrogen storefront for `<shop>.myshopify
 | Online Store 2.0 Metaobject Section CMS (`RouteContent`, `Sections`, Rich Text AST) and dynamic page contracts | [`references/dynamic-pages-architecture.md`](references/dynamic-pages-architecture.md) |
 | Markets (`@inContext`), Customer Account `2026-10` schema, Online Store coexistence, Bundles, Combined Listings, Subscriptions, B2B | [`references/commerce-platform-boundaries.md`](references/commerce-platform-boundaries.md) |
 | SEO metadata, custom sitemaps, `Shopify/hydrogen-redirect-theme`, and Playwright E2E smoke-test gate | [`references/seo-environments-launch.md`](references/seo-environments-launch.md) |
-| Verified `2026-10-14` package snapshot, 20 packaged skills, `github.com/Shopify` repo map, and `@shopify/dev-mcp` workflow | [`references/official-integrations.md`](references/official-integrations.md) |
+| Verified `2026-11-22` package snapshot, 21 packaged skills, `github.com/Shopify` repo map, and `@shopify/dev-mcp` workflow | [`references/official-integrations.md`](references/official-integrations.md) |
 
 ---
 

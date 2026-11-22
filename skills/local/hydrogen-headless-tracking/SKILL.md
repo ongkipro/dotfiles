@@ -6,7 +6,7 @@ description: >-
 
 # Shopify Hydrogen Headless Tracking & Signal Engine
 
-Use this skill when implementing, migrating, auditing, or debugging **first-party Shopify analytics, Customer Privacy consent, cart-to-checkout attribution, and ad-platform signal pipelines** in a Shopify Hydrogen storefront (`@shopify/hydrogen@2026.10.1` or Classic Hydrogen `<= 2026.4.x`).
+Use this skill when implementing, migrating, auditing, or debugging **first-party Shopify analytics, Customer Privacy consent, cart-to-checkout attribution, and ad-platform signal pipelines** in a Shopify Hydrogen storefront (`@shopify/hydrogen@2026.10.x`, `latest` `2026.10.3`, or Classic Hydrogen `<= 2026.4.x`).
 
 ## Role & Specialist Boundaries
 
@@ -26,12 +26,12 @@ Use this skill when implementing, migrating, auditing, or debugging **first-part
 
 ### 1. Detect Hydrogen Analytics Generation First
 
-1. **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.1`, current `latest`)**:
+1. **Hydrogen `2026.10+` (`@shopify/hydrogen@2026.10.3`, current `latest`)**:
    - `<Analytics.Provider>`, `useAnalytics()`, `<Analytics.ProductView>` (and other view components), `getShopAnalytics()`, `analytics.subscribe()`, and `analytics.destroy()` are **removed**.
-   - Render `<ShopifyScripts analytics={{ shop, i18n }} consent={consentConfig} />` from `@shopify/hydrogen/react` (`./vue`) in the root layout (or `renderShopifyScriptTags` + `initializeShopifyScripts` in Astro/SvelteKit).
+   - Render `<ShopifyScripts shop={shop} i18n={i18n} consent={consentConfig} />` from `@shopify/hydrogen/react` (`./vue`) in the root layout (or `renderShopifyScriptTags` + `initializeShopifyScripts` in Astro/SvelteKit). `shop` and `i18n` are top-level props; `analytics` is optional bus config only (`channel`, `customData`), and `shop` is not a key of it.
    - Mount `useCartAnalytics()` (or `trackCartAnalytics(cartStore)`) once inside `<CartProvider>` so `product_added_to_cart`, `product_removed_from_cart`, and `cart_updated` publish automatically.
    - Publish route events (`AnalyticsEvent.PAGE_VIEWED`, `PRODUCT_VIEWED`, `COLLECTION_VIEWED`, `SEARCH_VIEWED`, `CART_VIEWED`) via `window.Shopify?.analytics.publish(event, payload)` in client `useEffect` hooks when location/entity changes.
-2. **Classic Hydrogen (`<= 2026.4.7`)**:
+2. **Classic Hydrogen (`<= 2026.4.8`)**:
    - Uses `<Analytics.Provider cart={cart} shop={shop} consent={consent}>`, `useAnalytics()`, and `<Analytics.ProductView>` / `<Analytics.CollectionView>` / `<Analytics.CartView>`.
 
 ### 2. Consent-Gated Destinations & `2026-10` Payload Traps
@@ -39,7 +39,8 @@ Use this skill when implementing, migrating, auditing, or debugging **first-part
 1. **Register external destinations with `addDestination()` (`2026.10+`)**:
    - Never call removed `analytics.subscribe()`. Register Meta, GA4/GTM, or TikTok forwarders once via `window.Shopify?.analytics.addDestination({ name, setup({ subscribe }) { subscribe(event, (payload, { getTrackingValues }) => ...) } })`.
    - `window.Shopify.analytics` buffers up to **500 events** before consent resolves or before destinations register, and replays them in order once Customer Privacy allows processing.
-   - When using `consent={{ mode: 'custom-banner', setup }}`, `setup` is **mandatory** and must return a `Promise<ConsentPreferences>` (`{ analytics, marketing, preferences, saleOfData }`).
+   - `consent.mode` is `'default-banner'` (Shopify's hosted banner), `'custom-banner'`, or `'no-banner'` (also the default when omitted). There is no `'auto'` mode.
+   - When using `consent={{ mode: 'custom-banner', setup }}`, `setup` is **mandatory** and is `() => Promise<void>`: it syncs the provider's choice through `window.Shopify.customerPrivacy.setTrackingConsent({ analytics, marketing, preferences, sale_of_data })` (snake_case `sale_of_data`), then resolves. Hydrogen runs it once and keeps delivery blocked if it rejects.
 2. **`ProductPayload.price` is `MoneyV2`, not a string (`2026.10+`)**:
    - Both `ProductPayload.price` and `AnalyticsCartLine.price` are `MoneyV2` objects (`{ amount: string, currencyCode: CurrencyCode }`), matching `CartViewPayload.totalValue`. Always read `Number(product.price.amount)` and `product.price.currencyCode`.
 3. **Ensure `handleShopifyRoutes()` runs before the router**:
@@ -48,7 +49,7 @@ Use this skill when implementing, migrating, auditing, or debugging **first-part
 ### 3. Cart-to-Checkout Attribution & Purchase Authority
 
 1. **Cross-Boundary Attribution Preservation**:
-   - Keep storefront and checkout on the same root domain (`store.example.com` + `checkout.example.com`) so `_shopify_y`, `_shopify_s`, `_fbp`, `_fbc`, and `_ga` cookies survive `checkoutUrl` handoff.
+   - Keep storefront and checkout on the same root domain (`store.example.com` + `checkout.example.com`) so first-party cookies (`_fbp`, `_fbc`, `_ga`, Shopify's consent and session cookies) survive the `checkoutUrl` handoff. Never read, copy, or forward `_shopify_y` or `_shopify_s`: Shopify no longer sets them, and the Storefront API proxy expires leftover copies. Read visitor and session values with `getTrackingValues()` (`uniqueToken`, `visitToken`).
    - Persist landing click IDs (`fbclid`/`_fbc`, `_fbp`, `gclid`, `gbraid`, `wbraid`, `ttclid`, `_ttp`, `utm_*`) into cart attributes (`register('attributeValue', { key, value })` + `register('attributes-update')` — preserving existing cart attributes because `attributes-update` replaces the full list) so order webhooks receive them.
 2. **Server-Authoritative Purchase Signals**:
    - Never fire `Purchase` from Hydrogen on checkout link click. Emit browser purchase events from Shopify Admin **Customer events (Web Pixels)** on `checkout_completed` and server purchase events from verified `orders/paid` (or COD `orders/create`) webhooks with matching deterministic `event_id` (`meta-ads-signal-engine`, `google-ads-signal-engine`, `tiktok-ads-signal-engine`).
@@ -58,6 +59,8 @@ Use this skill when implementing, migrating, auditing, or debugging **first-part
 ## Reference Routing
 
 - Read [`references/delivery-contract.md`](references/delivery-contract.md) for the complete `2026.10+` vs Classic analytics matrix, `<ShopifyScripts>` consent setup, `addDestination()` code pattern, attribution bridging, and verification checklist.
+- Read [`references/web-pixels.md`](references/web-pixels.md) for an App Pixel or Custom Pixel, and [`references/shopify-analytics-cookie-migration.md`](references/shopify-analytics-cookie-migration.md) when existing code reads `_shopify_y` or `_shopify_s`.
+- `references/archive/` holds seven pre-2026.10 design sketches (CAPI sender, pixel connector, GTM dataLayer, identity normalizer, cross-domain attribution, CSP/consent, WeTracked parity). They are archived, not routed: four target removed APIs (`useAnalytics()`, `NonceProvider`) and two pin Graph `v22.0`. Do not open them unless a Classic Hydrogen (`<= 2026.4.x`) task needs a pattern; [`references/archive/README.md`](references/archive/README.md) maps each to its current owner. Provider event fields, normalization, hashing and CAPI belong to `meta-ads-signal-engine`, `google-ads-signal-engine` and `tiktok-ads-signal-engine`.
 
 ## Verification & Approval Gate
 

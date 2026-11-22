@@ -1,6 +1,6 @@
 # Hydrogen Dynamic Storefront Pages, Online Store 2.0 Section CMS, and Commerce Architecture
 
-Use this reference when building or refactoring dynamic pages in Hydrogen (`@shopify/hydrogen@2026.10.1` or Classic Hydrogen `<= 2026.4.x`): home, collection/PLP, product/PDP, search, cart, customer account, and **Online Store 2.0 (Theme 2.0) parity via Metaobject Dynamic Content Sections**.
+Use this reference when building or refactoring dynamic pages in Hydrogen (`@shopify/hydrogen@2026.10.3` or Classic Hydrogen `<= 2026.4.x`): home, collection/PLP, product/PDP, search, cart, customer account, and **Online Store 2.0 (Theme 2.0) parity via Metaobject Dynamic Content Sections**.
 
 ---
 
@@ -79,7 +79,7 @@ Map `section.type` 1:1 to modular React components with a safe `default: return 
 ### Parsing Metaobject Fields & Rich Text AST (`2026.10` vs Classic)
 
 - **Hydrogen `2026.10+`**:
-  - Core `@shopify/hydrogen@2026.10.1` does **not** export `<RichText>`, `parseMetafield`, `<Image>`, or `<Money>`.
+  - Core `@shopify/hydrogen@2026.10.3` (checked against its published types) does **not** export `<RichText>`, `parseMetafield`, `<Image>`, or `<Money>`.
   - Read scalar strings directly from `field.value`, list/JSON fields via `JSON.parse(field.value)`, prices via `formatMoney(money, { locale })`, and images via `URL.searchParams` (`width`, `height`, `crop`) on `MediaImage.image.url`.
   - Render `rich_text_field` values by parsing `JSON.parse(field.value)` (Shopify's Rich Text AST: `root`, `heading`, `paragraph`, `list`, `list-item`, `link`, `text` with `bold`/`italic`) into semantic HTML elements (`<h2>`–`<h6>`, `<p>`, `<ul>`/`<ol>`, `<a>`).
 - **Classic Hydrogen (`<= 2026.4.x`)**:

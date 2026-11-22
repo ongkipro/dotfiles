@@ -1,6 +1,6 @@
 # Starting a New Hydrogen Storefront or Migrating to Hydrogen 2026-10
 
-Use this reference when scaffolding a brand-new Hydrogen storefront (`@shopify/hydrogen@2026.10.1`), adding Hydrogen to an existing framework (React Router 7, Next.js App Router, Astro, Nuxt, SvelteKit, SolidStart), or migrating a Classic Hydrogen (`<= 2026.4.x`) project to `2026.10`.
+Use this reference when scaffolding a brand-new Hydrogen storefront (`@shopify/hydrogen@2026.10.3`), adding Hydrogen to an existing framework (React Router 7, Next.js App Router, Astro, Nuxt, SvelteKit, SolidStart), or migrating a Classic Hydrogen (`<= 2026.4.x`) project to `2026.10`.
 
 ---
 
@@ -9,11 +9,11 @@ Use this reference when scaffolding a brand-new Hydrogen storefront (`@shopify/h
 ### Official Templates, Setup CLI & Caret Version Trap
 
 1. **CRITICAL SemVer Caret Trap (`^2026.4.0` vs `~2026.4.0`)**:
-   - Both Classic Hydrogen (`2026.4.x`) and the new toolkit (`2026.10.x`) are published under `@shopify/hydrogen`, and `2026.10.1` is now npm `latest`.
+   - Both Classic Hydrogen (`2026.4.x`) and the new toolkit (`2026.10.x`) are published under `@shopify/hydrogen`, and `2026.10.3` is now npm `latest`.
    - Because of CalVer major `2026`, a caret range like `"@shopify/hydrogen": "^2026.4.0"` in a Classic storefront **resolves to `2026.10.x` on fresh install and breaks the build**!
-   - If maintaining a Classic Hydrogen (`2026.4.x`) storefront without migrating yet, pin with a tilde range (`"~2026.4.0"`) or exact version (`"2026.4.7"`).
+   - If maintaining a Classic Hydrogen (`2026.4.x`) storefront without migrating yet, pin with a tilde range (`"~2026.4.0"`) or exact version (`"2026.4.8"`, the `2026-04` dist-tag).
 2. **Choose your starting path (`2026.10+`)**:
-   - **React Router 7 on Oxygen (`Shopify/hydrogen/templates/react-router`)**: Start from Shopify's canonical React Router 7 template (`react-router@7.15.1`, `vite@8`, `react@19.2`, `@shopify/mini-oxygen@4.2.2`, `@shopify/cli@4.8.1`, `@remix-run/cookie`, `@remix-run/session`, `isbot`, Node `^22.12 || ^24`).
+   - **React Router 7 on Oxygen (`Shopify/hydrogen/templates/react-router`)**: Start from Shopify's canonical React Router 7 template (its `dist` branch, 2026-11-22: `react-router@7.15.1` with `@react-router/dev@7.15.1`, `vite@^8.0.3`, `react@^19.2.7`, `@shopify/hydrogen@2026.10.3`, `@shopify/mini-oxygen@4.3.0`, `@shopify/cli@4.8.1`, `@remix-run/cookie`, `@remix-run/session`, `isbot`, Node `^22.12 || ^24`). The template stays on React Router 7 because it sets `future.v8_middleware: true`; React Router 8 rejects that flag, so do not bump the template to 8 without removing it.
    - **Next.js 16+ App Router on Vercel (`vercel/shop`)**: Start from [Vercel Shop](https://github.com/vercel/shop) (`https://vercel.shop`, Next.js 16+ App Router + `@shopify/hydrogen`).
    - **Existing Framework Project (Astro, Nuxt, SvelteKit, SolidStart, React Router, Next.js)**: Run:
      ```bash
@@ -46,7 +46,7 @@ Use this reference when scaffolding a brand-new Hydrogen storefront (`@shopify/h
 ## 2. Canonical Oxygen React Router 7 File Checklist (`templates/react-router` & `create-oxygen-template`)
 
 1. **`react-router.config.ts`**:
-   - Set `buildDirectory: 'dist'` (required so `shopify hydrogen deploy --assets-dir dist/client --worker-dir dist/server` finds the built worker and client assets), `ssr: true`, and `future: { v8_middleware: true }`.
+   - Set `buildDirectory: 'dist'` (required so `shopify hydrogen deploy --assets-dir dist/client --worker-dir dist/server` finds the built worker and client assets), `ssr: true`, and `future: { v8_middleware: true }` (React Router 7.x only; omit it on 8).
 2. **Required `app/entry.server.tsx` & `app/entry.client.tsx` (Workers Web Streams)**:
    - Because `@react-router/node` is removed on Oxygen (`workerd` has no Node stream runtime), `react-router typegen` and `react-router build` fail with `"Could not determine server runtime"` unless custom entry files exist!
    - `app/entry.server.tsx` must import `renderToReadableStream` from `react-dom/server`, render `<ServerRouter context={routerContext} url={request.url} />`, and `await body.allReady` when `isbot(request.headers.get('user-agent'))` is true.
@@ -76,7 +76,7 @@ Use this reference when scaffolding a brand-new Hydrogen storefront (`@shopify/h
    - Open `const cache = await caches.open('hydrogen-v1')`, bind `const waitUntil = executionContext.waitUntil.bind(executionContext)`, and pass both into `createStorefrontClient({ config: { cache, waitUntil, ... } })`.
    - **Never** use `lru-cache` or `createFetchWithCache` on Oxygen; furthermore, passing per-query `{ cache: Cache.long() }` to `storefrontClient.graphql()` when `config.cache` was omitted throws `StorefrontCacheConfigError`.
 5. **Three-Place `routeTemplates` Wiring (`app/lib/routes.ts`)**:
-   - Export `export const routeTemplates = createShopifyRouteTemplates()` from `app/lib/routes.ts` and pass `routeTemplates` to all three consumers:
+   - Export `export const routeTemplates = defineShopifyRouteTemplates({})` (the old `createShopifyRouteTemplates` still works as a deprecated alias) from `app/lib/routes.ts` and pass `routeTemplates` to all three consumers:
      1. `handleShopifyRoutes({ ..., routeTemplates })` and `handleShopifyRedirects({ ..., routeTemplates })` in `app/root.tsx`
      2. `<ShopifyScripts routes={routeTemplates} navigate={navigate} ... />` in `app/root.tsx`
      3. `getPredictiveSearchItemUrl(item, { routes: routeTemplates })` in predictive search result components
@@ -97,7 +97,7 @@ Use this reference when scaffolding a brand-new Hydrogen storefront (`@shopify/h
 
 ## 4. Classic Hydrogen (`<= 2026.4.x`) -> `2026.10` Migration Traps (`migrate-to-hydrogen-2026-10`)
 
-When upgrading an existing Classic Hydrogen project (`2026.4.7` or earlier), watch for these high-frequency silent failure traps:
+When upgrading an existing Classic Hydrogen project (`2026.4.8` or earlier), watch for these high-frequency silent failure traps:
 
 1. **Deferred root `cart` leaves Cart Drawer empty**: Delete the deferred `cart` promise and `<Await resolve={cart}>` from `app/root.tsx`. Instead, `await cartHandlers.get(...)` in the root loader, pass `data` (`{ cart, errors? }`) to `<CartProvider initialData={data}>`, and read `useCart((s) => s.data)` in all cart surfaces.
 2. **Cart drawer stops opening on add-to-cart**: `useCartForm()` submits through `CartStore`, not React Router fetchers, so `useFetchers()` never sees the mutation. Open the drawer when `useCart((s) => s.pending.lines.size > 0)` transitions to `true`.

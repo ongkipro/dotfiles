@@ -1,0 +1,4 @@
+watch: Shopify/cli packages/store/src/cli/commands
+watch: Shopify/cli packages/theme/src/cli/flags.ts
+verified: 2026-11-22
+note: Narrow on purpose. Measured 2026-11-22 for commits since 2026-10-01: packages/theme/src/cli/commands/theme 99 (74 touch a non-test file), packages/theme as a whole 163, packages/cli 315, packages/store 41 (mostly generated GraphQL files); packages/store/src/cli/commands 11 and packages/theme/src/cli/flags.ts 3 are the paths where a report stays readable. The cost is that a flag changed inside one theme command file is not reported here. That gap is covered by a stronger check than a commit feed: run each command form this skill names against the installed CLI's --help (done 2026-11-22 on shopify 5.0.2: 34 of 34 forms resolve, 0 flag mismatches). Hydrogen commands belong to hydrogen-development, which watches Shopify/hydrogen.

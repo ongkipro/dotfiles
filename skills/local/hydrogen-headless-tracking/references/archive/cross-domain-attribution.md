@@ -1,9 +1,11 @@
 # Cross-Domain Attribution Preservation in Headless Shopify
 
+> **ARCHIVED 2026-11-23: see [README.md](README.md). Superseded by `../delivery-contract.md`; do not copy code from this file.**
+
 > **Historical blueprint, not a canonical provider contract.** Cart attributes
 > can carry to orders, but they are not a secret store or attribution guarantee.
 > Revalidate the event fields, consent, checkout visibility, and provider
-> behavior before use; follow [Tracking delivery contract](delivery-contract.md).
+> behavior before use; follow [Tracking delivery contract](../delivery-contract.md).
 
 When running a headless storefront, visitors browse on the headless domain (`brand.com`) but transition to Shopify's hosted checkout (`checkout.brand.com` or `brand.myshopify.com`).
 

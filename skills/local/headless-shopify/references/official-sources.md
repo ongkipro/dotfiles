@@ -1,12 +1,12 @@
 # Official Shopify Headless Sources & API Snapshot
 
-Last verified against `shopify.dev`, `@shopify/hydrogen@2026.10.1`, and `Shopify/Shopify-AI-Toolkit` (`v1.17.1`) on `2026-10-14`.
+Last verified 2026-11-22 against `shopify.dev`, the published `@shopify/hydrogen@2026.10.3` package, and `Shopify/Shopify-AI-Toolkit` (plugin `v2.4.0`). The package row and the toolkit facts were rechecked on that date; the API-version rows (Storefront, Customer Account, UI extensions) were not re-run and date from `2026-10-14`. The detailed version table lives in `hydrogen-development/references/official-integrations.md`.
 
-## 1. Current Release & API Version Matrix (2026-10-14)
+## 1. Current Release & API Version Matrix (package rows 2026-11-22, API rows 2026-10-14)
 
 | Surface | Current Version | Key Architectural Facts |
 | --- | --- | --- |
-| `@shopify/hydrogen` | `2026.10.1` (`latest` on npm) / `2026.4.7` (Legacy Hydrogen) | `2026.10+` is a framework-agnostic headless toolkit (`@shopify/hydrogen`, `./react`, `./vue`, `./customer-account`, `./vite`, `./ts-plugin`, `./skills/*`) that plugs into React Router 7, Next.js App Router, Astro, Nuxt, SvelteKit, or SolidStart. |
+| `@shopify/hydrogen` | `2026.10.3` (`latest` on npm) / `2026.4.8` (Legacy Hydrogen, the `2026-04` dist-tag) | `2026.10+` is a framework-agnostic headless toolkit (`@shopify/hydrogen`, `./react`, `./vue`, `./customer-account`, `./vite`, `./ts-plugin`, `./skills/*`) that plugs into React Router 7, Next.js App Router, Astro, Nuxt, SvelteKit, or SolidStart. |
 | Storefront GraphQL API | `2026-10` | Adds `Cart.discountApplications`, `CartDeliveryGroup.discountAllocations`, `CartDiscountAllocation.sourceDiscountApplication`, and `lineLevelOnly` (default `true`) on cart line `discountAllocations` (replacing deprecated `Cart.discountAllocations`). |
 | Customer Account GraphQL API | `2026-10` | OAuth 2.0 + PKCE. Deprecates/omits `CustomerAddress.territoryCode` and `CustomerAddressInput.territoryCode` in favor of two-letter uppercase `countryCode: CountryCode`; removes `Order.shippingTitle` (use `Order.shippingLine.title`); removes `Customer.lastIncompleteCheckout` and `Checkout` types. |
 | Checkout & Customer Account UI Extensions | `2026-04+` (`@shopify/ui-extensions`) | Uses Preact (`@shopify/ui-extensions/preact`) and `<s-*>` Polaris web components (`<s-banner>`, `<s-stack>`, `<s-button>`, `<s-text>`). React and legacy `2025-07` components are deprecated. |

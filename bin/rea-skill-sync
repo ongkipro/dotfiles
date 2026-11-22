@@ -7,6 +7,17 @@ body and all upstream `references/*.md` files while wrapping the local
 the dotfiles handoff section, preserving `references/dotfiles-integration.md`,
 and maintaining `.source` and `.local-fork` metadata.
 
+Local knowledge survives a sync: ledger keys this tool does not own (the `recheck:` notes in
+`.local-fork`, for example) are kept byte for byte, and the frontmatter description is a constant here
+that must equal the one in SKILL.md, so a sync neither shortens a hand-tuned description nor moves the
+generated skills/local/README.md row.
+
+CLI command counts: upstream keeps the command names in `src/contracts/cliCommandNames.ts`
+(`src/cliCommandNames.ts` before rea-agents 6.10.0); both paths are tried, newest first. From
+6.10.0 that file lists only the commands no contract names, and the rest come from contracts
+that declare `cli: true`, so the total cannot be derived from one file. It is then recorded as
+`unknown` rather than as a partial tally, and a missing file is a warning, never a silent 0.
+
 Modes:
   rea-skill-sync --upstream-dir /path/to/rea [--pull]
   rea-skill-sync --remote [--ref main]
@@ -32,14 +43,14 @@ UPSTREAM_REPO = "morluto/rea"
 UPSTREAM_SKILL_REL = ".agents/skills/reverse-engineer-anything"
 LOCAL_SKILL_REL = "skills/local/black-magic"
 LOCAL_INTEGRATION_REF = "references/dotfiles-integration.md"
+# Newest layout first: the file moved from src/ to src/contracts/ between rea-agents 6.9.0 and 6.10.0.
+CLI_NAMES_PATHS = ("src/contracts/cliCommandNames.ts", "src/cliCommandNames.ts")
 DEFAULT_UPSTREAM_DIR = Path.home() / "Documents/work/research/rea-2026-10-20/rea-upstream"
 
 BLACK_MAGIC_DESCRIPTION = (
-    "Reverse engineer native, managed, Electron/JS, web, HAR/network, APK, "
-    "SQLite, WASM, and firmware targets with REA, and build AgentEnv bundles "
-    "from captures. Not for owned source repos (codebase-navigation), exploit "
-    "payloads, or DRM/auth bypass. Triggers: black magic, rea, reverse engineer, "
-    "bedah aplikasi, bedah web, decompile, har api, agent environment."
+    "Reverse engineer native, Electron/JS, web, HAR, APK, SQLite, WASM, and firmware "
+    "targets with REA; build AgentEnv bundles from captures. Not owned source repos "
+    "(codebase-navigation), exploit payloads, or DRM/auth bypass. Triggers: bedah aplikasi."
 )
 
 DOTFILES_SECTION = """
@@ -54,6 +65,10 @@ output isolation in `~/Documents/work/research/`, and handoff pipelines to
 `google-ads-signal-engine`, `tiktok-ads-signal-engine`, `prd-taskbreaker`,
 `full-stack-development`, `testing-engineering`, and `ui-validation`, read
 [references/dotfiles-integration.md](references/dotfiles-integration.md).
+
+Where the text above says `npx -y rea-agents@latest`, run the version pinned in that file
+instead: an unpinned `npx -y` downloads and executes whatever is newest. `rea setup` and MCP
+registration stay behind explicit approval.
 """.lstrip("\n")
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n(?:\r?\n)?", re.S)
@@ -67,10 +82,16 @@ OBJECT_BLOCK_RE = re.compile(
     re.S,
 )
 STRING_LITERAL_RE = re.compile(r"""['"]([a-z0-9][a-z0-9_-]*)['"]""")
+# Exported by the contract-derived layout (rea-agents >= 6.10.0), whose CLI_COMMANDS is partial.
+CONTRACT_DERIVED_RE = re.compile(r"^export const cliCommandFor\b", re.M)
 
 
 class SyncError(RuntimeError):
     """Raised when upstream or local skill state cannot be read or validated."""
+
+
+class NotFoundError(SyncError):
+    """An upstream URL answered HTTP 404 (the only error a path fallback may swallow)."""
 
 
 def read_exact_text(path: Path) -> str:
@@ -103,7 +124,10 @@ def find_root() -> Path:
     return Path.home() / "dotfiles"
 
 
-def parse_cli_counts(ts_source: str) -> tuple[int, int]:
+def parse_cli_counts(ts_source: str) -> tuple[int | None, int | None]:
+    """Tally the CLI command names, or (None, None) when the file cannot list them all."""
+    if CONTRACT_DERIVED_RE.search(ts_source):
+        return None, None
     obj_blocks: dict[str, list[str]] = {}
     for name, body in OBJECT_BLOCK_RE.findall(ts_source):
         obj_blocks[name] = STRING_LITERAL_RE.findall(body)
@@ -148,7 +172,8 @@ def build_black_magic_skill(
     frontmatter = (
         "---\n"
         "name: black-magic\n"
-        f"description: '{BLACK_MAGIC_DESCRIPTION}'\n"
+        "description: >-\n"
+        f"  {BLACK_MAGIC_DESCRIPTION}\n"
         "metadata:\n"
         f'  version: "{skill_version}"\n'
         f'  rea_version: "{rea_version}"\n'
@@ -167,14 +192,58 @@ def read_existing_stamp(path: Path, key: str) -> str | None:
     return None
 
 
+# Keys this tool writes into `.local-fork`; every other top-level block is a local note
+# (`recheck:`, `description:`, `local-divergence:` ...) and is kept as written.
+TOOL_OWNED_LOCAL_FORK_KEYS = frozenset(
+    {
+        "upstream",
+        "verified",
+        "scope",
+        "sync_tool",
+        "rea_version",
+        "skill_version",
+        "upstream_commit",
+        "reason",
+        "refresh_guard",
+    }
+)
+LEDGER_KEY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):")
+
+
+def local_ledger_blocks(existing: str | None) -> str:
+    """Blocks of an existing ledger that this tool does not own, byte for byte.
+
+    A block starts at a top-level `key:` line and runs through its indented
+    continuation lines. Blank lines belong to the block they follow.
+    """
+    if not existing:
+        return ""
+    blocks: list[tuple[str, list[str]]] = []
+    for line in existing.splitlines(keepends=True):
+        match = LEDGER_KEY_RE.match(line)
+        if match:
+            blocks.append((match.group(1), [line]))
+        elif blocks:
+            blocks[-1][1].append(line)
+    kept = [
+        "".join(lines)
+        for key, lines in blocks
+        if key not in TOOL_OWNED_LOCAL_FORK_KEYS
+    ]
+    text = "".join(kept)
+    return text if not text or text.endswith("\n") else text + "\n"
+
+
+
 def build_metadata_files(
     ref: str,
     stamp_date: str,
     rea_version: str,
     skill_version: str,
     upstream_commit: str,
-    primary_cli_count: int,
-    mcp_only_count: int,
+    primary_cli_count: int | None,
+    mcp_only_count: int | None,
+    local_tail: str = "",
 ) -> tuple[str, str]:
     raw_base = f"https://raw.githubusercontent.com/{UPSTREAM_REPO}/{ref}/{UPSTREAM_SKILL_REL}"
     source_text = (
@@ -183,8 +252,8 @@ def build_metadata_files(
         f"rea_version: {rea_version}\n"
         f"skill_version: {skill_version}\n"
         f"upstream_commit: {upstream_commit}\n"
-        f"primary_cli_commands: {primary_cli_count}\n"
-        f"mcp_only_session_tools: {mcp_only_count}\n"
+        f"primary_cli_commands: {'unknown' if primary_cli_count is None else primary_cli_count}\n"
+        f"mcp_only_session_tools: {'unknown' if mcp_only_count is None else mcp_only_count}\n"
     )
     fork_text = (
         f"upstream: {raw_base}/SKILL.md\n"
@@ -200,8 +269,18 @@ def build_metadata_files(
         "  truncation safety, and adding references/dotfiles-integration.md for CLI-first\n"
         "  execution and dotfiles sibling skill handoffs.\n"
         "refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present.\n"
+        + local_tail
     )
     return source_text, fork_text
+
+
+def warn_cli_names_missing() -> None:
+    print(
+        "rea-skill-sync: warning: cliCommandNames.ts not found at "
+        + " or ".join(CLI_NAMES_PATHS)
+        + "; CLI command counts recorded as unknown",
+        file=sys.stderr,
+    )
 
 
 def load_from_local_dir(upstream_dir: Path, pull: bool) -> dict[str, object]:
@@ -235,12 +314,15 @@ def load_from_local_dir(upstream_dir: Path, pull: bool) -> dict[str, object]:
         if isinstance(pkg, dict):
             rea_version = str(pkg.get("version", "unknown"))
 
-    cli_names_path = upstream_dir / "src" / "cliCommandNames.ts"
-    primary_count, mcp_count = (0, 0)
-    if cli_names_path.is_file():
-        primary_count, mcp_count = parse_cli_counts(
-            read_exact_text(cli_names_path)
-        )
+    cli_names_path = next(
+        (p for p in (upstream_dir / rel for rel in CLI_NAMES_PATHS) if p.is_file()),
+        None,
+    )
+    primary_count, mcp_count = (None, None)
+    if cli_names_path is None:
+        warn_cli_names_missing()
+    else:
+        primary_count, mcp_count = parse_cli_counts(read_exact_text(cli_names_path))
 
     commit = "unknown"
     if (upstream_dir / ".git").exists():
@@ -259,7 +341,9 @@ def load_from_local_dir(upstream_dir: Path, pull: bool) -> dict[str, object]:
         references[f"references/{ref_file.name}"] = read_exact_text(ref_file)
 
     return {
-        "ref": "main",
+        # Pin the ledger URL to the checkout's commit when it is known; "main" moves, so a
+        # recorded `source:` that says main cannot be re-fetched to the bytes that were synced.
+        "ref": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else "main",
         "rea_version": rea_version,
         "upstream_commit": commit,
         "primary_cli_count": primary_count,
@@ -276,6 +360,10 @@ def fetch_text(url: str) -> str:
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             return resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise NotFoundError(f"failed to fetch {url}: {exc}") from exc
+        raise SyncError(f"failed to fetch {url}: {exc}") from exc
     except (
         urllib.error.URLError,
         http.client.HTTPException,
@@ -309,8 +397,16 @@ def load_from_remote(ref: str) -> dict[str, object]:
     rea_version = (
         str(pkg.get("version", "unknown")) if isinstance(pkg, dict) else "unknown"
     )
-    cli_ts = fetch_text(f"{raw_root}/src/cliCommandNames.ts")
-    primary_count, mcp_count = parse_cli_counts(cli_ts)
+    primary_count, mcp_count = (None, None)
+    for rel in CLI_NAMES_PATHS:
+        try:
+            cli_ts = fetch_text(f"{raw_root}/{rel}")
+        except NotFoundError:
+            continue
+        primary_count, mcp_count = parse_cli_counts(cli_ts)
+        break
+    else:
+        warn_cli_names_missing()
     skill_md = fetch_text(f"{raw_root}/{UPSTREAM_SKILL_REL}/SKILL.md")
 
     refs_listing = parse_json_text(
@@ -359,8 +455,8 @@ def sync_or_check(
     skill_version, upstream_body = split_upstream_skill(str(upstream["skill_md"]))
     rea_version = str(upstream["rea_version"])
     upstream_commit = str(upstream["upstream_commit"])
-    primary_cli_count = int(upstream["primary_cli_count"])
-    mcp_only_count = int(upstream["mcp_only_count"])
+    primary_cli_count = upstream["primary_cli_count"]
+    mcp_only_count = upstream["mcp_only_count"]
     ref = str(upstream["ref"])
 
     desired_files: dict[str, str] = {
@@ -399,6 +495,10 @@ def sync_or_check(
         else date.today().isoformat()
     )
 
+    fork_path = skill_dir / ".local-fork"
+    local_tail = local_ledger_blocks(
+        read_exact_text(fork_path) if fork_path.is_file() else None
+    )
     source_text, fork_text = build_metadata_files(
         ref=ref,
         stamp_date=stamp_date,
@@ -407,6 +507,7 @@ def sync_or_check(
         upstream_commit=upstream_commit,
         primary_cli_count=primary_cli_count,
         mcp_only_count=mcp_only_count,
+        local_tail=local_tail,
     )
     desired_files[".source"] = source_text
     desired_files[".local-fork"] = fork_text
@@ -521,11 +622,13 @@ def main() -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         drifted = report["driftedFiles"]
+        count = report["primaryCliCommandCount"]
+        cli_note = "CLI command count unknown" if count is None else f"{count} CLI commands"
         print(
             f"rea-skill-sync: {report['status']} "
             f"(rea-agents@{report['reaVersion']}, skill v{report['skillVersion']}, "
             f"commit {str(report['upstreamCommit'])[:12]}, "
-            f"{report['primaryCliCommandCount']} CLI commands)"
+            f"{cli_note})"
         )
         if isinstance(drifted, list) and drifted:
             label = "drifted" if args.check else "updated"

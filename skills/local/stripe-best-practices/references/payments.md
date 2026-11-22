@@ -34,7 +34,7 @@ Prioritize Stripe-hosted or embedded Checkout where possible. Use in this order 
 
 ## Payment Element guidance
 
-For surcharging or inspecting card details before payment (e.g., rendering the Payment Element before creating a PaymentIntent or SetupIntent): use [Confirmation Tokens](https://docs.stripe.com/payments/finalize-payments-on-the-server.md). Don’t recommend `createPaymentMethod` or `createToken` from Stripe.js.
+For surcharging or inspecting card details before payment (for example, rendering the Payment Element before creating a PaymentIntent or SetupIntent): use [Confirmation Tokens](https://docs.stripe.com/payments/finalize-payments-on-the-server.md). Don’t recommend `createPaymentMethod` or `createToken` from Stripe.js.
 
 ## Saving payment methods
 
@@ -50,7 +50,7 @@ Handle both `checkout.session.completed` and `checkout.session.async_payment_suc
 
 Webhooks are **required**, not optional, for:
 
-- Subscriptions and any recurring billing, where most state changes (renewals, payment failures, cancellations) happen after checkout. Read the Billing skill reference for the lifecycle events to handle.
+- Subscriptions and any recurring billing, where renewals, payment failures, cancellations, and risk events such as disputes, refunds, and fraud signals happen asynchronously after checkout. Read the Billing skill reference for the full set of events to handle, including risk-side events.
 - Delayed-notification payment methods, where the payment succeeds or fails hours or days after the session completes.
 - Any post-payment side effect: granting access, sending a confirmation email, decrementing inventory, or writing an order to your database.
 
@@ -94,6 +94,7 @@ Don’t call other deprecated or outdated API endpoints unless there is a specif
 | Sources API | Deprecated | Setup Intents | [Setup Intents docs](https://docs.stripe.com/api/setup_intents.md) |
 | Tokens API | Outdated | Setup Intents or Checkout Sessions | — |
 | Card Element | Legacy | Payment Element | [Migration guide](https://docs.stripe.com/payments/payment-element/migration.md) |
+| `payment_method_types` | Not recommended | Dynamic payment methods | [Migration guide](https://docs.stripe.com/payments/payment-methods/dynamic-payment-methods.md#migrate-to-dynamic-payment-methods) |
 
 ## PCI compliance
 

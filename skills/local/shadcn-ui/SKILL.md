@@ -184,7 +184,7 @@ of truth, and every added file is still reviewed.
   (`shadcn mcp init --client claude` writes it), never global config; adding it
   is a repo config change that needs approval. Other runtimes need their own
   config, so the CLI path stays the cross-runtime default.
-- **Pin the version** in `.mcp.json` args (e.g. `shadcn@4.8.3`, the version
+- **Pin the version** in `.mcp.json` args (e.g. `shadcn@4.23.0`, the version
   checked below) instead of the documented `shadcn@latest`, which runs new code
   on every start.
 - **Registries explicit** in `components.json` `registries`; private-registry
@@ -210,4 +210,4 @@ of truth, and every added file is still reviewed.
   [Changelog](https://ui.shadcn.com/docs/changelog),
   [MCP](https://ui.shadcn.com/docs/mcp) (checked 2026-10-31), vendor skill
   `shadcn-ui/ui` `skills/shadcn/` (MIT; `rules/*.md`, `cli.md`,
-  `design-system.md`). Checked 2026-10-29 (CLI docs show `shadcn@4.8.3`).
+  `design-system.md`). Checked 2026-10-29; commands and the pin re-checked 2026-11-22 on `shadcn@4.23.0`.

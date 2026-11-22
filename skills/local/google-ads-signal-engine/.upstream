@@ -1,0 +1,4 @@
+watch: googleads/google-ads-python
+watch: googleads/data-manager-python
+verified: 2026-11-22
+note: Official Google client libraries for the two APIs this skill sends through: the Google Ads API (google-ads-python) and the Data Manager API used for offline and enhanced-conversion uploads (data-manager-python; Java and Node siblings exist). Both active as of 2026-11-22 (pushed 2026-11-20 and 2026-11-16). Consent Mode and gtag behavior live in Google help pages, not in these repos.

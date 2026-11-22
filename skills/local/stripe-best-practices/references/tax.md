@@ -2,12 +2,14 @@
 
 ## Table of contents
 
+- Explain registration obligations
 - What Stripe Tax does and doesn’t do
 - When tax applies
 - Three-step setup
 - Verify before you trust automatic tax
 - Diagnose invalid customer location
 - Choosing a product tax code
+- Choosing tax behavior
 - Diagnose zero tax
 - Refunds and tax reversals
 - Per-integration setup
@@ -18,11 +20,17 @@
 - If jurisdictions are unknown
 - If the region or tax type isn’t supported
 
+## Explain registration obligations
+
+Use the [European Union (EU) registration guidance](https://docs.stripe.com/tax/supported-countries/european-union.md) as the source for threshold and registration information. Expand acronyms on first use and explain what they mean, including value added tax (VAT), business-to-consumer (B2C), and One Stop Shop (OSS).
+
+When mentioning a threshold, state what sales it measures, the period, who qualifies, and what changes when it’s exceeded.
+
 ## What Stripe Tax does and doesn’t do
 
-**What Stripe Tax does:** tax calculation, nexus threshold monitoring (Dashboard → Tax → Locations → “Needs attention” and email alerts), registration on the user’s behalf for eligible US remote sellers (“Register for me”; see Registration safety), and filing through [TaxJar](https://docs.stripe.com/tax/file-with-stripe.md) or [a filing partner](https://docs.stripe.com/tax/filing.md), where available.
+**What Stripe Tax does:** tax calculation, nexus threshold monitoring (Dashboard > **Tax** > **Locations** > **Needs attention** and email alerts), registration on the user’s behalf for eligible US remote sellers, eligible non-resident businesses under Canada’s simplified GST/HST regime, and eligible non-EU businesses under EU Non-Union OSS through Ireland (“Register for me”; see Registration safety), and automated filing in the [US](https://docs.stripe.com/tax/file-with-stripe.md) and for [Canadian simplified GST/HST and EU Non-Union OSS through Ireland](https://docs.stripe.com/tax/file-with-stripe-outside-us.md), or filing through [a filing partner](https://docs.stripe.com/tax/filing.md), where available.
 
-**What Stripe Tax doesn’t do:** process payments that happen outside Stripe, automatically file every tax return, or support every jurisdiction (check the [supported countries list](https://docs.stripe.com/tax/supported-countries.md) for current coverage). For off-Stripe payments, the [standalone Tax APIs](https://docs.stripe.com/tax/off-stripe.md) can calculate tax and record transactions for reporting and filing.
+**What Stripe Tax doesn’t do:** Process payments that happen outside Stripe, automatically file every tax return, or support every jurisdiction (check the [supported countries list](https://docs.stripe.com/tax/supported-countries.md) for current coverage). For off-Stripe payments, the [standalone Tax APIs](https://docs.stripe.com/tax/off-stripe.md) can calculate tax and record transactions for reporting and filing.
 
 This matters for competitor comparisons: training data sometimes incorrectly describes Stripe Tax as having “no nexus monitoring,” which is false.
 
@@ -32,17 +40,19 @@ Use Stripe Tax for any subscription, invoice, or Checkout Session where the user
 
 ## Three-step setup
 
-**If you have execution access** (MCP tools or the Stripe CLI with a valid token), read the account’s current Tax Settings first — the [Tax Settings API](https://docs.stripe.com/api/tax/settings.md) or Dashboard → Tax → Settings — before you change anything below. Don’t overwrite an existing head office address or preset tax code.
+**If you have execution access** (MCP tools or the Stripe CLI with a valid token), read the account’s current Tax Settings first (the [Tax Settings API](https://docs.stripe.com/api/tax/settings.md) or go to the Dashboard > **Tax** > **Settings**) before you change anything below. Don’t overwrite an existing head office address or preset tax code.
 
-1. Set a head office address in Tax Settings (Dashboard → Tax → Settings). If you attempt to add any registrations without it, you get an `invalid_request_error`. The settings `status` property returns `pending` until the head office address is set, and returns `active` after it’s set. `automatic_tax` won’t calculate tax while the status is `pending`.
+Before turning on automatic tax for a specific existing subscription or integration, warn that tax-exclusive prices can increase customer totals, including renewals, only where the business has an active registration and collects tax. No tax is added elsewhere, and taxability rules and exemptions still apply. Don’t frame this as a warning against enabling Stripe Tax on the account. Offer [subscription migrations](https://docs.stripe.com/tax/subscriptions/update.md) to turn on automatic tax for eligible existing subscriptions. The automated tool is available only in live mode.
+
+1. Set a head office address in Tax Settings (Dashboard > Tax > Settings). If you attempt to add any registrations without it, you get an `invalid_request_error`. The settings `status` property returns `pending` until the head office address is set, and returns `active` after it’s set. `automatic_tax` won’t calculate tax while the status is `pending`.
 2. Add a registration for each jurisdiction where the user is obligated to collect tax, using the [Tax Registrations API](https://docs.stripe.com/api/tax/registrations.md) or the [Dashboard](https://docs.stripe.com/tax/registering.md). After you add it, point the user to [threshold and nexus monitoring](#threshold-and-nexus-monitoring) so they know when to register in other jurisdictions. Don’t limit the conversation to the jurisdiction you just registered.
-3. Pass `automatic_tax: { enabled: true }` on the [Subscription](https://docs.stripe.com/api/subscriptions.md), [Invoice](https://docs.stripe.com/api/invoices.md), or [Checkout Session](https://docs.stripe.com/api/checkout/sessions.md) object.
+3. Pass `automatic_tax: { enabled: true }` on the [Subscription](https://docs.stripe.com/api/subscriptions.md), [Invoice](https://docs.stripe.com/api/invoices.md), or [Checkout Session](https://docs.stripe.com/api/checkout/sessions.md) object. You can do this before step 2. Stripe doesn’t recalculate tax on invoices already finalized, and a Subscription created without automatic tax doesn’t collect tax until you [update it](https://docs.stripe.com/tax/subscriptions/update.md).
 
-**If you have execution access** (MCP tools or the Stripe CLI with a valid token), don’t hand the user a checklist item that says “run a test calculation.” Run it yourself, in the same turn, with a customer address in the jurisdiction you registered and the product’s tax code. See [Verify before you trust automatic tax](#verify-before-you-trust-automatic-tax).
+**If you have execution access** (MCP tools or the Stripe CLI with a valid token), don’t hand the user a checklist item that says “verify tax.” Verify it yourself, in the same turn. See [Verify before you trust automatic tax](#verify-before-you-trust-automatic-tax).
 
 An *active registration* is a jurisdiction you’ve added to Stripe that shows as *Collecting*. It’s per-jurisdiction, and not the same as having a Stripe account.
 
-Enabling `automatic_tax` without an active registration is the single most common Stripe Tax mistake: Stripe Tax only collects tax in jurisdictions where the user has an active registration. Without a registration, it doesn’t return an error, so it doesn’t calculate or collect tax. The user thinks tax is on while collecting nothing. Never enable `automatic_tax` and assume the user is set up. Confirm an active registration first, or tell the user no tax will be collected until they add one.
+Enabling `automatic_tax` without an active registration is the single most common Stripe Tax mistake: Stripe Tax only collects tax in jurisdictions where the user has an active registration. Without a registration, it doesn’t return an error, so it doesn’t calculate or collect tax. The user thinks tax is on while collecting nothing. Never enable `automatic_tax` and assume the user is set up. Check for an active registration, and if there isn’t one, tell the user that Stripe collects no tax until they add one.
 
 **Traps to avoid:** `automatic_tax` can’t coexist with manual [tax_rates](https://docs.stripe.com/tax/tax-rates.md) (explicit rate objects) on the same object. Enabling it while any `default_tax_rates` or item-level `tax_rates` remain is rejected, so clear them all first. It’s all-or-nothing, not per line item. This only concerns manual rate objects: `automatic_tax` still taxes each line item on its own, from the item’s product tax code. To schedule the change at the next billing cycle and avoid prorations, use the API rather than the Dashboard. For bulk migrations, use the [Tax migration tool](https://docs.stripe.com/billing/taxes/migration.md), which removes the tax rates for you.
 
@@ -52,12 +62,18 @@ Enabling `automatic_tax` without an active registration is the single most commo
 
 After enabling `automatic_tax`, don’t assume the setup is complete: tax is only collected after the user has an active registration in the customer’s jurisdiction. Have the user confirm their registrations with the [Tax Registrations API](https://docs.stripe.com/api/tax/registrations.md) (or in the Dashboard). With none, tax won’t be collected anywhere. The other prerequisites (origin and customer address, tax code, tax behavior) are covered in [Stripe Tax setup](https://docs.stripe.com/tax/set-up.md).
 
-**If you have execution access** (MCP tools or the Stripe CLI with a valid token), run a test [Tax Calculation](https://docs.stripe.com/api/tax/calculations.md) with a customer address in the target jurisdiction and the product’s tax code. Check `tax_breakdown[].taxability_reason`, not the tax amount.
+**If you have execution access** (MCP tools or the Stripe CLI with a valid token), check `taxability_reason`, not the tax amount. Returned objects include `livemode`.
+
+- In a sandbox, run a test [Tax Calculation](https://docs.stripe.com/api/tax/calculations.md) with a customer address in the target jurisdiction and the product’s tax code, and read `tax_breakdown[].taxability_reason`.
+- In live mode, don’t create tax calculations: Stripe charges for live calculations in jurisdictions where the user is registered. Instead, [preview an invoice](https://docs.stripe.com/api/invoices/create_preview.md) with `automatic_tax[enabled]=true`, the product’s actual Price, and a customer address in the target jurisdiction, and read `taxability_reason` in each line item’s `taxes`. Don’t verify with an invoice finalized before the change: Stripe doesn’t recalculate its tax.
+
+Interpret the result:
 
 - `not_collecting` means the setup is broken — a registration or tax code gap. Don’t tell the user their setup works. See [Diagnose zero tax](#diagnose-zero-tax).
-- Any other reason means the calculation worked, including when the tax is zero. Zero is *correct* for an exempt tax code or an exempt customer. Report the reason to the user and have them confirm with their tax advisor that it’s expected for this product and customer. Never swap in a different tax code to produce tax.
+- Any other reason means the check worked, including when the tax is zero. Zero is *correct* for an exempt tax code or an exempt customer. Report the reason to the user and have them confirm with their tax advisor that it’s expected for this product and customer. Never swap in a different tax code to produce tax.
 - Run it in the same turn. Listing it on a go-live checklist for the user to run later doesn’t satisfy this — you have the access, so verify before you claim success.
 - If you only have read or advisory access, don’t claim it’s verified. Point the user to [Testing Stripe Tax](https://docs.stripe.com/tax/testing.md) to run the check themselves in a sandbox.
+- After any registration or Tax Settings change, end with a short summary: what changed, what’s still unresolved (for example `automatic_tax` on the Checkout, invoice, or subscription integration), and how the user can confirm it in the Dashboard under **Tax**. Account configuration doesn’t update existing subscriptions; point to the [Tax migration tool](https://docs.stripe.com/billing/taxes/migration.md) when there are subscriptions without Stripe Tax.
 
 ## Diagnose invalid customer location
 
@@ -67,12 +83,22 @@ Minimum address data differs by country. A country code alone is supported in mo
 
 ## Choosing a product tax code
 
-A product tax code (PTC) tells Stripe how to tax a product.
+When recommending a product tax code (PTC) during setup, explain that it classifies what the user’s business sells so Stripe can apply the appropriate tax treatment in each jurisdiction.
 
 - Never invent, guess, or hardcode a `txcd_` from memory. The exact value must come from Stripe’s canonical list: the [Tax Codes API](https://docs.stripe.com/api/tax_codes.md) or the [tax code guide](https://docs.stripe.com/tax/tax-codes.md).
+- **If you have execution access** (MCP tools or the Stripe CLI with a valid token), use the SearchTaxCodes MCP dynamic tool or the `search_tax_codes` CLI tool with a description of the product to get ranked candidates. Fall back to GetTaxCodes when SearchTaxCodes isn’t available on the account.
 - Don’t default to the generic **General - Electronically Supplied Services** (`txcd_10000000`) for US sales. It’s too broad for US state-level taxability; pick a specific digital or SaaS code. See [tax codes for digital products](https://docs.stripe.com/tax/digital-products.md) and [tax codes for AI services](https://docs.stripe.com/tax/ai.md).
 - Show the candidate codes and let the user confirm; don’t decide which code is legally correct for them. (Tax code goes on the Product, `tax_behavior` on the Price. See [product tax codes and tax behavior](https://docs.stripe.com/tax/products-prices-tax-codes-tax-behavior.md).)
 - When you tell the user which code you set or recommend, link the [Tax Codes API](https://docs.stripe.com/api/tax_codes.md) or the [tax code guide](https://docs.stripe.com/tax/tax-codes.md) in the same response, in addition to the `txcd_` value.
+
+## Choosing tax behavior
+
+Set `tax_behavior` on each Price, or rely on the default tax behavior in Tax Settings.
+
+- If the user already has prices with `tax_behavior` `inclusive` or `exclusive`, match it. If a price is `unspecified`, it uses the default tax behavior in Tax Settings. If neither is set, ask the user.
+- When you ask, or when the user has no prices yet, ask which amount the customer should see: the price before tax, or the total including tax. The user decides.
+
+The choice changes what customers are charged, so state it in your summary. See [tax behavior](https://docs.stripe.com/tax/products-prices-tax-codes-tax-behavior.md#tax-behavior).
 
 ## Diagnose zero tax
 
@@ -80,7 +106,7 @@ When a transaction shows zero tax, first confirm `automatic_tax` is actually ena
 
 The reason worth calling out is **`not_collecting`, which is ambiguous**: it means either **no active registration** in the customer’s jurisdiction (the usual cause; check registrations with the [Tax Registrations API](https://docs.stripe.com/api/tax/registrations.md)) **or** a **Nontaxable product tax code** (`txcd_00000000`) on the product. `taxability_reason` can’t tell the two apart, so check the product’s tax code and rule out the Nontaxable code before concluding it’s a registration gap.
 
-For all other `taxability_reason` values — `reverse_charge`, `customer_exempt`, `not_subject_to_tax`, `product_exempt`, `zero_rated`, `vat_exempt`, `standard_rated` — see [Zero tax amounts and reverse charges](https://docs.stripe.com/tax/zero-tax.md). That page covers what each value means and the recommended response.
+For all other `taxability_reason` values — `reverse_charge`, `customer_exempt`, `not_subject_to_tax`, `product_exempt`, `zero_rated`, `standard_rated` — see [Zero tax amounts and reverse charges](https://docs.stripe.com/tax/zero-tax.md). That page covers what each value means and the recommended response.
 
 **Remediation order when `automatic_tax` collects zero tax:**
 
@@ -104,7 +130,7 @@ Every integration needs a resolvable customer address and an active registration
 - **Invoices**: set `automatic_tax: { enabled: true }` on the invoice; the customer needs a saved address. See the [Invoices API](https://docs.stripe.com/api/invoices.md).
 - **Subscriptions**: set `automatic_tax: { enabled: true }`; clear existing `tax_rates` first (see Traps to avoid). See the [Subscriptions API](https://docs.stripe.com/api/subscriptions.md).
 - **Payment Links**: set `automatic_tax: { enabled: true }`. Collect customers’ addresses when more location precision is needed. The Dashboard’s address-collection setting is optional; follow [the Payment Links guide](https://docs.stripe.com/tax/payment-links.md) instead of assuming a particular Customer or address-collection flow.
-- **Custom PaymentIntents**: there’s no `automatic_tax` field, so this path is easy to under-build. Create a [tax calculation](https://docs.stripe.com/api/tax/calculations.md) with the customer’s address, set the PaymentIntent `amount` to the calculation total, and link the calculation to the PaymentIntent. You must also record a tax transaction from the calculation after payment, or the sale never appears in tax reports: the [simplified integration](https://docs.stripe.com/tax/payment-intent/simplified.md) records the transaction and refund reversals automatically once the calculation is linked, while the [custom integration](https://docs.stripe.com/tax/payment-intent/custom.md) records them yourself for line-item control.
+- **Payment Element with PaymentIntents**: default to the [simplified Stripe Tax integration](https://docs.stripe.com/tax/payment-intent/simplified.md) when keeping an existing PaymentIntents integration. Read the guide for calculation linking, amount updates, and automatic transaction and refund recording. Use the [custom integration](https://docs.stripe.com/tax/payment-intent/custom.md) only when you need control over recording timing or line-item reversals.
 
 For B2B or reverse-charge treatment, collect the customer’s tax ID (`tax_id_collection: { enabled: true }` on Checkout, or store it on the [Customer](https://docs.stripe.com/billing/customer/tax-ids.md)). Without a valid tax ID, Stripe Tax treats a cross-border B2B sale as B2C and charges tax. See [collect tax IDs](https://docs.stripe.com/tax/checkout/tax-ids.md).
 
@@ -119,7 +145,9 @@ As soon as you know the liable entity:
 
 ## Threshold and nexus monitoring
 
-The [threshold monitoring](https://docs.stripe.com/tax/monitoring.md) tool highlights *potential* registration obligations in Dashboard → Tax → Locations → Needs attention. Stripe sends email and Dashboard alerts. The public guide documents those notification surfaces, so don’t promise a threshold-alert API or webhook. Monitoring doesn’t cover physical-presence obligations. Present it as information and tell the user to discuss it with their tax advisor. It’s up to the user to confirm whether registration is required. Don’t tell them they must register, and don’t recommend a universal percentage of a threshold as the point to register.
+**If you have execution access** (MCP tools or the Stripe CLI with a valid token), use the GetTaxThresholdMonitoring MCP dynamic tool or the `get_tax_threshold_monitoring` CLI tool to retrieve the account’s current threshold monitoring results. Report the relevant jurisdictions and when the results were computed, if that timestamp is available. If a jurisdiction is absent or its status is undetermined, say so rather than inferring an obligation.
+
+The [threshold monitoring](https://docs.stripe.com/tax/monitoring.md) tool highlights *potential* registration obligations in the Dashboard > **Tax** > **Locations** > **Needs attention**. Stripe sends email and Dashboard alerts. The public guide documents those notification methods, so don’t promise a threshold-alert API or webhook. Monitoring doesn’t cover physical-presence obligations. Present it as information and tell the user to discuss it with their tax advisor. It’s up to the user to confirm whether registration is required. Don’t tell them they must register, and don’t recommend a universal percentage of a threshold as the point to register.
 
 Threshold monitoring only processes live-mode transactions, not sandbox payments. Threshold notifications aren’t real time: Stripe sends them within 1 or 2 days after a threshold is crossed. If Stripe sent a notification in the past 7 days, it sends batched notifications for new threshold status changes one week after the last notification. Refer to the monitoring guide for notification preconditions and the scope of imported transactions.
 
@@ -133,15 +161,25 @@ Guide, don’t advise. Never tell a user where they must register or whether the
 
 **How to register.** Present the paths that fit the user and let them (with their tax advisor) choose. Don’t pick for them.
 
-- **Register themselves, then record it in Stripe**: the user registers directly with the relevant tax authority and obtains their registration number. Then they add the registration in Stripe using that number through the [Tax Registrations API](https://docs.stripe.com/api/tax/registrations.md) or Dashboard → Tax → Locations → Add registration. See [Register for tax](https://docs.stripe.com/tax/registering.md).
-- **Ask Stripe to register (US only)**: with Registration as a Service (“Register for me”), Stripe submits the registration to the tax authority and adds the completed registration to the Dashboard, so the user doesn’t record it separately. First, check [eligibility requirements](https://docs.stripe.com/tax/use-stripe-to-register.md#eligibility), and if the user qualifies, point them to Dashboard → Tax → Locations → Add registration → Register for me. See [Use Stripe to register](https://docs.stripe.com/tax/use-stripe-to-register.md).
-- **Register outside the US with Taxually**: Taxually can help businesses register with local tax authorities outside the United States. Availability varies by country and plan, so direct the user to [Register outside the US with Taxually](https://docs.stripe.com/tax/use-taxually-to-register.md) for current coverage.
+- **Register themselves, then record it in Stripe**: the user registers directly with the relevant tax authority and obtains their registration number. Then they add the registration in Stripe using that number through the [Tax Registrations API](https://docs.stripe.com/api/tax/registrations.md) or the Dashboard > **Tax** > **Locations** > **Add registration**. See [Register for tax](https://docs.stripe.com/tax/registering.md).
 
-**Reporting and filing.** Collecting with Stripe Tax doesn’t file a return by itself. Use [TaxJar filing](https://docs.stripe.com/tax/file-with-stripe.md) for US sales tax or [a filing partner](https://docs.stripe.com/tax/filing.md) where available. TaxJar requires Tax Complete and a US-based bank account. Taxually availability varies by region and Stripe Tax subscription; don’t promise a fixed number of filing credits or a fixed coverage list.
+- **Ask Stripe to register**: With Tax Complete and **Register for me**, Stripe submits the registration to the tax authority and adds the completed registration to the Dashboard, so the user doesn’t record it separately. Stripe supports the following:
+
+- Eligible US remote sellers
+
+- Canada’s simplified GST/HST registration for eligible non-resident businesses selling digital products or services to Canadian customers
+
+- EU Non-Union OSS registration through Ireland for eligible businesses established outside the EU with no EU fixed establishment that sell services to individual customers in the EU
+
+Check the [US eligibility requirements](https://docs.stripe.com/tax/use-stripe-to-register/united-states.md#eligibility) or [eligibility and signup steps outside the US](https://docs.stripe.com/tax/use-stripe-to-register/outside-united-states.md) before recommending this path. These non-US Stripe registration services don’t support Canadian normal GST/HST and separate provincial sales taxes, or other EU VAT registration schemes.
+
+- **Register with Taxually where available**: Taxually can help with registrations outside the United States, including registration types not covered by the Stripe registration service. Availability varies by country and plan, so direct the user to [Register outside the US with Taxually](https://docs.stripe.com/tax/use-taxually-to-register.md) for current coverage.
+
+**Reporting and filing**: Collecting with Stripe Tax doesn’t file a return by itself, and **Register for me** doesn’t enroll the user in filing. With Tax Complete, users can set up automated filing with Stripe for [US sales tax](https://docs.stripe.com/tax/file-with-stripe.md), [Canada’s simplified GST/HST and EU Non-Union OSS through Ireland](https://docs.stripe.com/tax/file-with-stripe-outside-us.md). US TaxJar filing requires a US-based bank account. Users can also use [a filing partner](https://docs.stripe.com/tax/filing.md) where available. Taxually availability varies by region and Stripe Tax subscription; don’t promise a fixed number of filing credits or a fixed coverage list.
 
 ## Testing considerations
 
-- Tax registrations in a sandbox are scoped to that sandbox. They don’t appear in live mode and must be re-created. Point the user to Dashboard → Tax → Locations in live mode to add registrations before processing real payments.
+- Tax registrations in a sandbox are scoped to that sandbox. They don’t appear in live mode and must be re-created. Point the user to the Dashboard > **Tax** > **Locations** in live mode to add registrations before processing real payments.
 - Tax Settings are separate for sandboxes. Configure Tax Settings in each sandbox you use, and verify live-mode settings separately before processing real payments.
 - Add live-mode registrations before the first real transaction. If a transaction occurs with no active tax registration, `automatic_tax` silently collects 0 tax, with no error or warning.
 - Sandbox transactions have no effect on threshold monitoring. Don’t infer live-mode threshold activity from sandbox activity.

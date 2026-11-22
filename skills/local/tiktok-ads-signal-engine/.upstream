@@ -1,0 +1,3 @@
+watch: tiktok/tiktok-business-api-sdk
+verified: 2026-11-22
+note: TikTok's official Business API SDK, the only upstream repo this skill cites. Its last push was 2026-03-09, so a quiet report means little: the Events API contract is read from business-api.tiktok.com (the old ads.tiktok.com/marketing_api/docs redirects there). Re-read the docs, not just this repo, when the endpoint or event fields matter.

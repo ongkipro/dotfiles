@@ -1,8 +1,9 @@
 upstream: https://docs.stripe.com/.well-known/skills/stripe-best-practices
 index: https://docs.stripe.com/.well-known/skills/index.json
-verified: 2026-10-02
+verified: 2026-11-22
 scope: directory
-reason: official hosted files still emit broken Markdown link targets (15 links in two files)
+reason: official hosted files still emit broken or non-link targets (2026-11-22: 10 `<references/x.md>` autolinks in SKILL.md, one wrong same-document anchor in
+  references/connect.md, one dead Treasury API URL in references/treasury.md)
 note: every file listed by the index was fetched 2026-09-29 and adopted verbatim,
   except for these link-target rewrites (link text and all prose unchanged):
   1. SKILL.md, 11 links: upstream rewrites the bundled references as
@@ -31,4 +32,21 @@ recheck: 2026-10-02 — all 7 indexed files re-fetched (index lists no new files
   (now plain text). Link rewrites re-applied: 11 in SKILL.md, 4 in tax.md; all still 404 upstream, as
   does the unpatched treasury vault link. github.com/stripe/ai skills/stripe-best-practices lags the
   hosted index (still 2026-08-26.dahlia), so the hosted index remains the source.
+recheck: 2026-11-22 — all 7 indexed files re-fetched; the index now lists 11 skills but the stripe-best-practices entry is still
+  exactly these 7 files. Adopted upstream verbatim: API version 2026-11-18.endive, SDK table (Node 23.2.0 and the others), the
+  `stripe sandbox create` install wording, Accounts v2 existing-v1-platform guidance and Account Links v2, sandbox wording, Stripe Tax
+  registration/threshold/tax-behavior sections, risk-side billing webhooks. The three link defects below are re-applied; everything else
+  is upstream text. The earlier 11 absolute `https://docs.stripe.com/references/<name>.md` links and 4 `undefined.md#anchor` links are gone
+  upstream (measured: 0 of each), so those two rewrites are retired.
+  Current rewrites (text unchanged):
+  1. SKILL.md, 10 links: upstream wrote `<references/payments.md>` (angle autolinks, which are not Markdown links to a bundled file
+     and which skill-check cannot resolve); local writes `[references/payments.md](references/payments.md)`.
+  2. references/connect.md, 1 anchor: upstream links `#existing-platforms` but the heading is "Existing v1 platforms" (anchor
+     `#existing-v1-platforms`); local uses the real anchor.
+  3. references/treasury.md, 1 URL: upstream's `https://docs.stripe.com/api/v2/core/vault/financial-accounts.md` and
+     `POST /v2/core/vault/financial_accounts` return HTTP 404; the live v2 Financial Accounts reference is
+     `https://docs.stripe.com/api/v2/money-management/financial-accounts.md` (HTTP 200, "The Financial Account object",
+     `POST /v2/money_management/financial_accounts`). Local uses it. This retires the earlier "known upstream 404, not patched" note.
+  Frontmatter description is still the 2026-10-30 efficiency-pass rewrite (<=250 chars); upstream's is 1,000+ characters. SKILL.md body is
+  upstream's, so a refresh must keep the local description and re-apply the three rewrites above.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

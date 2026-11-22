@@ -2,7 +2,7 @@
 
 This reference defines how `black-magic` operates inside `~/dotfiles` across all 5 AI CLI runtimes (`claude`, `codex`, `agy`, `pi`, and `omp`), how to keep it synchronized with upstream `morluto/rea`, and how to hand off structured REA `Evidence` to specialist `dotfiles` skills for clean-room reconstruction.
 
-Pinned release for every recipe below: `rea-agents@6.8.0` (npm, 2026-10-25). Node floor for that release: `^22.23.4 || ^24.22.1 || >=26.12.1` (Node 23 and 25 are unsupported). Every command and flag in this file was executed or printed with `--help` against that release on 2026-10-30; re-verify after the next `rea-skill-sync`.
+Pinned release for every recipe below: `rea-agents@6.10.1` (npm `latest`, tag `rea-agents-6.10.1`, 2026-11-20). Node floor for that release: `^22.23.4 || ^24.22.1 || >=26.12.1` (unchanged from 6.8.0; Node 23 and 25 are unsupported). On 2026-11-23, against the unpacked 6.10.1 package: all 34 commands in the recipes resolve and all 57 flags used are listed in their command's `--help`; the claims marked *measured* below were also run on a synthetic input. Re-verify after the next `rea-skill-sync`.
 
 ---
 
@@ -17,18 +17,24 @@ Pinned release for every recipe below: `rea-agents@6.8.0` (npm, 2026-10-25). Nod
 3. **Output & Secret Isolation:**
    - Never write `--evidence_output`, `evidence-export`, `extract-firmware`, `recover-javascript-sources`, `environment-build`/`environment-export` bundles, or `.rea` session directories inside a tracked application repository (`~/Projects/<slug>/`). Route reverse-engineering artifacts to `~/Documents/work/research/<slug>/`.
    - REA never overwrites an `--evidence_output` file and refuses a non-empty bundle directory; choose a fresh path per run.
-   - Keep `header_values` off by default in browser captures. Declare every credential as a scenario `secrets` entry (`{secret_id, environment_variable}`) so REA redacts it; the variable must exist in the environment that starts REA. Never pass raw values from `~/.config/ai-local/secrets.env` as CLI arguments; use `secrets-env run -- npx -y rea-agents@6.8.0 ...` when a capture needs one.
+   - Keep `header_values` off by default in browser captures. Declare every credential as a scenario `secrets` entry (`{secret_id, environment_variable}`) so REA redacts it; the variable must exist in the environment that starts REA. Never pass raw values from `~/.config/ai-local/secrets.env` as CLI arguments; use `secrets-env run -- npx -y rea-agents@6.10.1 ...` when a capture needs one.
    - `inspect-web-network-capture` already excludes standard auth headers (`Authorization`, `Cookie`, `Set-Cookie`) and URL userinfo. Custom key headers, query tokens and tokens in bodies remain; mark them with `--sensitive-value <literal>` for ordinary analysis. Environment views refuse captures inspected with `--sensitive-value`, so scrub a HAR before building an environment from it.
 
 ---
 
 ## 2. CLI-First Execution (Zero Idle MCP Overhead)
 
-Standalone `rea setup` registers a stdio MCP server advertising 229 tool schemas (6.8.0 catalog) into every conversation across `claude`, `codex`, `agy`, `pi`, and `omp`. In `~/dotfiles`, **CLI-first execution is the default**:
+Standalone `rea setup` registers a stdio MCP server advertising 263 tool schemas (6.10.1 catalog, the `tool_count` in the release's own SKILL.md; 229 in 6.8.0) into every conversation across `claude`, `codex`, `agy`, `pi`, and `omp`. In `~/dotfiles`, **CLI-first execution is the default**:
 
-- Prefer an installed `rea` binary if present; otherwise run `npx -y rea-agents@6.8.0 <command> ... --json` from a trusted directory outside the target, with absolute target paths. Use `@latest` only to check a newer release.
-- `rea doctor --json` on this workstation reports `registration:*` and `skill:identity` as `missing`/`config_drift` for all six clients. That is the intended CLI-first state, not a defect; do not run `rea setup` to "fix" it. Only `missing_analysis_engine` rows matter, and only for the lane a task needs (Ghidra 12.1.x via `GHIDRA_INSTALL_DIR`, `jadx-headless-mcp` 0.7.1 JAR via `REA_JADX_MCP_JAR`, Kuna 1.833 via `REA_KUNA_COMMAND`, IDA via `REA_IDA_MCP_CONFIG`).
-- Use MCP registration only for temporary, explicitly approved sessions when a multi-step stateful native session (Ghidra/IDA/Kuna `open_binary` ... `close_binary`) must stay open across calls. When registering, add `"REA_MCP_INPUT_SCHEMA_PROFILE": "compact"` to the registration `env` (6.8.0 default; `full` restores nested constraints). `rea mcp --http --port <n>` serves the same catalog over streamable HTTP to one local client.
+- Prefer an installed `rea` binary if present; otherwise run `npx -y rea-agents@6.10.1 <command> ... --json` from a trusted directory outside the target, with absolute target paths. Use `@latest` only to check a newer release.
+- `rea doctor --json` on this workstation (measured 2026-11-23 on 6.10.1) reports `registration:*` and `skill:identity` as `config_drift` and five analysis engines (`hopper`, `ghidra`, `ida-registration`, `jadx`, `kuna-installation`) as `missing_analysis_engine`, with `node` and `host` healthy; no client has REA registered. That is the intended CLI-first state, not a defect; do not run `rea setup` to "fix" it. Only `missing_analysis_engine` rows matter, and only for the lane a task needs (Ghidra via `GHIDRA_INSTALL_DIR`: **12.2 or newer on the 12.x line and a JDK of 25 or newer**. The 6.10.1 release rejects 12.1.x because its bridge does not compile there (it verified exactly 12.2, and 12.2 PUBLIC has a known jump-table defect on clang `-O0` switches that 12.2.1 fixes); `jadx-headless-mcp` 0.7.1 JAR via `REA_JADX_MCP_JAR` (the pin the release prints, with its SHA-256; `main` has moved to 0.8.0, so follow the release); Kuna via `REA_KUNA_COMMAND` (the release was verified with Kuna 1.1000; the 1.833 in the earlier text is superseded); IDA via `REA_IDA_MCP_CONFIG`; Hopper has no engine check message of its own, so read its doctor row). REA installs none of these, and none is installed here.
+- Use MCP registration only for temporary, explicitly approved sessions when a multi-step stateful native session (Ghidra/IDA/Kuna `open_binary` ... `close_binary`) must stay open across calls. When registering, no schema-profile variable is needed any more: `REA_MCP_INPUT_SCHEMA_PROFILE` accepts only `compact` (the default) and `full` was removed in 6.9.0-6.10.0, and `REA_MCP_OUTPUT_SCHEMA_PROFILE` is `off` unless set to `compact` (measured in the release's own error text). `rea mcp --http --port <n>` serves the same catalog over streamable HTTP at `/mcp` to one local client. Measured in 6.10.1: it binds `127.0.0.1` by default (`--host` or `MCP_HOST` overrides), uses an ephemeral port when none is given, and refuses a non-loopback bind unless `--allowed-hosts` or `MCP_ALLOWED_HOSTS` names the hosts clients will use. `rea mcp add --command` registers a local stdio launcher only and performs no package acquisition or server execution.
+
+### New in the synced skill (v63): what it asks of the agent
+
+- `references/desktop-build.md` (new, 860 lines) builds an AgentEnv bundle of a Linux desktop app by driving it on a *build computer*. Its tools are MCP-only and it needs a Linux host with Docker, `agentenv` and REA's packed runtime, so it is unreachable in the CLI-first setup above and stays so unless a task explicitly authorizes MCP registration (`rea setup --client <client> --desktop-build`).
+- It tells the building agent to accept no licence on anyone's behalf, to keep credentials out of the bundle (secrets are typed by handle from `~/.config/rea/build-secrets/`, never pasted), and to refuse downloading a vendor's page itself. Treat those as REA's rules for that lane; they do not widen what `CORE.md` allows here. Never put real personal data in a seed.
+- The synced `SKILL.md` still shows `npx -y rea-agents@latest ...` in two places (upstream's tarball pins them to `@6.10.1`). In this repository an unpinned `npx -y` is not a default: use `@6.10.1`, as the recipes below do, and see the pin rule appended to `SKILL.md`.
 
 ### Output contract (read before the recipes)
 
@@ -38,12 +44,12 @@ Standalone `rea setup` registers a stdio MCP server advertising 229 tool schemas
 - Without `--detail summary`, redirect the complete JSON (`--json > file.json`); a real application's Evidence can be hundreds of megabytes.
 - `--format jsonl` works only for an array or one explicit `rows|items|records|occurrences` collection (select with `--filter-output`); otherwise it returns an `unreadable_output` control record. Use `--format json` for whole documents.
 - `--token-limit <n>` / `--token-offset <n>` page only the human formats (`toon`, `md`); they are rejected with `json`/`jsonl`/`yaml`. `--timings` writes one `{"rea_timings":...}` record to stderr; `--schema` prints the command's JSON Schema; every JSON positional (`<inputJson>`, manifest and evidence paths) accepts inline JSON, a file path, or `-` for stdin (8 MiB cap).
-- Skill text versus release: `rea-skill-sync` vendors the skill from upstream `main` (v55), while `rea-agents@6.8.0` ships skill v49 and 177 CLI commands. Five commands named on `main` are absent from 6.8.0 (`compare-artifacts`, `guidance`, `guided-workflows`, `inspect-android-jni-bindings`, `validate-browser-scenario`). Confirm any command with `npx -y rea-agents@6.8.0 <command> --help` before relying on it.
+- Skill text versus release: with the sync pinned to the `rea-agents-6.10.1` tag, the vendored skill (v63) is the skill the release ships, plus the dotfiles section. The npm tarball differs from the tag in exactly three lines: frontmatter `tool_count: 263`, and the two `npx -y rea-agents@latest` examples pinned to `@6.10.1`. Do not sync from `main`: on 2026-11-22 it was 785 commits ahead of the tag, and the `main` skill already describes behavior the release lacks (Hex-Rays `.idb`/`.i64` input, the JADX 0.8.0 pin). All five commands that were absent from 6.8.0 (`compare-artifacts`, `guidance`, `guided-workflows`, `inspect-android-jni-bindings`, `validate-browser-scenario`) exist in 6.10.1; the release lists 204 CLI commands in `--help` (the figure `.source` cannot derive from source and records as `unknown`). Still confirm any command with `npx -y rea-agents@6.10.1 <command> --help` before relying on it.
 
 ### High-Frequency CLI Recipes
 
 ```bash
-R="npx -y rea-agents@6.8.0"
+R="npx -y rea-agents@6.10.1"
 OUT=~/Documents/work/research/<slug>
 
 # 1. Environment & provider readiness (read-only; registrations are expected "missing")
@@ -109,7 +115,7 @@ $R inspect-byte-entropy /abs/path/file --json            # packed/encrypted regi
 $R environment-build /abs/path/session.har --dry-run --name <env-name> --json
 $R environment-build /abs/path/session.har $OUT/agentenv --name <env-name> --json
 #   run: agent-env run $OUT/agentenv   (AgentEnv framework 0.9.1334 + Docker, user-installed;
-#   the Dockerfile installs rea-agents@6.8.0 and serves MCP over streamable HTTP on port 18765)
+#   the Dockerfile installs rea-agents@6.10.1 (measured) and serves MCP over streamable HTTP on port 18765)
 #   serve without Docker: $R environment-serve $OUT/agentenv/envs/<env-name>/manifest.json \
 #     --evidence $OUT/agentenv/envs/<env-name>/evidence.json --port 8765
 #   fidelity: $R environment-compare <manifest.json> --evidence <capture.json> --probe <probe.json> --json
@@ -122,7 +128,7 @@ $R instrument-with-frida spawn /abs/path/program --script-file $OUT/hook.js --du
 $R capture-process --help     # read the contract before any attach
 ```
 
-Verified on 2026-10-30 with a synthetic 2-record HAR: recipe 2 produced `api-surface` with 2 endpoints, recipe 11 `--dry-run` reported `tool_count: 2`, `coverage.reads.state: 2`, `writes.served: []`, and the planned files `README.md`, `envs/<name>/{env.toml,Dockerfile,manifest.json,evidence.json}`, `artifacts/check_<name>/verify.py`, `tasks/smoke.json`.
+Measured on 2026-11-23 against the unpacked 6.10.1 package with a synthetic 2-record HAR (one GET, one POST, scratch directory under `/tmp`, no network): `--format har` fails with `INVALID_OUTPUT_VALUE` (the accepted values are now `toon, json, yaml, md, jsonl, csv, tsv`); recipe 2 wrote the evidence file and the `api-surface` view returned two endpoint groups with the GET and POST; recipe 11 `--dry-run` reported `tool_count: 1`, `coverage.reads.state: 1`, `writes.served: []` and the one write withheld as `no-observation`, and the real build wrote `README.md`, `envs/<name>/{env.toml,Dockerfile,manifest.json,evidence.json}`, `artifacts/check_<name>/verify.py` and `tasks/smoke.json`. The earlier 6.8.0 figures (2 endpoints, `tool_count: 2`) came from a different synthetic file and are not comparable.
 
 ---
 
@@ -134,24 +140,25 @@ Verified on 2026-10-30 with a synthetic 2-record HAR: recipe 2 produced `api-sur
 - **How `rea-skill-sync` works:**
   - Syncs 100% of upstream `.agents/skills/reverse-engineer-anything/SKILL.md` body and all upstream `references/*.md` files, including files that first appear upstream (for example `references/environments.md`, added with 6.8.0).
   - Preserves the `black-magic` frontmatter (`name: black-magic` + front-loaded `Not for` clause) and appends the `## Dotfiles integration and sibling handoffs` section to `SKILL.md`.
-  - Updates `.source` and `.local-fork` with the upstream `rea-agents` package version, skill version, CLI command count (`src/cliCommandNames.ts`), and upstream commit SHA.
+  - Updates `.source` and `.local-fork` with the upstream `rea-agents` package version, skill version, CLI command count, and upstream commit SHA. The count comes from `src/contracts/cliCommandNames.ts` (`src/cliCommandNames.ts` before rea-agents 6.10.0). From 6.10.0 that file lists only part of the commands (the rest come from contracts declaring `cli: true`), so `.source` then records `primary_cli_commands: unknown` instead of a partial tally.
 - **After every sync:** the pinned version in this file, the recipes above, and the `development-kit` ecosystem-adoption row are hand-maintained. Re-run the smoke commands in section 2 against the new pin and fix any renamed flag before committing.
 
 ### Sync & Drift Commands
 
 ```bash
 # Check if local black-magic is in sync with a local upstream clone (read-only)
-rea-skill-sync --check --upstream-dir ~/Documents/work/research/rea-2026-10-20/rea-upstream
+rea-skill-sync --check --upstream-dir <a clone of morluto/rea checked out at the tag you are pinning, e.g. rea-agents-6.10.1>
 
 # Pull latest morluto/rea commits in the local clone and sync black-magic
-rea-skill-sync --upstream-dir ~/Documents/work/research/rea-2026-10-20/rea-upstream --pull
+rea-skill-sync --upstream-dir <clone at the pinned tag>   # no --pull: a pull moves a tag checkout to a branch tip
 
-# Check or sync directly against GitHub (morluto/rea main) without a local clone
-rea-skill-sync --check --remote
-rea-skill-sync --remote
+# Check or sync directly against GitHub without a local clone. Pin the release tag: `main` runs
+# hundreds of commits ahead of npm and its skill text describes behavior the release lacks.
+rea-skill-sync --check --remote --ref rea-agents-6.10.1
+rea-skill-sync --remote --ref rea-agents-6.10.1
 
 # Emit machine-readable sync status JSON
-rea-skill-sync --check --remote --json
+rea-skill-sync --check --remote --ref rea-agents-6.10.1 --json
 ```
 
 After `rea-skill-sync` updates any file under `skills/local/black-magic/`, run `skill-check black-magic`, `skill-map --check`, and `rea-skill-sync-test`.
@@ -175,6 +182,6 @@ Standalone `rea` stops once it produces `Evidence`. In `~/dotfiles`, chain the e
 
 ---
 
-## 5. Ecosystem Position (rechecked 2026-10-30)
+## 5. Ecosystem Position (rechecked 2026-11-23)
 
-`morluto/rea` is the dominant agent reverse-engineering project on GitHub (MIT; 406k stars, 101k forks at the 2026-10-29 push). The alternatives in the current ecosystem are either engines REA already drives as providers (`mrexodia/ida-pro-mcp`, headless JADX, Ghidra, Hopper, Kuna, Rizin, Frida, GDB, objdump) or narrower single-lane MCP servers (GhidraMCP, Binary Ninja MCP, Charles/Android proxy MCPs, JS-reverse CDP hooks). `LING71671/open-reverselab` (GPL-3.0, ~1.3k stars) adds Windows-centric dynamic lanes (x64dbg, Procmon, YARA) and CTF web tooling; it is a parallel platform, not a REA extension. Deliberate non-adoption: no second RE skill, no GPL-3 tooling vendored into dotfiles, no WAF-evasion or anti-detection browser lanes. Revisit when a task needs x64dbg scripting or Binary Ninja, which REA does not provide.
+`morluto/rea` is the dominant agent reverse-engineering project on GitHub (MIT; about 474k stars and 116k forks, last push 2026-11-22). The alternatives in the current ecosystem are either engines REA already drives as providers (`mrexodia/ida-pro-mcp`, headless JADX, Ghidra, Hopper, Kuna, Rizin, Frida, GDB, objdump) or narrower single-lane MCP servers (GhidraMCP, Binary Ninja MCP, Charles/Android proxy MCPs, JS-reverse CDP hooks). `LING71671/open-reverselab` (Apache-2.0 as of 2026-11-23, about 1.4k stars; it was GPL-3.0 when this section was written on 2026-10-30) adds Windows-centric dynamic lanes (x64dbg, Procmon, YARA) and CTF web tooling; it is a parallel platform, not a REA extension. Deliberate non-adoption: no second RE skill, no third-party RE platform vendored into dotfiles (licence was not the only reason: its lanes are Windows-centric and outside this skill's scope; re-evaluate on need, not on licence), no WAF-evasion or anti-detection browser lanes. Revisit when a task needs x64dbg scripting or Binary Ninja, which REA does not provide.

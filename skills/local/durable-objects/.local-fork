@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/durable-objects
-verified: 2026-10-02
+verified: 2026-11-22
 scope: directory
 reason: Upstream (checked 2026-09-29, last path commit 41e0d19) still ends references/workers.md "Development Commands" with `wrangler d1 execute DB --command "SELECT * FROM _cf_DO"` labelled "List DOs". D1 is not Durable Object storage, `_cf_DO` is undocumented, and Wrangler has no command that lists live Durable Object instances (https://developers.cloudflare.com/workers/wrangler/commands/workers/). The supported storage inspection path is Durable Objects Data Studio (https://developers.cloudflare.com/durable-objects/observability/data-studio/). Second, minimal divergence: SKILL.md frontmatter description appends a "Not for ..." boundary naming sibling skills (workers-best-practices, wrangler, agents-sdk) inside the first 240 characters; upstream's description has no boundary. Everything else (SKILL.md body, references/rules.md, references/testing.md, rest of references/workers.md) is byte-identical to upstream.
 would_lose_if_wired: A byte-for-byte refresh would reintroduce the fabricated `_cf_DO` D1 listing command, drop the Data Studio / application-owned name-mapping guidance, and remove the sibling-skill boundary from the description.
@@ -7,4 +7,11 @@ to_vendor: Remove this marker once upstream deletes the `_cf_DO` D1 command (or 
 recheck: 2026-10-02 — merged upstream 41e0d19 (index.md doc routes in SKILL.md, rules.md, testing.md).
   Upstream workers.md still ends with the `_cf_DO` D1 command, so divergence 1 stays; local Data Studio and
   Wrangler links now use index.md routes too.
+recheck: 2026-11-22 — merged upstream 5108325 content changes since 41e0d19: references/workers.md "Observability & Logging" is replaced by
+  Workers Logs + Workers Traces (`observability.traces.enabled`, `head_sampling_rate`, default 1 verified at workers/observability/traces),
+  Local Explorer debugging (`cf dev`, `/cdn-cgi/local/explorer/api`, `.../local/observability/query`; verified at workers/local-development/
+  local-explorer) and timing limits (timers advance only after I/O; verified at workers/runtime-apis/performance and traces/known-limitations);
+  the custom `log()` helper, request-tracing sample and Tail Worker block are gone; `handleRequest` -> `handleRooms` in the CORS sample;
+  SKILL.md reference-list line reworded. Divergence 1 (`_cf_DO` D1 command replaced by Data Studio) still holds: upstream still ends
+  workers.md with it. skill-feedback: upstream added `references/skill-feedback.md` and a `## Skill feedback` pointer to every skill (cloudflare/skills 0e7a86d, 29de2b2). NOT adopted, on purpose: it instructs the agent to file a public GitHub issue on cloudflare/skills with `gh issue create`. Upstream itself gates it on showing the exact title and body and getting a yes, but a posting path from a shared, auto-loaded skill is an outbound action that belongs to the owner, and CORE's approval gates cover external publication. To adopt later: add the file and pointer per skill and keep the explicit-approval step.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

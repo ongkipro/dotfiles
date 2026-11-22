@@ -2,6 +2,16 @@
 
 These cases match the assertions in the Turnstile Spin PRD. Run them after editing this skill to confirm an agent loading it can still execute the wizard end-to-end.
 
+## Offline persistence tests
+
+From the repository root, run:
+
+```sh
+python3 -I -m unittest discover -s skills/local/turnstile-spin/tests -p 'test_*.py' -v
+```
+
+These tests use a local Git stub and require no network access or credentials. They cover copying to new and empty directories, preserving nonempty destinations, and reporting copy failures with a nonzero exit status and an error JSON object.
+
 ## Test 1: New-widget creation exposes only safe metadata
 
 From the dotfiles harness, run:
