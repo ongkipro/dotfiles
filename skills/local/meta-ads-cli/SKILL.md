@@ -43,6 +43,7 @@ Read only this file up front; open the reference the chosen path names.
 | Read-only diagnostics, insights, raw `meta` command | `dotads-meta run --brand ./brand.json -- …`; check `--help` first | `setup-and-commands.md` §3 |
 | Analyze performance / ROAS | separate observation, threshold, hypothesis | `references/roas-cpr-profit-intelligence.md` |
 | How Meta delivery/learning works now, learning phase, 2026 measurement changes, turning evidence into hypotheses, improving ads | Read before `learn record` beyond observation or any optimization advice | `references/algorithm-and-learning.md` |
+| **Shopee CPAS or Shopee-affiliate campaign, Ads Manager UI flow, reference-campaign configs (GACORIN), CLI vs official docs** | Read first: never build CPAS from a template; mirror a live reference; check conversion location and ledger | `references/cpas-shopee-id-ui-playbook.md`, then the row below |
 | Shopee CPAS / Collaborative Ads (marketplace catalog segment, retailer pixel, `1-1-1` Direct-to-App `CAROUSEL_DPA`, Pure Carousel vs Collection `da_collection` / `asset_feed_spec`, in-place creative hot-swap, `InApp_SDK` vs `app_site_visit`, `catalog_segment_*` results, settlement economics) | Read before planning, reading or judging any campaign that sends traffic to Shopee | `references/cpas-collaborative-ads.md`; Recipe 5 in `references/rules-and-tutorial.md` |
 | Indonesia market baseline (explicit `ID` market only) | `dotads-meta baseline --market ID` | `references/indonesia-market.md` |
 | Five-window account history / observational learning | `history --account act_ID --plan`, then authorized read or selected imports; full returned Markdown evidence feeds scoped account memory, never automatic winners/spend | `references/account-workspace-runtime.md` §Five-window account history |
@@ -50,6 +51,7 @@ Read only this file up front; open the reference the chosen path names.
 | Account reporting workspace | runtime guide; the revision-3 design doc is historical | `references/account-workspace-runtime.md` |
 | Interactive HTML reporting & live telemetry dashboard | adaptive Clean-Light UI over BM/account `data/snapshots/` + optional local `secrets-env` read-only `/api/live` sync; zero-prose layout, dynamic metric profiles (`standard`, `cpas_v1`, custom KPIs), verified via `dotuiux` | `references/account-workspace-runtime.md` §Interactive HTML reporting and live telemetry (adaptive pattern) |
 | Operator onboarding / AI-terminal handoff | English contract; Bahasa guide for humans | `references/terminal-control.md`, `GUIDE.id.md` |
+| Is there an official Meta ads skill? Importing any outside Meta ads skill, MCP or blueprint (provenance, licence) | Check provenance and licence before adding anything | `references/meta-official-sources.md` |
 | A claim about API version, algorithm, or a mysterious error | source record + the 10 traps, then current official page and installed `--help` | `references/api-and-evidence.md` |
 | Local repair or offline validation | inspect manifest/code, run the smallest offline check; no account access needed | — |
 

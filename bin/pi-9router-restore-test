@@ -126,7 +126,7 @@ run_restore
 grep -q '"defaultProvider":"local"' "$FAKE_HOME/.pi/agent/settings.json"
 # The review-pairing default reaches a device that has none, and a device's own
 # reviewer override is never replaced. The tracked seed carries the default.
-python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["reviewer"]; assert r["model"]=="9router-fantastico/cx/gpt-6.1-sol", r' "$ROOT/config/pi/settings.json"
+python3 -c 'import json,sys; r=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["reviewer"]; assert r["model"]=="9router-fantastico/cx/gpt-6.2-sol", r' "$ROOT/config/pi/settings.json"
 seed_plain="$(cat "$FAKE_DOT/config/pi/settings.json")"
 printf '%s\n' '{"defaultProvider":"fixture","subagents":{"agentOverrides":{"reviewer":{"model":"seed/sol"}}}}' > "$FAKE_DOT/config/pi/settings.json"
 run_restore
@@ -139,7 +139,7 @@ grep -q '"seed/sol"' "$FAKE_HOME/.pi/agent/settings.json"
 ! grep -q '"local/own"' "$FAKE_HOME/.pi/agent/settings.json"
 # A tracked agent override the device lacks (oracle) is added, and an agent only
 # this device overrides stays.
-python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["oracle"]; assert o["model"]=="9router-fantastico/ag/gemini-4-carbon-high", o' "$ROOT/config/pi/settings.json"
+python3 -c 'import json,sys; o=json.load(open(sys.argv[1]))["subagents"]["agentOverrides"]["oracle"]; assert o["model"]=="9router-fantastico/ag/gemini-4-carbon", o' "$ROOT/config/pi/settings.json"
 printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"seed/sol"},"oracle":{"model":"seed/carbon"}}}}' > "$FAKE_DOT/config/pi/settings.json"
 printf '%s\n' '{"subagents":{"agentOverrides":{"reviewer":{"model":"local/own"},"scout":{"model":"local/scout"}}}}' > "$FAKE_HOME/.pi/agent/settings.json"
 run_restore
@@ -263,8 +263,7 @@ const server = createServer((req, res) => {
     {id:'mmf/mimo-auto',context_length:262144,max_completion_tokens:131072,capabilities:{reasoning:true,vision:true}},
     {id:'oc/jev-1.13-free',context_length:200000,max_completion_tokens:64000,capabilities:{reasoning:false,vision:false}},
   ];
-  if (mode === 'argon' || mode === 'argon-listed-carbon') rows.push({id:'ag/gemini-4-argon-high',context_length:1048576,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
-  if (mode === 'argon-listed-carbon') rows.push({id:'ag/gemini-4-carbon-high',context_length:2000000,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
+  if (mode === 'carbon') rows.push({id:'ag/gemini-4-carbon',context_length:1048576,max_completion_tokens:65536,capabilities:{reasoning:true,vision:true}});
   if (mode === 'duplicate') rows.push(rows[0]);
   if (mode === 'invalid') rows[0].context_length = -1;
   res.end(JSON.stringify({data:mode === 'empty' ? [] : rows}));
@@ -274,7 +273,7 @@ try {
   // Stand-in for Pi's built-in catalogs, shaped like pi-ai's generated modules.
   const official=join(fixture,'official'); await mkdir(official);
   await writeFile(join(official,'anthropic.models.js'),`export const ANTHROPIC_MODELS={'claude-opus-5-5':{id:'claude-opus-5-5',thinkingLevelMap:{low:'low',max:'max'},promptCache:{short:300,long:3600},compat:{forceAdaptiveThinking:true,supportsStrictTools:true,supportsTemperature:false,supportsMidConvoEffort:true,supportsMidConvoSystemMessages:true,supportsMidConvoToolChanges:true,allowedFallbackModels:[]}}};`);
-  await writeFile(join(official,'openai-codex.models.js'),`export const OPENAI_CODEX_MODELS={'gpt-6.1-sol':{id:'gpt-6.1-sol',thinkingLevelMap:{xhigh:'xhigh',max:'max'},compat:{supportsToolSearch:true}}};`);
+  await writeFile(join(official,'openai-codex.models.js'),`export const OPENAI_CODEX_MODELS={'gpt-6.1-sol':{id:'gpt-6.1-sol',thinkingLevelMap:{xhigh:'xhigh',max:'max'},compat:{supportsToolSearch:true}},'gpt-6-astra':{id:'gpt-6-astra',thinkingLevelMap:{off:null,minimal:null,xhigh:'xhigh'},compat:{supportsToolSearch:true}}};`);
   const dir=join(fixture,'.pi/agent'); await mkdir(dir,{recursive:true});
   const file=join(dir,'models.json');
   const baseUrl=`http://127.0.0.1:${server.address().port}/v1`;
@@ -287,7 +286,7 @@ try {
   assert.equal(provider.custom,'keep');assert.equal(provider.authHeader,true);
   assert.deepEqual(synced.providers.other,original.providers.other);
   const byId=Object.fromEntries(provider.models.map(m=>[m.id,m]));
-  assert.deepEqual(Object.keys(byId),['cx/gpt-6.1-sol','cc/claude-opus-5-5','cc/claude-unlisted']); // classifier and retired rows dropped
+  assert.deepEqual(Object.keys(byId),['cx/gpt-6.1-sol','cc/claude-opus-5-5','cc/claude-unlisted','cx/gpt-6.2-sol','cx/gpt-6.2-astra']); // classifier and retired rows dropped; 6.2 rows borrowed from 6.1 Sol
   const sol=byId['cx/gpt-6.1-sol'];
   assert.equal(sol.contextWindow,272000);assert.equal(sol.maxTokens,128000);assert.equal(sol.headers['x-fixture'],'keep');
   assert.equal(sol.api,'openai-responses');assert.deepEqual(sol.compat,{supportsToolSearch:true}); // stale compat replaced
@@ -324,31 +323,26 @@ try {
   assert.deepEqual(viaManaged.find(m=>m.id==='cc/claude-opus-5-5').thinkingLevelMap,{low:'low',max:'max'});
   await run();
   const good=await readFile(file,'utf8');
-  // Gemini 4 Carbon: served but unlisted by the gateway. It is added from its
-  // Argon sibling, never duplicated once the gateway lists it, and absent when
-  // Argon is absent (the default fixture above).
-  assert.equal(byId['ag/gemini-4-carbon-high'],undefined);
+  // Gemini 4: the gateway lists only plain Carbon; plain Argon and Hydrogen
+  // levels are served but unlisted, so they borrow Carbon's limits. Nothing is
+  // added without Carbon, and Carbon's own variants are never synthesized.
   const carbonRun=async m=>{mode=m;await writeFile(file,JSON.stringify(original));await run();mode='ok';return JSON.parse(await readFile(file,'utf8')).providers['9router-fantastico'].models;};
-  let ms=await carbonRun('argon');
-  const carbon=ms.find(m=>m.id==='ag/gemini-4-carbon-high');
-  assert.ok(carbon,'carbon added from its argon sibling');
-  assert.equal(carbon.contextWindow,1048576);assert.equal(carbon.reasoning,true);
-  assert.equal(ms.filter(m=>m.id.startsWith('ag/gemini-4-carbon')).length,1); // only siblings that exist
-  ms=await carbonRun('argon-listed-carbon');
-  assert.equal(ms.filter(m=>m.id==='ag/gemini-4-carbon-high').length,1);
-  assert.equal(ms.find(m=>m.id==='ag/gemini-4-carbon-high').contextWindow,2000000); // gateway row wins
-  // Gemini 4 Hydrogen: served but unlisted; added from its Argon siblings.
-  assert.equal(byId['ag/gemini-4-hydrogen-high'],undefined); // absent without Argon
-  ms=await carbonRun('argon');
+  assert.equal(byId['ag/gemini-4-argon'],undefined);assert.equal(byId['ag/gemini-4-hydrogen-high'],undefined);
+  let ms=await carbonRun('carbon');
+  const ids=ms.map(m=>m.id).filter(id=>id.startsWith('ag/gemini-4'));
+  assert.deepEqual(ids.sort(),['ag/gemini-4-argon','ag/gemini-4-carbon','ag/gemini-4-hydrogen-high','ag/gemini-4-hydrogen-low','ag/gemini-4-hydrogen-medium','ag/gemini-4-hydrogen-xhigh','ag/gemini-4-neon-high','ag/gemini-4-neon-low','ag/gemini-4-neon-medium','ag/gemini-4-neon-xhigh']);
   const hydrogen=ms.find(m=>m.id==='ag/gemini-4-hydrogen-xhigh');
-  assert.ok(hydrogen,'hydrogen added from its argon sibling');
   assert.equal(hydrogen.contextWindow,1048576);assert.equal(hydrogen.reasoning,true);
+  const gpt=(await carbonRun('ok')).map(m=>m.id).filter(id=>id.startsWith('cx/gpt-6.2'));
+  assert.deepEqual(gpt.sort(),['cx/gpt-6.2-astra','cx/gpt-6.2-sol']); // borrowed from 6.1 Sol
+  const astra62=(await carbonRun('ok')).find(m=>m.id==='cx/gpt-6.2-astra');
+  assert.equal(astra62.thinkingLevelMap.off,null);assert.equal(astra62.thinkingLevelMap.minimal,null); // Astra rejects off/minimal upstream
   await writeFile(file,good);
   for (mode of ['http-error','empty','duplicate','invalid','redirect']) {
     await assert.rejects(run());assert.equal(await readFile(file,'utf8'),good);
   }
   assert.equal(sentCredential,false);assert.equal(catalogCalls,13);
-  console.log('pi-catalog-sync: PASS (official metadata, managed install, unlisted Carbon and Hydrogen, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
+  console.log('pi-catalog-sync: PASS (official metadata, managed install, unlisted Hydrogen, fallback, classifier filter, auth isolation, preservation, five fail-closed cases)');
 } finally {
   await new Promise(resolve=>server.close(resolve));
   await rm(fixture,{recursive:true,force:true});

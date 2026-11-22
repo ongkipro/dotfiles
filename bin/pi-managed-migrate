@@ -66,6 +66,26 @@ cleanup() {
   return 0
 }
 
+is_legacy_npm_link() {
+  [ -L "$1" ] || return 1
+  local target
+  target="$(readlink "$1" 2>/dev/null)" || return 1
+  printf '%s\n' "$target" | grep -qF "$PKG" && return 0
+  command -v node >/dev/null 2>&1 && node -e '
+    const fs = require("fs"), path = require("path");
+    let p = process.argv[1];
+    try {
+      for (let i = 0; i < 8 && fs.lstatSync(p).isSymbolicLink(); i++) {
+        const t = fs.readlinkSync(p);
+        const base = fs.realpathSync(path.dirname(p));
+        p = path.resolve(base, t);
+        if (p.includes(process.argv[2])) process.exit(0);
+      }
+    } catch {}
+    process.exit(1);
+  ' "$1" "$PKG" 2>/dev/null
+}
+
 install_managed() {
   local tmp nbin rc
   command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || { say "node and npm are required"; return 1; }
@@ -78,10 +98,22 @@ install_managed() {
   ln -s "$(command -v node)" "$tmp/prefix/bin/node"
   cp -P "$nbin/npm" "$nbin/npx" "$tmp/prefix/bin/" 2>/dev/null
   curl -fsSL "$INSTALLER_URL" -o "$tmp/install.sh" || { say "download failed: $INSTALLER_URL"; rm -rf "$tmp"; return 1; }
-  # No `pi` on this PATH, so the installer installs instead of migrating. Its
-  # output goes through cat so it cannot offer to exec pi at the end.
+  if is_legacy_npm_link "$HOME/.local/bin/pi"; then
+    rm -f "$HOME/.local/bin/pi" && say "removed legacy npm wrapper link ($HOME/.local/bin/pi)"
+  fi
+  # No `pi` on this PATH, so the installer installs instead of migrating. Run in
+  # a detached session (`setsid` via Node `detached: true`) so `/dev/tty` is not
+  # openable and `pi.dev/install.sh` takes its non-interactive branch instead of
+  # blocking for a keypress; pipe stdout through cat so it stays non-TTY too.
   PATH="$tmp/prefix/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" \
-    sh -c 'command -v pi >/dev/null && exit 97; exec sh "$1"' _ "$tmp/install.sh" </dev/null | cat
+    "$tmp/prefix/bin/node" -e '
+      const { spawnSync } = require("child_process");
+      const r = spawnSync("sh", ["-c", "command -v pi >/dev/null && exit 97; exec sh \"$1\"", "_", process.argv[1]], {
+        stdio: ["ignore", "inherit", "inherit"],
+        detached: true,
+      });
+      process.exit(r.status ?? 1);
+    ' "$tmp/install.sh" </dev/null | cat
   rc=${PIPESTATUS[0]}
   rm -rf "$tmp"
   [ "$rc" -eq 97 ] && { say "an unexpected pi is on the installer PATH ($HOME/.local/bin/pi?)"; return 1; }
@@ -90,11 +122,15 @@ install_managed() {
 }
 
 unlink_npm_bin() {
-  # npm's `pi` link sits in the node prefix bin and, via mise shims, before ~/.local/bin.
+  # npm's `pi` link sits in the node prefix bin (and sometimes a manual wrapper
+  # symlink in ~/.local/bin) before the managed launcher.
   local r link
+  if is_legacy_npm_link "$HOME/.local/bin/pi"; then
+    rm -f "$HOME/.local/bin/pi" && say "removed legacy npm wrapper link ($HOME/.local/bin/pi)"
+  fi
   r="$(npm_root)" || return 0
   link="$(dirname "$(dirname "$r")")/bin/pi"
-  if [ -L "$link" ] && readlink "$link" | grep -q "$PKG"; then
+  if is_legacy_npm_link "$link"; then
     rm -f "$link" && say "removed npm's pi link ($link)"
   fi
   command -v mise >/dev/null 2>&1 && mise reshim

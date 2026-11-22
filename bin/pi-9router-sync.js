@@ -110,7 +110,9 @@ function modelMeta(row, existing = {}, official = { anthropic: {}, codex: {} }, 
     // Codex compat is copied whole: verified 2026-10-31 that effort reaches the
     // gateway as sent and tool calls work through additional_tools/tool search.
     model.api = 'openai-responses';
-    const o = official.codex[row.id.slice(3)];
+    // Unlisted 6.2 rows have no official Pi entry; borrow the closest release's
+    // compat and thinking levels (Astra rejects off/minimal, so it follows 6-astra).
+    const o = official.codex[row.id.slice(3)] || official.codex[CODEX_LEVELS_FROM[row.id.slice(3)]];
     if (o?.compat) model.compat = clone(o.compat);
     if (o?.thinkingLevelMap) model.thinkingLevelMap = clone(o.thinkingLevelMap);
   }
@@ -131,26 +133,34 @@ async function isChatModel(base, id) {
   }
 }
 
+const CODEX_LEVELS_FROM = { 'gpt-6.2-sol': 'gpt-6.1-sol', 'gpt-6.2-astra': 'gpt-6-astra' };
+
 // Rows the gateway serves but does not list yet. Each borrows the limits and
 // capabilities of a listed sibling and is added only while that sibling is
 // listed and the row itself is not, so the gateway's own row wins once it
-// appears. Verified 2026-11-10: 9Router serves ag/gemini-4-carbon-{low,medium,high}
-// (Antigravity lists Gemini 4 Carbon) with tools and thinking, but omits them
-// from /v1/models.
+// appears. The owner hides the -low/-medium/-high variants in 9Router so /think
+// is the only thinking control (2026-11-18: reasoning_effort overrides the
+// variant suffix); plain ag/gemini-4-carbon is the one listed Gemini 4 row.
 const UNLISTED = [
-  ['ag/gemini-4-carbon-high', 'ag/gemini-4-argon-high'],
-  ['ag/gemini-4-carbon-medium', 'ag/gemini-4-argon-medium'],
-  ['ag/gemini-4-carbon-low', 'ag/gemini-4-argon-low'],
-  // Verified 2026-11-14: ag/gemini-4-hydrogen-{low,medium,high,xhigh} answer
-  // (agy 1.5.9 ships Gemini 4 Hydrogen) but the catalog omits them.
-  ['ag/gemini-4-hydrogen-xhigh', 'ag/gemini-4-argon-high'],
-  ['ag/gemini-4-hydrogen-high', 'ag/gemini-4-argon-high'],
-  ['ag/gemini-4-hydrogen-medium', 'ag/gemini-4-argon-medium'],
-  ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-argon-low'],
-  // Verified 2026-11-14: ag/gemini-3.8-flash-{low,medium,high} answer (agy lists them).
-  ['ag/gemini-3.8-flash-low', 'ag/gemini-3.8-flash'],
-  ['ag/gemini-3.8-flash-medium', 'ag/gemini-3.8-flash'],
-  ['ag/gemini-3.8-flash-high', 'ag/gemini-3.8-flash'],
+  // Verified 2026-11-18: with the -low/-medium/-high variants hidden in 9Router,
+  // the gateway lists only plain ag/gemini-4-carbon, yet plain ag/gemini-4-argon
+  // answers (reasoning_effort controls depth) and ag/gemini-4-hydrogen-{low,
+  // medium,high,xhigh} answer (plain hydrogen 404s upstream). Both borrow
+  // Carbon's limits while Carbon is listed.
+  ['ag/gemini-4-argon', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-xhigh', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-high', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-medium', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-hydrogen-low', 'ag/gemini-4-carbon'],
+  // Verified 2026-11-18: cx/gpt-6.2-{sol,astra} answer with tool calls (the
+  // reply names the 6.2 model) but the catalog lists only 6.1 Sol; both borrow its limits.
+  ['ag/gemini-4-neon-xhigh', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-neon-high', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-neon-medium', 'ag/gemini-4-carbon'],
+  ['ag/gemini-4-neon-low', 'ag/gemini-4-carbon'],
+  // Verified 2026-11-19: plain ag/gemini-4-neon 404s; the four -level rows answer (Neon, announced 2026-11-18).
+  ['cx/gpt-6.2-sol', 'cx/gpt-6.1-sol'],
+  ['cx/gpt-6.2-astra', 'cx/gpt-6.1-sol'],
 ];
 
 function withUnlisted(rows) {

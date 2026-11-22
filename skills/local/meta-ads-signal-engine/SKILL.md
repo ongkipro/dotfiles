@@ -111,7 +111,7 @@ server-derived IP and user agent
 2. **Matching `event_id`**: Browser `fbq('track', 'Purchase', payload, { eventID: id })` and Server CAPI `{ "event_id": id }` MUST share identical string IDs.
 3. **Preserve browser and advertiser IDs**: Forward `_fbp` and `_fbc` raw. Hash a stable `external_id`; do not use an order ID, click ID, invented value, or permanent phone substitute.
 4. **Phone & email normalization**: Trim/lowercase a real email. Format phone numbers in E.164 digits (e.g. `08...` → `628...`) before SHA-256. Omit synthetic or unavailable identity fields.
-5. **Canonical `content_ids`**: the string the Pixel and CAPI send must be *byte-identical* to the catalog's `id`. Derive it from an identifier that cannot change — derive it from the immutable primary key, prefixed (`p1-v12`), never SKU — `references/CATALOG_IDENTITY_AND_AUDIT.md`.
+5. **Canonical `content_ids`**: the string the Pixel and CAPI send must be *byte-identical* to the catalog's `id`. The merchant mints it once at product/variant creation (Meta's own generated item id is not it; the feed `id` = Commerce Manager Content ID = API `retailer_id`); never derive it from SKU, slug or title, carry it as a string, and default to a digit-only id of at least five digits per the shared memory rule — `references/CATALOG_IDENTITY_AND_AUDIT.md`.
 6. **No Fake Micro-Events**: Do NOT map every scroll or CTA click to `Lead` or `Purchase`.
 7. **Transactional Outbox**: Store CAPI events in a database outbox (`capi_event_outbox`) and retry failed HTTP requests asynchronously.
 8. **Low Latency**: Dispatch CAPI events immediately upon backend state confirmation.

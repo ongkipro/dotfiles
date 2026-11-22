@@ -187,6 +187,9 @@ link "$DOT/config/tmux.conf"             ~/.tmux.conf
 link "$DOT/config/mise-config.toml"      ~/.config/mise/config.toml  # toolchain bersama; `mise use -g` nulis tembus symlink
 link "$DOT/config/lazygit/config.yml"    ~/.config/lazygit/config.yml
 link "$DOT/config/gh/config.yml"         ~/.config/gh/config.yml     # hosts.yml TIDAK di-link (berisi oauth token)
+# agent-browser memakai Chrome sistem: Ubuntu 24.04+ memblokir unprivileged user namespace (AppArmor) dan hanya
+# /opt/google/chrome yang punya profil AppArmor, jadi Chrome for Testing dari `agent-browser install` mati "No usable sandbox".
+[ -x /usr/bin/google-chrome ] && link "$DOT/config/agent-browser/config.json" ~/.agent-browser/config.json
 for s in skill-help skill-list skill-new skill-open skill-check skill-remove skill-update; do link "$DOT/skills/agents-bin/$s" ~/.agents/bin/$s; done
 link "$DOT/home/profile"                 ~/.profile
 while IFS= read -r s; do

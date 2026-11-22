@@ -10,7 +10,8 @@
 - [Dealer Truk Hino](dealertrukhino.md) — `dealertrukhino.com` product-intent catalogue; private repository `ongkipro/dealertrukhino`. It is distinct from Dealer Hino Official.
 - [AUSSIE Sawit Malaysia](aussie-sawit-malaysia.md) — Malaysian COD palm-care storefront; repository `ongkipro/aussiemalaysia`. Repository contracts own execution truth.
 - [Petani Sejahtera](petanisejahtera.md) — COD landing-page funnel; repository `ongkipro/petanisejahtera`. Read repository contracts before implementation.
-- [TravelOS](travelos.md) — AI-native travel discovery, planning, and affiliate platform; repository `ongkipro/travelos`. Repository specifications and task records are authoritative.
+- [PunyaSitus](punyasitus.md) — multi-tenant business-profile (compro) CMS for Indonesian businesses; repository `ongkipro/punyasitus`. Repository contracts own execution truth.
+- [TravelOS](travelos.md) — AI-native travel discovery, planning, and affiliate platform; repository `ongkipro/travelos`. Separate product, not part of PunyaSitus/CMSPRO. Repository specifications and task records are authoritative.
 - [Formalin](formalin.md) — VolumX engine monorepo; canonical repository `irwansyah10/formalin`. Repository documents own implementation truth.
 - [TokoΦ](tokophi.md) — Indonesian commerce SaaS; repository `ongkipro/tokophi`. The older `indostore` repository is not the active product.
 - [Linux `rich` maintenance](linux-rich-maintenance.md) — headless OptiPlex dev server: host facts that decide whether a fix is safe, boot failure cases, and remote access (Tailscale CGNAT, `ssh rich` + tmux client config). `cuan` is a different machine with its own file.
@@ -59,7 +60,7 @@
 - [Pi compaction](pi-9router-models-compaction.md) — built-in compaction and the reserved-headroom debugging lesson; live catalogs are not stored in memory.
 - [OMP Claude via 9router](omp-9router-claude-wire.md) — verified transport fix record (chat-compatible endpoint, 7/7 9router tests, run RUN-20261028T203549Z-2e1c5b55); rerun tests before reuse.
 - [OMP and Pi 9Router runbook](omp-pi-9router-runbook.md) — OMP runs on upstream defaults plus a five-line 9Router provider (retry.maxDelayMs is a give-up ceiling; do not tune it), how 9Router reports rate limits, Pi defaults, account rotation, and the fallback-off live check.
-- [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.30.1 + Playwright 1.61.1 global; prefer system Chrome via channel; install-deps optional (needs sudo)
+- [Playwright / browser setup](playwright-browser-setup.md) — agent-browser 0.43.0 pinned to system Chrome (`config/agent-browser/config.json`; Chrome for Testing has no AppArmor sandbox here); prefer system Chrome via channel; install-deps optional (needs sudo)
 - [Pixs&Go layout width](pixsgo-layout-width.md) — content capped 1200px, body 1920px; Tailwind v4 needs bracket arbitrary values (max-w-[1200px] not max-w-1200px)
 - [Dev toolchain via mise](dev-toolchain-mise.md) — CLI tools (fzf/fd/bat/delta/lazygit/zoxide/eza/yq/direnv) via mise, no sudo; nvm lazy-loaded; git+delta configured
 - [My Store 10 furniture Shopify](mystore10-furniture-shopify.md) — jwy0qz-ic.myshopify.com; 98 raw dropship furniture products; listing-optimization workspace in ~/Documents/Shopify/jwy0qz-ic - My Store 10/; English + remove Ships-From option; brand TBD
@@ -90,7 +91,7 @@
 - [Reven Leather Catalog & Price Data](revenleather-catalog-data.md) — Hydrogen storefront in `~/Documents/Shopify/Reven Leather` (`ongkipro/revenleather.com`, live on Shopify Oxygen across `EN`/`ID`/`AR` + native Shopify `<Analytics.Provider>`), Ads/COD LP funnel in `~/Projects/revenleather`, and live Storefront API source of truth (`euzdfv-ur.myshopify.com`).
 - [99ribu Berlapak catalog & asset vault](99ribu-berlapak-catalog.md) — `/data/99ribu-berlapak-data/`: Berlapak product data, bundling economics, warehouse hubs, local images, and the `berlapak-sync` CLI.
 - [99ribu `shop.com` UI/UX reference](99ribu-shop-com-ui-ux-pattern.md) — pointer to the research pack and the repo docs that own 99ribu design decisions.
-- [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; the repository owns the scheme.
+- [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; 99ribu-cf: `ddmmyy1001` catalog ids shared by Meta/Google/TikTok, `INV99-` invoices; the repository owns the scheme.
 - [Customer messaging decision (pending)](customer-messaging-pending.md) — email ESP + WhatsApp WABA for 99ribu/bukalaris is UNDECIDED (geraiexpress-cfv2 decided: Cloudflare Email Sending + click-to-chat WA per DEC-227); discussion note in `~/Documents/work/notes/`
 - [GeraiExpress v2 architecture & domains](geraiexpress-cfv2-architecture.md) — `~/Projects/geraiexpress-cfv2` on Cloudflare Serverless (`geraiexpress.com` + `*.geraimitra.com` SaaS zone, `DEC-234`); dedicated Vultr VPS retired (`DEC-235`, `partner-relay` co-hosts on `99ribu-prod`)
 - [Bukalaris docs phase](bukalaris-docs-phase.md) — documents only, development not started; Etalashop/TokoΦ studied as lessons, not templates; resume point in repo `STATUS.md`

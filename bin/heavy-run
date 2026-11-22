@@ -197,8 +197,12 @@ def scoped(command):
 
 def leader_exited(pid):
     # WNOWAIT: observe the exit without reaping, so the group id stays pinned (no PID/PGID reuse) while the
-    # rest of the group is cleaned up; the leader is reaped only afterwards.
-    return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+    # rest of the group is cleaned up; the leader is reaped only afterwards. macOS /usr/bin/python3 (< 3.13)
+    # lacks os.waitid; inspecting `ps` state keeps our direct child unreaped in `Z` until child.wait().
+    if hasattr(os, 'waitid'):
+        return os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+    state = subprocess.run(['ps', '-o', 'state=', '-p', str(pid)], capture_output=True, text=True).stdout.strip()
+    return not state or state.startswith('Z')
 
 
 def wait_leader(pid, seconds):
@@ -212,10 +216,15 @@ def wait_leader(pid, seconds):
 
 def reap_group(pgid):
     # Stop everything left in the job's group (TERM, then KILL after 5 s). The unreaped leader keeps pgid ours.
+    # On Darwin/XNU, killpg() raises PermissionError (EPERM) when a separate-session group holds only zombies.
     try:
         os.killpg(pgid, signal.SIGTERM)
     except ProcessLookupError:
         return
+    except PermissionError:
+        if not group_has_live_members(pgid):
+            return
+        raise
     for _ in range(50):
         time.sleep(0.1)
         if not group_has_live_members(pgid):
@@ -224,18 +233,28 @@ def reap_group(pgid):
         os.killpg(pgid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError:
+        if group_has_live_members(pgid):
+            raise
 
 
 def group_has_live_members(pgid):
     # killpg(pgid, 0) also succeeds for the zombie leader; look for members that are not zombies.
-    for entry in os.scandir('/proc'):
-        if not entry.name.isdigit():
-            continue
-        try:
-            fields = Path(f'/proc/{entry.name}/stat').read_text().rsplit(')', 1)[1].split()
-        except (OSError, IndexError):
-            continue
-        if int(fields[2]) == pgid and fields[0] != 'Z':
+    if Path('/proc').is_dir():
+        for entry in os.scandir('/proc'):
+            if not entry.name.isdigit():
+                continue
+            try:
+                fields = Path(f'/proc/{entry.name}/stat').read_text().rsplit(')', 1)[1].split()
+            except (OSError, IndexError):
+                continue
+            if int(fields[2]) == pgid and fields[0] != 'Z':
+                return True
+        return False
+    out = subprocess.run(['ps', '-axo', 'pgid=,state='], capture_output=True, text=True).stdout
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].isdigit() and int(parts[0]) == pgid and not parts[1].startswith('Z'):
             return True
     return False
 
@@ -288,7 +307,7 @@ def main():
     def forward(signum, _frame):
         try:
             os.killpg(child.pid, signum)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             pass
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, forward)

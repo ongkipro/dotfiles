@@ -7,22 +7,18 @@
     "9router-fantastico/cc/claude-opus-5-5",
     "9router-fantastico/cc/claude-sonnet-5-5",
     "9router-fantastico/cx/gpt-6.1-sol",
-    "9router-fantastico/ag/gemini-4-carbon-high",
-    "9router-fantastico/ag/gemini-4-carbon-medium",
+    "9router-fantastico/cx/gpt-6.2-sol",
+    "9router-fantastico/cx/gpt-6.2-astra",
+    "9router-fantastico/ag/gemini-4-carbon",
     "9router-fantastico/cc/claude-fable-5-2",
     "9router-fantastico/ag/claude-opus-5-5",
     "9router-fantastico/cc/claude-haiku-5-5",
-    "9router-fantastico/ag/gemini-3.8-flash",
-    "9router-fantastico/ag/claude-opus-5-5-high",
-    "9router-fantastico/ag/claude-opus-5-5-medium",
     "9router-fantastico/ag/claude-sonnet-5-5",
-    "9router-fantastico/ag/claude-sonnet-5-5-high",
-    "9router-fantastico/ag/claude-sonnet-5-5-medium",
-    "9router-fantastico/ag/gemini-4-argon-high",
-    "9router-fantastico/ag/gemini-4-argon-low",
-    "9router-fantastico/ag/gemini-4-argon-medium",
-    "9router-fantastico/ag/gemini-4-carbon",
-    "9router-fantastico/ag/gemini-4-carbon-low",
+    "9router-fantastico/ag/gemini-4-argon",
+    "9router-fantastico/ag/gemini-4-neon-high",
+    "9router-fantastico/ag/gemini-4-neon-low",
+    "9router-fantastico/ag/gemini-4-neon-medium",
+    "9router-fantastico/ag/gemini-4-neon-xhigh",
     "9router-fantastico/ag/gemini-4-hydrogen-high",
     "9router-fantastico/ag/gemini-4-hydrogen-low",
     "9router-fantastico/ag/gemini-4-hydrogen-medium",
@@ -39,10 +35,7 @@
     "9router-fantastico/mmf/mimo-auto",
     "9router-fantastico/oc/deepseek-v4.1-flash-free",
     "9router-fantastico/oc/glm-5.3-flash-free",
-    "9router-fantastico/oc/mimo-v2.6-flash-free",
-    "9router-fantastico/ag/gemini-3.8-flash-low",
-    "9router-fantastico/ag/gemini-3.8-flash-medium",
-    "9router-fantastico/ag/gemini-3.8-flash-high"
+    "9router-fantastico/oc/mimo-v2.6-flash-free"
   ],
   "quietStartup": true,
   "hideThinkingBlock": true,
@@ -74,12 +67,12 @@
   "subagents": {
     "agentOverrides": {
       "reviewer": {
-        "model": "9router-fantastico/cx/gpt-6.1-sol",
+        "model": "9router-fantastico/cx/gpt-6.2-sol",
         "thinking": "high",
-        "description": "Independent read-only review. Default GPT-6.1 Sol; the parent passes another model when the implementer is GPT (see config/pi/README.md, Review pairing)"
+        "description": "Independent read-only review. Default GPT-6.2 Sol; the parent passes another model when the implementer is GPT (see config/pi/README.md, Review pairing)"
       },
       "oracle": {
-        "model": "9router-fantastico/ag/gemini-4-carbon-high",
+        "model": "9router-fantastico/ag/gemini-4-carbon",
         "thinking": "high",
         "description": "Read-only advisor (alias: advisor) for plan, architecture and decision-drift checks. Default Gemini 4 Carbon, outside the Claude implementer family; when the implementer is Gemini or GPT the parent passes cc/claude-fable-5-2 (see config/pi/README.md, Review pairing)"
       },
@@ -89,14 +82,14 @@
         "description": "Fast codebase recon that returns compressed context for handoff. Pinned to Haiku 5.5 (low): recon needs speed, not the parent's heavy model"
       },
       "researcher": {
-        "model": "9router-fantastico/ag/gemini-4-carbon-medium",
+        "model": "9router-fantastico/ag/gemini-4-carbon",
         "thinking": "medium",
-        "description": "Autonomous web researcher. Pinned to Gemini 4 Carbon medium (1M context) for source synthesis; evidence-auditor checks it from another family"
+        "description": "Autonomous web researcher. Pinned to Gemini 4 Carbon at medium thinking (1M context) for source synthesis; evidence-auditor checks it from another family"
       },
       "evidence-auditor": {
-        "model": "9router-fantastico/cx/gpt-6.1-sol",
+        "model": "9router-fantastico/cx/gpt-6.2-sol",
         "thinking": "high",
-        "description": "Independent evidence reviewer. Pinned to GPT-6.1 Sol, outside the researcher's Gemini family, so claim checks stay independent"
+        "description": "Independent evidence reviewer. Pinned to GPT-6.2 Sol, outside the researcher's Gemini family, so claim checks stay independent"
       }
     }
   }

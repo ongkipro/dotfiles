@@ -74,8 +74,11 @@ isolation, readiness and cleanup rules are this skill's recommended application 
 
 ## Worked example
 
-`adsbook.id` (2026-11-13/14) applies every rule above: platform on `adsbook.id`, sellers on
-`<slug>.belanja.cc`, CNAME target `cname.belanja.cc`, root domains by flattening with a `www`
-fallback, one SQLite Durable Object per tenant. Spec: `~/Projects/adsbook.id-docs/docs/spec/`
-(`08-DOMAIN-ROUTING.md`, `06-TENANT-ISOLATION.md`) and
+`adsbook.id` (2026-11-16..18) applies every rule above: platform on `adsbook.id`, sellers on
+`<slug>.adsbook.my.id` (moved from `.cc` after shared Cloudflare IPs on `.cc` hit Indonesia's
+Komdigi Trust+ IP blocklist — always check new SaaS-zone IP pairs from Indonesian nodes before
+launch!), CNAME target `cname.adsbook.my.id`, root domains by flattening with a `www`
+fallback, one SQLite Durable Object per tenant, and **versioned zero-DB-read edge caching**
+([isolation](references/isolation.md) "Zero-DB-read edge cache & instant atomic purge"). Spec:
+`~/Projects/adsbook.id-docs/docs/spec/` (`08-DOMAIN-ROUTING.md`, `06-TENANT-ISOLATION.md`) and
 `docs/architecture/MULTI-TENANT-DESIGN.md`. Treat it as an example, not as this skill's authority.

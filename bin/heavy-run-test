@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -33,6 +34,9 @@ with tempfile.TemporaryDirectory(prefix='heavy-run-test.') as tmp:
     # Exit code and output pass through; the job sees the slot and the held marker.
     r = run('--', 'sh', '-c', 'echo $AI_HEAVY_HELD $AI_HEAVY_SLOT; exit 7')
     assert r.returncode == 7 and r.stdout.split() == ['1', '0'], (r.returncode, r.stdout, r.stderr)
+    if os.access('/usr/bin/python3', os.X_OK):
+        r_sys = subprocess.run(['/usr/bin/python3', HEAVY, '--', 'true'], env=env, capture_output=True, text=True, timeout=30)
+        assert r_sys.returncode == 0, (r_sys.returncode, r_sys.stderr)
 
     # A one-slot pool serialises jobs: the second gives up with 75 while the first runs.
     first = start('--label', 'first', '--', 'sleep', '5')
@@ -75,13 +79,15 @@ with tempfile.TemporaryDirectory(prefix='heavy-run-test.') as tmp:
 
     # Where a systemd user manager runs, the job lives in ai-heavy.slice with a low CPU weight.
     scope_env = dict(env); scope_env.pop('AI_HEAVY_NO_SCOPE', None)
-    probe = subprocess.run(['systemctl', '--user', 'is-system-running'], capture_output=True)
-    if probe.returncode in (0, 1) and subprocess.run(['which', 'systemd-run'], capture_output=True).returncode == 0:
-        r = subprocess.run([HEAVY, '--', 'sh', '-c', 'cat /proc/self/cgroup; cat /sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/cpu.weight'],
-                           env=scope_env, capture_output=True, text=True, timeout=30)
-        assert r.returncode == 0 and 'ai-heavy.slice' in r.stdout and r.stdout.split()[-1] == '20', (r.stdout, r.stderr)
-    r = subprocess.run([HEAVY, '--', 'cat', '/proc/self/cgroup'], env=dict(env, AI_HEAVY_NO_SCOPE='1'), capture_output=True, text=True, timeout=30)
-    assert r.returncode == 0 and 'ai-heavy.slice' not in r.stdout, r.stdout
+    if shutil.which('systemctl') and shutil.which('systemd-run'):
+        probe = subprocess.run(['systemctl', '--user', 'is-system-running'], capture_output=True)
+        if probe.returncode in (0, 1):
+            r = subprocess.run([HEAVY, '--', 'sh', '-c', 'cat /proc/self/cgroup; cat /sys/fs/cgroup$(cut -d: -f3 /proc/self/cgroup)/cpu.weight'],
+                               env=scope_env, capture_output=True, text=True, timeout=30)
+            assert r.returncode == 0 and 'ai-heavy.slice' in r.stdout and r.stdout.split()[-1] == '20', (r.stdout, r.stderr)
+    if Path('/proc/self/cgroup').exists():
+        r = subprocess.run([HEAVY, '--', 'cat', '/proc/self/cgroup'], env=dict(env, AI_HEAVY_NO_SCOPE='1'), capture_output=True, text=True, timeout=30)
+        assert r.returncode == 0 and 'ai-heavy.slice' not in r.stdout, r.stdout
 
     # Timeout also stops a group member that ignores TERM, before the lock is released.
     ready = Path(tmp) / 'ready'

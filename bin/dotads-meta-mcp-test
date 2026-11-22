@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Offline regression suite for bin/dotads-meta-mcp (loopback mock MCP server; no network, no credentials).
+set -uo pipefail
+ROOT="${1:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}"
+CMD="$ROOT/bin/dotads-meta-mcp"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotads-meta-mcp-test.XXXXXX")"
+NODE="$(node -p 'process.execPath')"
+trap 'kill "${SRV:-0}" 2>/dev/null; rm -rf "$TMP"' EXIT
+f=0
+ok()  { printf '  ✓ %s\n' "$1"; }
+bad() { printf '  FAIL %s\n' "$1" >&2; f=$((f + 1)); }
+
+# fake secrets-env: returns a dummy token, records nothing
+cat > "$TMP/secrets-env" <<'SH'
+#!/bin/sh
+[ "$1" = get ] && echo "TESTTOKEN123" && exit 0
+exit 1
+SH
+chmod +x "$TMP/secrets-env"
+
+# mock MCP server: logs every call, answers tools/list and tools/call
+cat > "$TMP/server.mjs" <<'JS'
+import http from "node:http"; import fs from "node:fs";
+const log = process.argv[2];
+http.createServer((req, res) => { let b = ""; req.on("data", (c) => (b += c)); req.on("end", () => {
+  const m = JSON.parse(b); fs.appendFileSync(log, JSON.stringify({ auth: req.headers.authorization, m }) + "\n");
+  let result;
+  if (m.method === "tools/list") result = { tools: [{ name: "ads_get_ad_accounts" }, { name: "ads_duplicate_entity" }] };
+  else result = { content: [{ type: "text", text: JSON.stringify({ ok: true, tool: m.params.name, args: m.params.arguments }) }] };
+  res.writeHead(200, { "Content-Type": "text/event-stream" }); res.end(`data: ${JSON.stringify({ jsonrpc: "2.0", id: m.id, result })}\n\n`);
+}); }).listen(0, "127.0.0.1", function () { fs.writeFileSync(process.argv[3], String(this.address().port)); });
+JS
+"$NODE" "$TMP/server.mjs" "$TMP/calls.log" "$TMP/port" & SRV=$!
+for _ in $(seq 1 50); do [ -s "$TMP/port" ] && break; sleep 0.1; done
+export DOTADS_MCP_URL="http://127.0.0.1:$(cat "$TMP/port")"
+export SECRETS_ENV_BIN="$TMP/secrets-env"
+run() { "$NODE" "$CMD" "$@"; }
+
+run --help | grep -q 'read-only client' && ok "--help describes the helper" || bad "--help missing"
+run bogus --bm BM2 >/dev/null 2>&1 && bad "accepted unknown subcommand" || ok "rejects unknown subcommand"
+run tools >/dev/null 2>&1 && bad "ran without --bm" || ok "needs an explicit business manager"
+
+run tools --bm BM2 | grep -q '"count": 2' && ok "tools lists names from tools/list" || bad "tools output"
+grep -q '"auth":"Bearer TESTTOKEN123"' "$TMP/calls.log" && ok "token sent only as Authorization header" || bad "auth header"
+run tools --bm BM2 | grep -q TESTTOKEN123 && bad "token printed to stdout" || ok "token never printed"
+
+: > "$TMP/calls.log"
+out="$(run entities --bm BM2 --account act_123)"
+printf '%s' "$out" | grep -q 'ARCHIVED' && ok "entities asks for ARCHIVED campaigns by default" || bad "no ARCHIVED filter"
+grep -q '"advertiser_job":"report_measure_or_look_up"' "$TMP/calls.log" && grep -q 'client_conversation_id' "$TMP/calls.log" && ok "required MCP envelope fields are sent" || bad "envelope fields"
+grep -q 'advertiser_request' "$TMP/calls.log" && bad "sent an advertiser_request" || ok "advertiser_request is not sent"
+run entities --bm BM2 --account abc >/dev/null 2>&1 && bad "accepted a non-numeric account" || ok "rejects a non-numeric account id"
+
+run tool --bm BM2 --name ads_update_entity --args '{}' >/dev/null 2>&1 && bad "ran a write tool via tool" || ok "tool refuses write tools"
+run tool --bm BM2 --name ads_activate_entity >/dev/null 2>&1 && bad "ran activate via tool" || ok "tool refuses activation"
+run tool --bm BM2 --name ads_duplicate_entity >/dev/null 2>&1 && bad "ran duplicate via tool" || ok "tool refuses duplicate (own guarded command only)"
+run tool --bm BM2 --name ads_get_ad_accounts --args '{}' | grep -q '"ok": true' && ok "tool runs a read tool" || bad "read tool failed"
+
+: > "$TMP/calls.log"
+run duplicate --bm BM2 --account 123 --type ad_set --source 55 --dest 77 | grep -q '"mode": "dry-run"' && ok "duplicate is a dry run by default" || bad "no dry run"
+[ ! -s "$TMP/calls.log" ] && ok "dry run makes no MCP call" || bad "dry run called MCP"
+run duplicate --bm BM2 --account 123 --type ad_set --source 55 --apply >/dev/null 2>&1 && bad "--apply without journal" || ok "--apply needs --journal"
+run duplicate --bm BM2 --account 123 --type campaign --source 9 --dest 8 >/dev/null 2>&1 && bad "campaign copy with a destination" || ok "campaign copy rejects a destination parent"
+run duplicate --bm BM2 --account 123 --type video --source 9 >/dev/null 2>&1 && bad "accepted a bad type" || ok "rejects a bad entity type"
+
+J="$TMP/journal.jsonl"
+run duplicate --bm BM2 --account 123 --type ad_set --source 55 --dest 77 --apply --journal "$J" | grep -q '"mode": "applied"' && ok "apply with journal calls the tool once" || bad "apply failed"
+[ "$(grep -c ads_duplicate_entity "$TMP/calls.log")" = 1 ] && ok "exactly one duplicate call" || bad "call count"
+grep -q '"copy_count":1' "$TMP/calls.log" && ok "copy_count is pinned to 1" || bad "copy_count"
+run duplicate --bm BM2 --account 123 --type ad_set --source 55 --dest 77 --apply --journal "$J" >/dev/null 2>&1 && bad "repeated an applied duplicate" || ok "journal refuses a repeat of the same duplicate"
+[ "$(grep -c ads_duplicate_entity "$TMP/calls.log")" = 1 ] && ok "refused repeat made no second call" || bad "second call made"
+[ "$(stat -c %a "$J" 2>/dev/null || stat -f %Lp "$J")" = 600 ] && ok "journal is private (0600)" || bad "journal mode"
+
+DOTADS_MCP_URL="https://example.com/ads" run tools --bm BM2 >/dev/null 2>&1 && bad "accepted a non-loopback override" || ok "URL override must be loopback http"
+# The only write tool the helper may name is ads_duplicate_entity. No create/update/activate/delete tool is called.
+written="$(grep -oE "call\(tok, \"[a-z_]+\"" "$CMD" | sort -u | tr '\n' ' ')"
+case "$written" in
+  *ads_create*|*ads_update*|*ads_activate*|*ads_delete*|*ads_creative_*) bad "helper calls a write tool: $written" ;;
+  *) ok "helper calls no create/update/activate/delete tool" ;;
+esac
+grep -q 'const READ_ONLY' "$CMD" && ok "read-tool allow-list is present" || bad "allow-list missing"
+
+printf '\n%s failure(s)\n' "$f"; [ "$f" = 0 ]

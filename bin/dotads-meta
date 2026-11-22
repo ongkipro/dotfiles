@@ -1532,7 +1532,7 @@ function validateManifests(campaignPath, explicitBrandPath) {
       }
     }
 
-    adsetMap.set(key, {
+  adsetMap.set(key, {
       ...as,
       _key: key,
       _targeting: parsedTargeting,
@@ -1729,10 +1729,10 @@ function validateManifests(campaignPath, explicitBrandPath) {
         (as.optimization_goal === "OFFSITE_CONVERSIONS" || as.optimization_goal === "VALUE") &&
         Array.isArray(attrList) &&
         attrList.length > 0 &&
-        !attrList.some((s) => String(s?.event_type || "").toUpperCase() === "VIEW_THROUGH")
+        attrList.some((s) => String(s?.event_type || "").toUpperCase() === "VIEW_THROUGH")
       ) {
         warnings.push(
-          `${asLabel}: Website Sales guardrail: attribution_spec omits VIEW_THROUGH (1d_view) on '${as.optimization_goal}'; click-only attribution withholds view-through conversion signals from GEM and increases CPM during learning (see algorithm-and-learning.md §7.2).`
+          `${asLabel}: Website Sales guardrail: attribution_spec includes VIEW_THROUGH (1d_view) on non-CPAS website campaign '${as.optimization_goal}'; for direct website conversions prefer 7d_click + 1d_ev (CLICK_THROUGH window_days=7 + ENGAGED_VIDEO_VIEW window_days=1) without 1d_view to avoid passive view-through inflation.`
         );
       }
       if (as.optimization_goal === "VALUE" && effectiveBidStrat === "LOWEST_COST_WITHOUT_CAP") {
@@ -2203,8 +2203,20 @@ function buildAdsetArgs(validation, as, campaignId, activate) {
   if (as.advantage_audience === false) args.push("--no-advantage-audience");
   if (as.incremental_attribution === true) args.push("--incremental-attribution");
   if (as.incremental_attribution === false) args.push("--no-incremental-attribution");
-  if (as.attribution_spec) {
-    args.push("--attribution-spec", serializeJsonOrFileArg(as.attribution_spec, workspaceDir, campaignDir));
+  const defaultWebConversionAttrSpec =
+    !as.attribution_spec &&
+    as.incremental_attribution !== true &&
+    !validation.campaignPromoted &&
+    !as.promoted_object?.omnichannel_object &&
+    as.optimization_goal === "OFFSITE_CONVERSIONS"
+      ? [
+          { event_type: "CLICK_THROUGH", window_days: 7 },
+          { event_type: "ENGAGED_VIDEO_VIEW", window_days: 1 },
+        ]
+      : null;
+  const effectiveAttributionSpec = as.attribution_spec || defaultWebConversionAttrSpec;
+  if (effectiveAttributionSpec) {
+    args.push("--attribution-spec", serializeJsonOrFileArg(effectiveAttributionSpec, workspaceDir, campaignDir));
   }
   if (as.dsa_beneficiary) args.push("--dsa-beneficiary", String(as.dsa_beneficiary));
   if (as.dsa_payor) args.push("--dsa-payor", String(as.dsa_payor));
@@ -2650,6 +2662,10 @@ function cmdInit(argv) {
           optimization_goal: "OFFSITE_CONVERSIONS",
           billing_event: "IMPRESSIONS",
           custom_event_type: "PURCHASE",
+          attribution_spec: [
+            { event_type: "CLICK_THROUGH", window_days: 7 },
+            { event_type: "ENGAGED_VIDEO_VIEW", window_days: 1 },
+          ],
           targeting_countries: ["ID"],
           status: "PAUSED",
         },
@@ -3292,7 +3308,17 @@ function cmdDeploy(argv) {
                 : {}),
             ...(as.attribution_spec
               ? { attribution_spec: readJsonArgument(as.attribution_spec, validation.workspaceDir, validation.campaignDir, "attribution_spec") }
-              : {}),
+              : as.incremental_attribution !== true &&
+                  !validation.campaignPromoted &&
+                  !as.promoted_object?.omnichannel_object &&
+                  as.optimization_goal === "OFFSITE_CONVERSIONS"
+                ? {
+                    attribution_spec: [
+                      { event_type: "CLICK_THROUGH", window_days: 7 },
+                      { event_type: "ENGAGED_VIDEO_VIEW", window_days: 1 },
+                    ],
+                  }
+                : {}),
             ...(as.is_dynamic_creative !== undefined || as.dynamic_creative !== undefined
               ? { is_dynamic_creative: Boolean(as.dynamic_creative ?? as.is_dynamic_creative) }
               : {}),

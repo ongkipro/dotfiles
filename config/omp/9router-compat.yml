@@ -32,19 +32,6 @@ providers:
           supportsStrictMode: false
           reasoningEffortMap:
             minimal: none
-      cc/claude-fable-5-1:
-        api: openai-completions
-        reasoning: true
-        thinking:
-          mode: effort
-          efforts:
-          - low
-          - medium
-          - high
-          requiresEffort: true
-        compat:
-          supportsReasoningEffort: true
-          supportsStrictMode: false
       cc/claude-fable-5:
         api: openai-completions
         reasoning: true

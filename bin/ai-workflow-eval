@@ -4,11 +4,14 @@
 A passing structured answer is a decision-contract check, never proof of coding,
 conversation quality, tool execution, or model reliability. Review replies too.
 Only execution-check runs candidate code, on synthetic local data. No model calls.
+Optional per-case replyChecks catch hard failures in the reply text (a changed
+command, a lost negation); they never score naturalness.
 """
 import argparse
 import hashlib
 import json
 import posixpath
+import re
 from pathlib import Path
 import runpy
 import sys
@@ -33,6 +36,26 @@ STEPS = [
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def reply_failures(checks, reply):
+    missing = [f'missing /{p}/' for p in checks.get('must_include', []) if not re.search(p, reply, re.I)]
+    return missing + [f'forbidden /{p}/' for p in checks.get('must_not_include', []) if re.search(p, reply, re.I)]
+
+
+def check_reply_patterns(cid, checks):
+    # A pattern is trusted only after it accepts every known-good and rejects every known-bad sample.
+    patterns = checks.get('must_include', []) + checks.get('must_not_include', [])
+    examples = checks.get('examples', {})
+    if not patterns or not examples.get('pass') or not examples.get('fail'):
+        raise ValueError(f'{cid}: replyChecks need patterns and pass/fail examples')
+    for pattern in patterns:
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise ValueError(f'{cid}: invalid reply pattern {pattern!r}: {exc}')
+    if any(reply_failures(checks, s) for s in examples['pass']) or not all(reply_failures(checks, s) for s in examples['fail']):
+        raise ValueError(f'{cid}: replyChecks do not separate their examples')
 
 
 def load_suite(root):
@@ -63,6 +86,8 @@ def load_suite(root):
             raise ValueError(f'{cid}: invalid or conflicting steps')
         if not isinstance(case.get('rubric'), str) or not case['rubric'].strip():
             raise ValueError(f'{cid}: semantic rubric required')
+        if 'replyChecks' in case:
+            check_reply_patterns(cid, case['replyChecks'])
     return suite, sha(raw), sorted(owners)
 
 
@@ -144,6 +169,8 @@ def grade(suite, suite_hash, revision, owners, data):
             errors.append('missing steps: ' + ', '.join(sorted(missing)))
         if forbidden:
             errors.append('forbidden steps: ' + ', '.join(sorted(forbidden)))
+        if 'replyChecks' in case:
+            errors += ['reply hard-fail: ' + f for f in reply_failures(case['replyChecks'], response['reply'])]
         result = {'id': case['id'], 'result': 'FAIL' if errors else 'PASS',
                   'errors': errors, 'semanticRubric': case['rubric']}
         if errors and read is not None:
@@ -157,7 +184,7 @@ def grade(suite, suite_hash, revision, owners, data):
               'provenance': {**{k: data[k] for k in ('runtime', 'model', 'mode')},
                              'guidanceRead': len(read) if read is not None else 'unavailable: not reported'},
               'suiteHash': suite_hash, 'instructionRevision': revision, 'cases': results,
-              'limitations': 'Self-reported decisions only. Inspect replies independently for contradictions, language, and scope. No tools, product flows, or provider reliability were exercised.'}
+              'limitations': 'Self-reported decisions plus reply hard-fail patterns only. Inspect replies independently for contradictions, language, and scope. No tools, product flows, or provider reliability were exercised.'}
     return report, {'PASS': 0, 'FAIL': 1, 'UNVERIFIED': 2}[status]
 
 

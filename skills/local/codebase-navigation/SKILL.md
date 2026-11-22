@@ -27,23 +27,42 @@ LLM extraction, but is not a secret filter: JSON and, since 0.9.95, `.yaml`/`.ym
 (compose files, CI workflows, manifests) are extracted as code. Do not
 scan a home directory, credentials, customer exports, or an unaudited mixed
 data tree. Narrow the input or prepare an explicitly selected source-only copy.
+Exclude paths with repeatable `--exclude <gitignore-pattern>` (it overrides
+ignore files) rather than committing a `.graphifyignore`. Parent `.gitignore`
+files up to the VCS root apply, but ignore rules never drop files Git already
+tracks. A built-in filter skips `.env*`, key/cert files, and credential
+dotfiles; it is a heuristic, so read extract's "potentially sensitive" and
+"ignored" output lines. `extract` silently ignores unknown flags, so a typo in
+`--code-only` would enable the LLM pass: always set `GRAPHIFY_BACKEND=none`.
 
 Example, with a real selected source directory substituted for `/project/src`:
 
 ```bash
+export GRAPHIFY_BACKEND=none GRAPHIFY_NO_AUTO_REFRESH=1 GRAPHIFY_NO_CTA=1
 graph_work=$(mktemp -d)
-pipx run --spec graphifyy==0.9.111 graphify extract /project/src --code-only --no-cluster --out "$graph_work"
-pipx run --spec graphifyy==0.9.111 graphify path 'submit()' 'persist()' --graph "$graph_work/graphify-out/graph.json"
-pipx run --spec graphifyy==0.9.111 graphify explain 'persist()' --graph "$graph_work/graphify-out/graph.json"
+gfy() { pipx run --spec graphifyy==0.9.111 graphify "$@"; }
+gfy extract /project/src --code-only --no-cluster --exclude 'vendor/' --out "$graph_work"
+graph="$graph_work/graphify-out/graph.json"
+gfy path 'submit()' 'persist()' --graph "$graph"
+gfy explain 'persist()' --graph "$graph"
+gfy affected 'persist()' --depth 2 --graph "$graph"   # change impact: who reaches this
 ```
 
-Replace example symbols with actual repository symbols. `path` and `explain`
-exit 4 when a symbol is not in the graph; treat that as "not found", not as
-"no dependency". Upstream also provides
-`query`, `affected`, and optional HTML export; inspect their help when needed.
+The environment keeps the run offline (no LLM backend), stops graphify from
+rewriting skill copies it installed earlier, and suppresses the cloud prompt
+and its counter file.
+
+Replace example symbols with actual repository symbols. `path`, `explain`,
+`affected`, and `query` exit 3 when a name is ambiguous (qualify it) and 4 when
+it is not in the graph; neither means "no dependency". `affected` also accepts
+a file path and `--relation`; none of these commands emit JSON, so parse
+`graph.json` (NetworkX node-link) when structured data is needed. Skip the HTML
+exports: they load scripts from CDNs when opened.
 Keep graph output outside the repository. Record input root, revision, and dirty
 state with retained evidence; re-extract after relevant source changes. Use a
-fresh output directory to avoid mixing old semantic results with new AST data.
+fresh output directory (or `--force`): an existing one triggers an incremental
+merge that reuses its saved `--exclude`/`--code-only` settings. Do not use
+`graphify update`; it writes `graphify-out/` into the current directory.
 
 Graph edges are navigation leads. Read the cited source and search callers
 before changing behavior; dynamic calls, framework wiring, reflection, and
@@ -59,7 +78,9 @@ shared configuration or background behavior beyond repository navigation.
 
 `python3 scripts/check-pilot.py` (path relative to this skill) runs the pinned
 upstream against synthetic Python files in a temporary directory. It verifies
-an imported alias call chain, directed path lookup, skipped Markdown, zero LLM
-tokens, and unchanged fixture sources; compares plain text search hits.
+an imported alias call chain, directed path lookup, `affected` callers,
+`--exclude`, the `.env` filter, skipped Markdown, exit 3 (ambiguous) and 4
+(missing), zero LLM tokens, and unchanged fixture sources; compares plain text
+search hits.
 It downloads the package through pipx when uncached. It does not establish
 performance or language coverage for a user's application.

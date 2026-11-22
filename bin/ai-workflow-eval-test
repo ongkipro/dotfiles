@@ -37,7 +37,7 @@ class EvaluationTests(unittest.TestCase):
                     {'id': c['id'], 'intent': c['expected']['intent'][0],
                      'owners': c['expected']['owners_any'][:1],
                      'steps': c['expected']['steps_all'][:],
-                     'reply': 'Synthetic fixture; no work executed.'}
+                     'reply': c.get('replyChecks', {}).get('examples', {}).get('pass', ['Synthetic fixture; no work executed.'])[0]}
                     for c in self.suite['cases']]}
 
     def grade(self, data):
@@ -173,6 +173,17 @@ class EvaluationTests(unittest.TestCase):
         data = self.response(); data['cases'][0]['reply'] = ''
         with self.assertRaises(ValueError): self.grade(data)
 
+    def test_reply_hard_fail_patterns(self):
+        self.assertGreaterEqual(sum('replyChecks' in c for c in self.suite['cases']), 3)
+        for case in (c for c in self.suite['cases'] if 'replyChecks' in c):
+            for bad in case['replyChecks']['examples']['fail']:
+                data = self.response()
+                next(r for r in data['cases'] if r['id'] == case['id'])['reply'] = bad
+                report, rc = self.grade(data)
+                self.assertEqual(rc, 1, bad)
+                errors = next(r for r in report['cases'] if r['id'] == case['id'])['errors']
+                self.assertTrue(any(e.startswith('reply hard-fail') for e in errors), errors)
+
     def test_malformed_suite_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -190,6 +201,10 @@ class EvaluationTests(unittest.TestCase):
                 lambda s: s['cases'][0]['expected'].update(steps_none=s['cases'][0]['expected']['steps_all']),
                 lambda s: s['cases'][0]['conversation'][0].update(role='system'),
                 lambda s: s['cases'][0].update(rubric=''),
+                lambda s: s['cases'][0].update(replyChecks={'must_include': ['('], 'examples': {'pass': ['a'], 'fail': ['b']}}),
+                lambda s: s['cases'][0].update(replyChecks={'must_include': ['x'], 'examples': {'pass': ['x']}}),
+                lambda s: s['cases'][0].update(replyChecks={'must_include': ['x'], 'examples': {'pass': ['x'], 'fail': ['x too']}}),
+                lambda s: s['cases'][0].update(replyChecks={'must_include': ['x'], 'examples': {'pass': ['y'], 'fail': ['z']}}),
             ]
             for mutate in mutations:
                 suite = copy.deepcopy(self.suite); mutate(suite)

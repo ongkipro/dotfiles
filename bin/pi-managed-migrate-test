@@ -9,25 +9,30 @@ TMP="$(mktemp -d)"; trap 'kill ${legacy:-} ${managed:-} 2>/dev/null; rm -rf "$TM
 f=0; ok(){ printf '  ✓ %s\n' "$1"; }; bad(){ echo "  FAIL $1" >&2; f=$((f+1)); }
 
 H="$TMP/home"; NP="$TMP/node"          # fake home and fake node prefix
-mkdir -p "$H/.local/bin" "$NP/bin" "$NP/lib/node_modules/@earendil-works/pi-coding-agent" "$TMP/bin"
-ln -s "$(command -v node)" "$NP/bin/node"
+NODE_BIN="$(mise which node 2>/dev/null || command -v node)"
+mkdir -p "$H/.local/bin" "$NP/bin" "$NP/shim" "$NP/lib/node_modules/@earendil-works/pi-coding-agent" "$TMP/bin"
+ln -s "$NODE_BIN" "$NP/bin/node"
 # Fake npm: root -g, ls, uninstall. Logs every call.
 cat > "$NP/bin/npm" <<SH
 #!/usr/bin/env bash
 echo "npm \$*" >> "$TMP/npm.log"
 case "\$1" in
   root) echo "$NP/lib/node_modules" ;;
-  uninstall) rm -rf "$NP/lib/node_modules/@earendil-works/pi-coding-agent" "$NP/bin/pi" ;;
+  uninstall) rm -rf "$NP/lib/node_modules/@earendil-works/pi-coding-agent" "$NP/bin/pi" "$NP/shim/pi" ;;
 esac
 SH
 printf '#!/bin/sh\n' > "$NP/bin/npx"; chmod +x "$NP/bin/npm" "$NP/bin/npx"
 printf '#!/bin/sh\necho 1.5.0\n' > "$NP/lib/node_modules/@earendil-works/pi-coding-agent/cli.js"
 chmod +x "$NP/lib/node_modules/@earendil-works/pi-coding-agent/cli.js"
-ln -s ../lib/node_modules/@earendil-works/pi-coding-agent/cli.js "$NP/bin/pi"
+ln -s ../lib/node_modules/@earendil-works/pi-coding-agent/cli.js "$NP/shim/pi"
+ln -s ../shim/pi "$NP/bin/pi"
+ln -s "$NP/bin" "$H/.local/npm-bin"
 # Fake installer served by a fake curl. It records whether it saw a `pi` on
-# PATH (the real installer would then migrate = npm uninstall).
+# PATH (the real installer would then migrate = npm uninstall) or an openable
+# controlling `/dev/tty` (the real installer would then block on a keypress).
 cat > "$TMP/install.sh" <<SH
 command -v pi >/dev/null && echo saw-pi >> "$TMP/installer.log"
+( : <>/dev/tty ) 2>/dev/null && echo saw-tty >> "$TMP/installer.log"
 command -v npm >/dev/null || { echo no-npm >> "$TMP/installer.log"; exit 1; }
 mkdir -p "\$HOME/.pi/agent/install" "\$HOME/.pi/agent/bin"
 printf '{"kind":"pi-managed-install"}\n' > "\$HOME/.pi/agent/install/managed-install.json"
@@ -39,21 +44,59 @@ SH
 printf '#!/bin/sh\nwhile [ "$1" != -o ]; do shift; done; cp %s "$2"\n' "$TMP/install.sh" > "$TMP/bin/curl"
 chmod +x "$TMP/bin/curl"
 
-run() { # run [args] -> $TMP/out, $rc
-  env -i HOME="$H" TMPDIR="$TMP" PI_MIGRATE_PIDS_CMD="cat $TMP/pids" PATH="$TMP/bin:$NP/bin:$H/.local/bin:/usr/bin:/bin" \
-    bash "$CMD" "$@" > "$TMP/out" 2>&1; rc=$?
+run() { # run [args] inside a controlling PTY -> $TMP/out, $rc
+  H="$H" TMP="$TMP" NP="$NP" python3 -c '
+import os, pty, sys
+h, t, np = os.environ["H"], os.environ["TMP"], os.environ["NP"]
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvpe("bash", ["bash", *sys.argv[2:]], {
+        "HOME": h,
+        "TMPDIR": t,
+        "PI_MIGRATE_PIDS_CMD": f"cat {t}/pids",
+        "PATH": f"{t}/bin:{np}/bin:{h}/.local/bin:/usr/bin:/bin",
+    })
+chunks = []
+while True:
+    try:
+        data = os.read(fd, 4096)
+        if not data:
+            break
+        chunks.append(data)
+    except OSError:
+        break
+os.close(fd)
+_, status = os.waitpid(pid, 0)
+open(sys.argv[1], "wb").write(b"".join(chunks))
+sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)
+' "$TMP/out" "$CMD" "$@"; rc=$?
 }
 
-# A legacy Pi session: a live process without PI_MANAGED_INSTALL_ROOT, and a
-# managed one that must not block the cleanup.
-env -u PI_MANAGED_INSTALL_ROOT sleep 300 & legacy=$!
-PI_MANAGED_INSTALL_ROOT=x sleep 300 & managed=$!
+# A legacy Pi session: a live node process without PI_MANAGED_INSTALL_ROOT, and a
+# managed one that must not block the cleanup. Use node (not /bin/sleep, whose
+# environment is hidden from `ps eww` by macOS SIP) to match real Pi processes.
+env -u PI_MANAGED_INSTALL_ROOT "$NODE_BIN" -e 'setTimeout(() => {}, 300000)' & legacy=$!
+PI_MANAGED_INSTALL_ROOT=x "$NODE_BIN" -e 'setTimeout(() => {}, 300000)' & managed=$!
 printf '%s\n%s\n' "$legacy" "$managed" > "$TMP/pids"
 
+# A foreign ~/.local/bin/pi symlink (not pointing to @earendil-works/pi-coding-agent)
+# must never be deleted and must abort migration cleanly (exit 97 -> rc 1).
+printf '#!/bin/sh\necho foreign\n' > "$TMP/foreign-pi"; chmod +x "$TMP/foreign-pi"
+ln -s "$TMP/foreign-pi" "$H/.local/bin/pi"
+run
+[ "$rc" -eq 1 ] && grep -q 'unexpected pi' "$TMP/out" && [ -L "$H/.local/bin/pi" ] && [ -x "$TMP/foreign-pi" ] \
+  && ok "a foreign ~/.local/bin/pi link is preserved and aborts migration" \
+  || bad "foreign ~/.local/bin/pi mishandled (rc=$rc): $(cat "$TMP/out")"
+: > "$TMP/installer.log"
+
+# Chained relative symlink across a symlinked parent dir ($H/.local/npm-bin -> $NP/bin -> ../shim/pi -> cli.js).
+ln -sf ../npm-bin/pi "$H/.local/bin/pi"
 run
 grep -q ran "$TMP/installer.log" && ok "the official installer ran" || bad "installer not run: $(cat "$TMP/out")"
 grep -q saw-pi "$TMP/installer.log" && bad "the installer saw the npm pi (it would migrate = uninstall)" \
-  || ok "the installer ran with the npm pi hidden"
+  || ok "the installer ran with the npm pi hidden (including chained ~/.local/bin/pi symlink)"
+grep -q saw-tty "$TMP/installer.log" && bad "the installer still had a controlling /dev/tty (would block on keypress)" \
+  || ok "the installer ran detached from /dev/tty"
 [ ! -e "$NP/bin/pi" ] && ok "npm's pi link was removed" || bad "npm's pi link is still on PATH"
 grep -q 'npm uninstall' "$TMP/npm.log" 2>/dev/null && bad "the npm copy was uninstalled under a running session" \
   || ok "the npm copy is kept while a legacy session runs"

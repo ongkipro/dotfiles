@@ -132,7 +132,7 @@ else
 fi
 
 # 4e. Flexible Ad Format (ad_format: AUTOMATIC_FORMAT) allows multi-asset creative without dynamic_creative: true
-jq '.creatives[0].titles = ["Title 1", "Title 2"] | .creatives[0].ad_format = "AUTOMATIC_FORMAT" | .adsets[0].advantage_audience = true | .adsets[0].incremental_attribution = true' \
+jq '.creatives[0].titles = ["Title 1", "Title 2"] | .creatives[0].ad_format = "AUTOMATIC_FORMAT" | .adsets[0].advantage_audience = true | del(.adsets[0].attribution_spec) | .adsets[0].incremental_attribution = true' \
   "$WS/campaigns/sample-campaign.json" > "$WS/campaigns/flexible-format.json"
 flex_out="$("$CMD" validate "$WS/campaigns/flexible-format.json" --json 2>&1)"
 if [ "$?" -eq 0 ] && printf '%s' "$flex_out" | jq -e '.ok == true and .algorithmAlignment.advantageStateCandidate == "ADVANTAGE_PLUS_SALES" and .algorithmAlignment.incrementalAttributionAdsets == 1' >/dev/null; then
@@ -234,6 +234,8 @@ def attribution(incremental, spec=None):
         manifest['adsets'][0]['incremental_attribution'] = incremental
         if spec is not None:
             manifest['adsets'][0]['attribution_spec'] = spec
+        elif incremental:
+            manifest['adsets'][0].pop('attribution_spec', None)
     return patch
 
 check('incremental-only', attribution(True), True,
@@ -246,10 +248,10 @@ for name, value in [('inline', windows), ('json-string', json.dumps(windows)), (
     check('conflicting-attribution-' + name, attribution(True, value), False, 'cannot combine')
 check('old-window-file', lambda m: m['adsets'][0].update(attribution_spec='@old-windows.json'), False, '7d_view/28d_view')
 check('incremental-string', attribution('true'), False, 'boolean')
-check('incremental-click-goal', lambda m: m['adsets'][0].update(incremental_attribution=True, optimization_goal='LINK_CLICKS'), False, 'optimization_goal')
-check('incremental-cbo-bid-cap', lambda m: (m['campaign'].update(bid_strategy='LOWEST_COST_WITH_BID_CAP'), m['adsets'][0].update(incremental_attribution=True)), False, 'bid_strategy')
-check('incremental-cbo-cost-cap', lambda m: (m['campaign'].update(bid_strategy='COST_CAP'), m['adsets'][0].update(incremental_attribution=True)), True)
-check('incremental-abo-bid-cap', lambda m: (m['campaign'].pop('daily_budget'), m['adsets'][0].update(daily_budget=5000, bid_strategy='LOWEST_COST_WITH_BID_CAP', bid_amount=200, incremental_attribution=True)), False, 'bid_strategy')
+check('incremental-click-goal', lambda m: (m['adsets'][0].pop('attribution_spec', None), m['adsets'][0].update(incremental_attribution=True, optimization_goal='LINK_CLICKS')), False, 'optimization_goal')
+check('incremental-cbo-bid-cap', lambda m: (m['adsets'][0].pop('attribution_spec', None), m['campaign'].update(bid_strategy='LOWEST_COST_WITH_BID_CAP'), m['adsets'][0].update(incremental_attribution=True)), False, 'bid_strategy')
+check('incremental-cbo-cost-cap', lambda m: (m['adsets'][0].pop('attribution_spec', None), m['campaign'].update(bid_strategy='COST_CAP'), m['adsets'][0].update(incremental_attribution=True)), True)
+check('incremental-abo-bid-cap', lambda m: (m['adsets'][0].pop('attribution_spec', None), m['campaign'].pop('daily_budget'), m['adsets'][0].update(daily_budget=5000, bid_strategy='LOWEST_COST_WITH_BID_CAP', bid_amount=200, incremental_attribution=True)), False, 'bid_strategy')
 check('wrong-engaged-event', lambda m: m['adsets'][0].update(attribution_spec=[{'event_type':'ENGAGED_VIEW','window_days':1}]), False, 'ENGAGED_VIDEO_VIEW')
 check('valid-engaged-event', lambda m: m['adsets'][0].update(attribution_spec=[{'event_type':'ENGAGED_VIDEO_VIEW','window_days':1}]), True)
 check('malformed-window', lambda m: m['adsets'][0].update(attribution_spec=[None]), False, 'entries require')
@@ -391,7 +393,10 @@ def patch_web_sales_guardrails(m):
         'device_platforms': ['mobile'],
         'targeting_automation': {'advantage_audience': 0},
     }
-    as0['attribution_spec'] = [{'event_type': 'CLICK_THROUGH', 'window_days': 7}]
+    as0['attribution_spec'] = [
+        {'event_type': 'CLICK_THROUGH', 'window_days': 7},
+        {'event_type': 'VIEW_THROUGH', 'window_days': 1},
+    ]
     base_ad = copy.deepcopy(m['ads'][0])
     for idx in range(2, 8):
         extra = copy.deepcopy(base_ad)
@@ -405,7 +410,7 @@ for expected_wg in (
     "does not start with 'dotads: '; dotads-meta deploy will automatically prefix it as 'dotads: Sales_CBO_Unprefixed'",
     'Website Sales guardrail: Advantage+ Audience is explicitly disabled',
     'Website Sales guardrail: targeting.publisher_platforms restricts delivery to Facebook without Instagram',
-    'Website Sales guardrail: attribution_spec omits VIEW_THROUGH (1d_view)',
+    'Website Sales guardrail: attribution_spec includes VIEW_THROUGH (1d_view)',
     "Website Sales guardrail: optimization_goal 'VALUE' with 'LOWEST_COST_WITHOUT_CAP'",
     'Website Sales guardrail: 7 ads are assigned to a single ad set',
 ):

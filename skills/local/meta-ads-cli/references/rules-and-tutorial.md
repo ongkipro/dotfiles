@@ -163,16 +163,16 @@ hidden advertiser-side "winning" switch. Use
 | **Advantage+ Sales / App / Leads** | `smart_promotion_type: "AUTOMATED_SHOPPING_ADS"` or `"SMART_APP_PROMOTION"` (create, duplicate, and update retired in v25; all versions since 2026-05-19) | Standard `objective` (`OUTCOME_SALES`, `OUTCOME_LEADS`, `OUTCOME_APP_PROMOTION`) + CBO budget + `"advantage_audience": true` on ad set -> local automation candidate; actual server `advantage_state` and placement eligibility require account evidence |
 | **Multi-Asset Creative Testing** | Ad-set `"dynamic_creative": true` only (limits ad set to 1 ad) | Creative `"ad_format": "AUTOMATIC_FORMAT"` (ad-level Flexible Format `asset_feed_spec`; supports multiple multi-asset ads in one ad set) |
 | **Advantage+ Creative Enhancements** | Bundled `creative_features_spec.standard_enhancements` (deprecated in v22.0+) | Granular `degrees_of_freedom_spec.creative_features_spec` keys (`image_touchups`, `image_templates`, `video_auto_crop`, `text_optimizations`, `inline_comment`, `background_generation`, `image_expansion`, `text_generation`) |
-| **Attribution Windows** | `7d_view` and `28d_view` (no longer returned by Insights since 2026-01-12) | `1d_view` (`VIEW_THROUGH`, `window_days: 1`), `1d_ev` (`ENGAGED_VIDEO_VIEW`, `window_days: 1`), `7d_click` / `1d_click` (`CLICK_THROUGH`). Since 2026-03, click-through counts link clicks only; other clicks are engage-through and engaged video view is 5 s — see [algorithm and learning](algorithm-and-learning.md) |
+| **Attribution Windows** | `7d_view` and `28d_view` (no longer returned by Insights since 2026-01-12) | **Standard Direct-Web Default:** `7d_click + 1d_ev` (`[{"event_type": "CLICK_THROUGH", "window_days": 7}, {"event_type": "ENGAGED_VIDEO_VIEW", "window_days": 1}]`, **without `1d_view`**). Since 2026-03, `CLICK_THROUGH` counts link clicks only while other social interactions and 5s video views count under `ENGAGED_VIDEO_VIEW` (`1d_ev`); omitting `VIEW_THROUGH` (`1d_view`) prevents passive scroll impressions from inflating website/COD attribution. (Use `7d_click + 1d_view + 1d_ev` only on Marketplace CPAS Collaborative Ads). See [algorithm and learning](algorithm-and-learning.md) |
 | **Causal Lift Optimization** | Correlational post-view/click optimization only | Ad set `"incremental_attribution": true` (`--incremental-attribution`), only for eligible goals/bids and without `attribution_spec`; this is an optimization setting, not measured causal lift |
 | **ABO Testing Budget Liquidity** | Rigid isolated ABO budgets | Campaign `"adset_budget_sharing": true` (`--adset-budget-sharing`) to share up to 20% budget across ad sets |
 | **Multi-Advertiser Placement** | Implicit auto-enrollment | Creative `"contextual_multi_ads": false` (`--no-contextual-multi-ads`) to opt out when offer isolation is required |
 
 ---
 
-For explicit windows, use a separate mode such as
-`"attribution_spec": [{"event_type":"CLICK_THROUGH","window_days":7}]`
-with incremental attribution omitted or false. Validate the actual goal/window
+For explicit windows on website conversion ad sets (`OFFSITE_CONVERSIONS`), default to **7-day click + 1-day engage-through (`1d_ev`), without 1-day view (`1d_view`)**:
+`"attribution_spec": [{"event_type":"CLICK_THROUGH","window_days":7},{"event_type":"ENGAGED_VIDEO_VIEW","window_days":1}]`
+with incremental attribution omitted or false. (`dotads-meta` automatically supplies this `7d_click + 1d_ev` spec on non-CPAS `OFFSITE_CONVERSIONS` ad sets when `attribution_spec` is omitted). Validate the actual goal/window
 combination; the offline validator is not a complete API eligibility oracle.
 
 The source record covers the 2026-10-27 poll, Web and App, and HEF changes.

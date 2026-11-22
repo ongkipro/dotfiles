@@ -47,6 +47,20 @@ rendered CJK + emoji. `/snap/bin/chromium` no longer exists: suites that set
 `/usr/bin/google-chrome`. Playwright cache keeps `chromium-1228` (7 projects pin
 1.61.1) and `chromium-1248` (1.64.1).
 
+**Verified 2026-11-18 (`rich`): agent-browser 0.43.0 pinned to system Chrome.**
+`pi-agent-browser-native` requires agent-browser >= 0.43.0 (`MINIMUM_AGENT_BROWSER_VERSION`).
+`agent-browser install` downloads Chrome for Testing into `~/.agent-browser/browsers/`,
+but on this Ubuntu (`kernel.apparmor_restrict_unprivileged_userns = 1`) that binary dies
+with `FATAL ... No usable sandbox`: only `/opt/google/chrome/chrome` has an AppArmor
+profile (`/etc/apparmor.d/chrome`, `userns`). Fix without `--no-sandbox`: dotfiles
+`config/agent-browser/config.json` (`{"executablePath": "/usr/bin/google-chrome"}`),
+linked to `~/.agent-browser/config.json` by `install.sh` when `/usr/bin/google-chrome`
+exists. The Chrome version is then the apt package: the wrapper's "Chrome ... behind the
+current stable release" warning is cleared with `sudo apt install --only-upgrade
+google-chrome-stable`, not with `agent-browser install`. Done 2026-11-18: system
+Chrome 157.0.8103.78, warning gone; the unused Chrome for Testing (408 MB) was moved
+to `/data/backups/agent-browser-cft-20261118/`.
+
 **Verified 2026-11-02:** Playwright MCP is registered once in
 `config/ai/mcp-servers.json` (`@playwright/mcp@0.0.84 --browser chrome --headless`,
 25 tools) and `ai-mcp-sync` writes it to Claude, Codex, agy, OMP and pi. pi has

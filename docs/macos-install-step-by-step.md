@@ -188,7 +188,8 @@ Language server (opsional, buat helix):
 
 ```bash
 npm i -g typescript-language-server vscode-langservers-extracted \
-         bash-language-server yaml-language-server @tailwindcss/language-server pyright
+         bash-language-server yaml-language-server @tailwindcss/language-server pyright \
+         @astrojs/language-server typescript@6
 ```
 
 ---

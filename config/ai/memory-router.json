@@ -306,7 +306,12 @@
         "token optimization",
         "prompt optimization",
         "minimal diff",
-        "small diff"
+        "small diff",
+        "delivery-ledger",
+        "heavy-run",
+        "review loop",
+        "panel 1",
+        "vitest"
       ]
     },
     {
@@ -456,6 +461,7 @@
     ],
     "beautyinu-hydrogen": "config/ai/project-memory/beautyinu.md",
     "travelos": "config/ai/project-memory/travelos.md",
+    "punyasitus": "config/ai/project-memory/punyasitus.md",
     "aussiemalaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
     "aussie-sawit-malaysia": "config/ai/project-memory/aussie-sawit-malaysia.md",
     "dealerhinoofficial": [
