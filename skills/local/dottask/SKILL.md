@@ -8,6 +8,8 @@ description: >-
 
 Internal task + IDR ledger app at `https://dottasks.vercel.app` (prod) — repo `~/Projects/dottask`, contracts in its `AGENTS.md`/`PRD.md`/`STATUS.md`. All operational writes go through the `dottask` CLI (`~/dotfiles/bin/dottask`, `DOTTASK_REPO` override) or the `dottask` stdio MCP — never the browser, never hand SQL.
 
+Canonical operator guide: `GET https://dottasks.vercel.app/guide` (device-token gated `text/markdown`; fetch with a `dtk_live_` bearer, e.g. `secrets-env get DOTTASK_DEVICE_TOKEN`). Source file `docs/agent-guide.md` in the repo — update it there and redeploy.
+
 ## Auth & endpoints
 
 - Device token resolves inside the CLI via `secrets-env get DOTTASK_DEVICE_TOKEN`; never print, pass on argv, or store elsewhere. Missing/malformed → `device add` via `scripts/dottask-admin.ts` on a host trusted with `DATABASE_URL` (owner approval).
