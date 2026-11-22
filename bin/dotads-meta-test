@@ -1716,7 +1716,8 @@ repo = base/'device-dotfiles'
 ai = repo/'config/ai'
 (ai/'adapters').mkdir(parents=True)
 (ai/'CORE.md').write_text('Synthetic fixture core\n')
-for runtime in ('claude','codex','antigravity','pi','omp'):
+# One adapter per real runtime, so a runtime added to ai-memory-link (devin) cannot break this fixture again.
+for runtime in sorted(p.stem for p in (cmd.parent.parent/'config/ai/adapters').glob('*.md')):
     (ai/'adapters'/f'{runtime}.md').write_text('Synthetic adapter\n')
 for name in ('ai-memory-link','dotads-meta','_dotads-workspace.mjs','secrets-env'):
     shutil.copy2(cmd.parent/name, repo/'bin'/name)
