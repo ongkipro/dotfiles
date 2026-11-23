@@ -32,9 +32,7 @@
     "9router-fantastico/cx/gpt-6-astra[1m]",
     "9router-fantastico/cx/gpt-6-luna[1m]",
     "9router-fantastico/cx/gpt-6.1-terra",
-    "9router-fantastico/mmf/mimo-auto",
     "9router-fantastico/oc/deepseek-v4.1-flash-free",
-    "9router-fantastico/oc/glm-5.3-flash-free",
     "9router-fantastico/oc/mimo-v2.6-flash-free"
   ],
   "quietStartup": true,
