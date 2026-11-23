@@ -94,4 +94,4 @@
 - [99ribu URL slugs and admin ids](99ribu-url-slugs.md) — owner rule: clean title slugs on the public storefront (no UUID/hash/long codes), numeric ids in admin URLs; 99ribu-cf: `ddmmyy1001` catalog ids shared by Meta/Google/TikTok, `INV99-` invoices; the repository owns the scheme.
 - [Customer messaging decision (pending)](customer-messaging-pending.md) — email ESP + WhatsApp WABA for 99ribu/bukalaris is UNDECIDED (geraiexpress-cfv2 decided: Cloudflare Email Sending + click-to-chat WA per DEC-227); discussion note in `~/Documents/work/notes/`
 - [GeraiExpress v2 architecture & domains](geraiexpress-cfv2-architecture.md) — `~/Projects/geraiexpress-cfv2` on Cloudflare Serverless (`geraiexpress.com` + `*.geraimitra.com` SaaS zone, `DEC-234`); dedicated Vultr VPS retired (`DEC-235`, `partner-relay` co-hosts on `99ribu-prod`)
-- [Bukalaris docs phase](bukalaris-docs-phase.md) — documents only, development not started; Etalashop/TokoΦ studied as lessons, not templates; resume point in repo `STATUS.md`
+- [Bukalaris docs phase](bukalaris-docs-phase.md) — development resumed 2026-11-16 via PRs; resume point in repo `STATUS.md`
