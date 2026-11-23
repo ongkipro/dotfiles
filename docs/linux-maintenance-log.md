@@ -319,3 +319,40 @@ Docker images, volumes, build cache, system journals, and `libfwupd2` remain unt
 - Inferred from moby source, not exercised: `docker-proxy` gets `Pdeathsig: SIGTERM`, so the loopback ports are unreachable while dockerd is down, even though the containers keep running. No health checks, log draining or restart policies run during that time.
 - `clinic-dashboard-postgres-1` keeps `restart: no`; it does not come back after a reboot until someone starts it.
 - Rollback: copy the backup back over `/etc/docker/daemon.json` and run `sudo systemctl reload docker`.
+
+## 2026-11-23 — `rich` — Docker Engine 29.9.3 → 29.10.0 with live-restore
+
+### Quiet window (checked 10:00–10:05 WIB)
+
+- `heavy-run`: 0 of 2 slots busy. No test runner, `docker compose`, or `ai-testdb` job was running.
+- Postgres: no client connections except PostgREST on gxdb. Over 45 s the transaction counters moved only 2–48, which is health checks. `clinic_dashboard` moved 18 in 30 s, with no client backend.
+- Two clinic-dashboard agent panes were still working on documentation and ledger steps, with no process holding the database.
+- `rich-db backup`: 17 verified dumps, 0 failures. This includes `t107dev` from the tmpfs `ai-testdb-pg16`.
+
+### Action
+
+- `apt-get install --only-upgrade` of six packages:
+
+  | Package | From | To |
+  |---|---|---|
+  | `docker-ce`, `docker-ce-cli`, `docker-ce-rootless-extras` | 29.9.3 | 29.10.0 |
+  | `containerd.io` | 2.4.2-3 | 2.4.2-4 |
+  | `docker-buildx-plugin` | 0.38.1 | 0.39.1 |
+  | `docker-compose-plugin` | 5.7.0 | 5.8.0 |
+
+- `daemon.json` was kept (`--force-confold`).
+- The postinst restarted containerd, then dockerd. The daemon was back within 3 s (10:06:05 to 10:06:08).
+
+### Verification
+
+- `docker version` reports 29.10.0 (API 1.57). `LiveRestoreEnabled=true`, with no daemon warnings.
+- All 10 containers have the same PID, `StartedAt`, and `RestartCount` as before. The `restart: no` container `clinic-dashboard-postgres-1` stayed up as well.
+  - This exceeds Docker's documented support: live-restore is promised only across patch upgrades, yet it held across this minor one.
+  - Treat that as one observation, not a guarantee.
+- The new dockerd re-adopted all 8 `docker-proxy` processes. Every published port accepted TCP, PostgREST and Mailpit answered 200, health checks returned to healthy, and `t107dev` still has 280 tables.
+- On restore, dockerd warned about two sandbox IDs that no current container uses (stale). `packagekit.service is masked` in the apt log is expected on this headless host.
+- A new container ran. The `busybox` image pulled for that check was removed afterwards.
+
+### Rollback
+
+- `apt-get install docker-ce=5:29.9.3-1~ubuntu.24.04~noble`, plus the matching `docker-ce-cli`, `docker-ce-rootless-extras` and `containerd.io=2.4.2-3~ubuntu.24.04~noble`. The 29.9.3 packages are still in the apt repository.

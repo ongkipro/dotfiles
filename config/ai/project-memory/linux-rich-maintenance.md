@@ -38,8 +38,8 @@ would be destructive on a different box.
 - **Docker `live-restore` is on** (2026-11-23, `/etc/docker/daemon.json`,
   applied with `systemctl reload docker`: no container PID changed). A dockerd
   restart, crash or **patch** upgrade (`YY.MM.x`) keeps containers running; a
-  minor upgrade (29.9 → 29.10) is outside Docker's support, so treat it as a
-  container restart and back up first. While dockerd is down there are no
+  minor upgrade is outside Docker's support, so back up first (29.9.3 →
+  29.10.0 on 2026-11-23 still kept every container PID, one observation). While dockerd is down there are no
   health checks, logs or restart policies. Inferred from moby source, not
   tested: loopback ports go through `docker-proxy`, which dies with dockerd,
   so `127.0.0.1:<port>` is unreachable until dockerd returns. The last three
