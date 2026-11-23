@@ -17,6 +17,7 @@ evidence outrank anything written here; where this file and `TASKS.md` disagree,
 - `skill-upstream`: a ref pinned to a full SHA no longer reports CURRENT while upstream has moved on.
 - CI: `dotads-meta-test` built its adapter fixture from a hard-coded runtime list and failed once `ai-memory-link` added `devin` (run 45049081684). It now reads `config/ai/adapters/`; a mutation that restores the old list fails again.
 - `rich`: Docker `live-restore` on via reload, with no container restarted (`docs/linux-maintenance-log.md`). `vps-deploy` gains the patch-only caveat.
+- CI: `dottask-test` passed the repo root that `ai-doctor` supplies on to `unittest.main()`, which read it as a test name (run 45104136294); it now uses `argv=[sys.argv[0]]` like the other Python tests.
 - `rich`: Docker Engine 29.9.3 → 29.10.0 (containerd.io 2.4.2-4) after a verified backup; with live-restore every container kept its PID through the daemon restart.
 
 ## 2026-11-20 — Full-repository recheck of Ponytail, Graphify, and Caveman

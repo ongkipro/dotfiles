@@ -49,4 +49,5 @@ class DottaskWrapperTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    # ai-doctor passes the repo root as argv[1]; unittest must not read it as a test name.
+    unittest.main(argv=[sys.argv[0]], verbosity=2)
