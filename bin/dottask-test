@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Behavioral regression tests for bin/dottask (wrapper over the repo CLI)."""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
+BIN = ROOT / "bin" / "dottask"
+
+
+class DottaskWrapperTests(unittest.TestCase):
+    def run_bin(self, args, env_extra=None):
+        env = dict(os.environ)
+        env.update(env_extra or {})
+        return subprocess.run(
+            [str(BIN), *args], capture_output=True, text=True, env=env, timeout=30,
+        )
+
+    def test_missing_repo_fails_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = self.run_bin(["whoami"], {"DOTTASK_REPO": tmp})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("repo CLI not found", r.stderr)
+        self.assertIn("DOTTASK_REPO", r.stderr)
+
+    def test_help_runs_through_to_cli(self):
+        repo = os.environ.get("DOTTASK_REPO", str(Path.home() / "Projects" / "dottask"))
+        if not (Path(repo) / "packages/cli/bin/dottask.mjs").is_file():
+            self.skipTest("dottask repo not checked out on this device")
+        r = self.run_bin(["--help"])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("dottask — AI-terminal client", r.stdout)
+        self.assertIn("task create", r.stdout)
+
+    def test_args_passed_verbatim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            entry = Path(tmp) / "packages/cli/bin"
+            entry.mkdir(parents=True)
+            stub = entry / "dottask.mjs"
+            stub.write_text('console.log(process.argv.slice(2).join("|"));', encoding="utf-8")
+            r = self.run_bin(["task", "create", "a b", "--json"], {"DOTTASK_REPO": tmp})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), "task|create|a b|--json")
+
+
+if __name__ == "__main__":
+    # ai-doctor passes the repo root as argv[1]; unittest must not read it as a test name.
+    unittest.main(argv=[sys.argv[0]], verbosity=2)

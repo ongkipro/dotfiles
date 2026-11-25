@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/workers-best-practices
-verified: 2026-10-24
+verified: 2026-11-22
 scope: directory
 reason: The current upstream entrypoint references the cf-cli sibling skill,
   which is not vendored in this dotfiles tree. Local points to its official
@@ -18,4 +18,10 @@ refresh_guard: _refresh-vendored.sh reports and preserves this managed fork.
   while the sibling is not intentionally adopted.
 to_vendor: Restore the upstream sibling reference if cf-cli is deliberately
   installed as a canonical owned skill and its routing boundary is accepted.
+recheck: 2026-11-22 — merged upstream 5108325 content changes since fe02920: (a) c9a7335 `@cloudflare/vitest-plugin` replaces
+  `@cloudflare/vitest-pool-workers` in references/runtime-patterns.md (heading, pitfall wording, link to the migration guide, and the
+  `env` import from `cloudflare:workers`; checked against developers.cloudflare.com/workers/testing/vitest-integration: `env` and `exports`
+  come from `cloudflare:workers`, `cloudflare:test` keeps the other helpers); (b) the new "Place Compute Near Regional Databases" section in
+  SKILL.md and references/configuration.md plus the Hyperdrive note in runtime-patterns.md (region hint, Smart Placement only affects fetch
+  handlers; checked against workers/configuration/placement). Local changes (cf-cli pointer, CPU limits wording) stand. skill-feedback: upstream added `references/skill-feedback.md` and a `## Skill feedback` pointer to every skill (cloudflare/skills 0e7a86d, 29de2b2). NOT adopted, on purpose: it instructs the agent to file a public GitHub issue on cloudflare/skills with `gh issue create`. Upstream itself gates it on showing the exact title and body and getting a yes, but a posting path from a shared, auto-loaded skill is an outbound action that belongs to the owner, and CORE's approval gates cover external publication. To adopt later: add the file and pointer per skill and keep the explicit-approval step.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

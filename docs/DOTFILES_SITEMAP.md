@@ -55,6 +55,7 @@ Each line answers one question with the page that owns it.
 - [Ask another AI CLI for a second opinion](../bin/ai-ask): one read-only lane to claude, codex, agy, pi, or omp.
 - [Install or check Git safety hooks](../bin/ai-hooks-install): wires [`git-guard.sh`](../config/ai/hooks/git-guard.sh) and memory-usage hooks.
 - [Sync MCP servers across runtimes](../bin/ai-mcp-sync): one global MCP list, checked per runtime.
+- [Record tasks and IDR ledger entries](../bin/dottask) (+ [`test`](../bin/dottask-test)): sole write path for the dottask team app; guardrails in [`skills/local/dottask`](../skills/local/dottask/SKILL.md).
 - [Gate a production deploy](../bin/production-gate): safety verification before anything live.
 - [Understand learning, recall, and scheduled checks](../docs/adaptive-ai-system.md): how verified lessons, recall, and offline jobs fit together.
 - [Update this map](../bin/system-map): renders the inventory, gates coverage, answers `--find`; design sources in [system-map references](research/system-map-references-2026-10-25.md).
@@ -114,13 +115,13 @@ runs in `ai-policy-lint`. Only tracked files count, so after adding a file run
 | Durable memory | [`config/ai/memory/`](../config/ai/memory/) | 28 | linked from this page |
 | Project memory | [`config/ai/project-memory/`](../config/ai/project-memory/) | 86 | [`MEMORY.md`](../config/ai/project-memory/MEMORY.md) |
 | Kelola memory | [`config/ai/project-memory-kelola/`](../config/ai/project-memory-kelola/) | 17 | [`MEMORY.md`](../config/ai/project-memory-kelola/MEMORY.md) |
-| Owned skills | [`skills/local/`](../skills/local/) | 77 | linked from this page |
-| Commands | [`bin/`](../bin/) | 66 | linked from this page |
-| Command tests | [`bin/`](../bin/) | 80 | linked from this page |
-| Device profiles | [`devices/`](../devices/) | 9 | linked from this page |
+| Owned skills | [`skills/local/`](../skills/local/) | 79 | linked from this page |
+| Commands | [`bin/`](../bin/) | 68 | linked from this page |
+| Command tests | [`bin/`](../bin/) | 82 | linked from this page |
+| Device profiles | [`devices/`](../devices/) | 10 | linked from this page |
 | Project templates | [`config/templates/`](../config/templates/) | 10 | linked from this page |
 | Top-level docs | [`docs/`](../docs/) | 20 | linked from this page |
-| AI control files | [`config/ai/`](../config/ai/) | 31 | linked from this page |
+| AI control files | [`config/ai/`](../config/ai/) | 33 | linked from this page |
 | Runtime references | [`config/omp/`](../config/omp/) | 29 | linked from this page |
 | Skill commands | [`skills/agents-bin/`](../skills/agents-bin/) | 7 | linked from this page |
 | Skill tooling | [`skills/local/`](../skills/local/) | 3 | linked from this page |
@@ -184,12 +185,13 @@ Central repository for AI behavior, context distribution, and safety guards.
 - [`config/ai/runtime-commands.txt`](../config/ai/runtime-commands.txt): Canonical commands every installer links into `~/.local/bin`, one per line.
 - [`config/ai/policies/planning-artifacts.md`](../config/ai/policies/planning-artifacts.md): Where PRD, PLAN, TASKS, ADR, and spec-suite documents live; never a rival beside an existing one.
 
-- **Rendered runtime contexts (never edit):** [`claude.md`](../config/ai/context/claude.md), [`codex.md`](../config/ai/context/codex.md), [`antigravity.md`](../config/ai/context/antigravity.md), [`omp.md`](../config/ai/context/omp.md), [`pi.md`](../config/ai/context/pi.md): `ai-memory-link` renders CORE plus each adapter here; edit the sources instead.
+- **Rendered runtime contexts (never edit):** [`claude.md`](../config/ai/context/claude.md), [`codex.md`](../config/ai/context/codex.md), [`antigravity.md`](../config/ai/context/antigravity.md), [`omp.md`](../config/ai/context/omp.md), [`pi.md`](../config/ai/context/pi.md), [`devin.md`](../config/ai/context/devin.md): `ai-memory-link` renders CORE plus each adapter here; edit the sources instead.
 
 ### 3.2 AI Runtimes Adapters (`config/ai/adapters/`)
 - [`config/ai/adapters/antigravity.md`](../config/ai/adapters/antigravity.md): Adapter for Antigravity (`agy`).
 - [`config/ai/adapters/claude.md`](../config/ai/adapters/claude.md): Adapter for Claude Code (`~/.claude/CLAUDE.md`).
 - [`config/ai/adapters/codex.md`](../config/ai/adapters/codex.md): Adapter for OpenAI Codex CLI (`~/.codex/AGENTS.md`).
+- [`config/ai/adapters/devin.md`](../config/ai/adapters/devin.md): Adapter for Devin CLI (`~/.config/devin/AGENTS.md`).
 - [`config/ai/adapters/omp.md`](../config/ai/adapters/omp.md): Adapter for OMP user context (`~/.omp/agent/AGENTS.md`).
 - [`config/ai/adapters/pi.md`](../config/ai/adapters/pi.md): Adapter for Pi CLI via `pi()` shell wrapper.
 
@@ -421,6 +423,7 @@ Commands, their tests, and helpers; counts live in the Inventory block and descr
 - [`ai-memory-hygiene`](../bin/ai-memory-hygiene) (+ [`test`](../bin/ai-memory-hygiene-test)): Checks memory budgets, scope, privacy markers, volatile or stale claims, authority conflicts, and duplicate/conflicting content. Routing coverage belongs to `ai-policy-lint`; secret scanning to `security-check`.
 - [`ai-memory-lifecycle`](../bin/ai-memory-lifecycle) (+ [`test`](../bin/ai-memory-lifecycle-test)): Analyzes memory access logs to recommend file retention or pruning.
 - [`ai-memory-link`](../bin/ai-memory-link) (+ [`test`](../bin/ai-memory-link-test)): Renders and links native contexts; reconciles manifest command links and prunes only dangling repository-owned links, including the first upgrade from older sync code.
+- [`ai-memory-mcp`](../bin/ai-memory-mcp) (+ [`test`](../bin/ai-memory-mcp-test)): Read-only MCP stdio server exposing `memory_route` and `memory_recall` across all MCP-capable AI CLIs.
 - [`ai-memory-route`](../bin/ai-memory-route) (+ [`test`](../bin/ai-memory-route-test)): Selects scoped memory references using prompt/path triggers and file/byte budgets.
 - [`ai-skill-evolution`](../bin/ai-skill-evolution) (+ [`test`](../bin/ai-skill-evolution-test)): Reports advisory recurring-pattern candidates for skill improvement; it does not promote or rewrite skills automatically.
 - [`ai-hooks-install`](../bin/ai-hooks-install) (+ [`test`](../bin/ai-hooks-install-test)): Installs and checks canonical Claude Code and Codex hooks; native Codex trust remains an interactive runtime step.
@@ -520,6 +523,7 @@ Managed by `bin/device-register`, documenting exact hardware and OS specs:
 | [`Olans-MacBook-Pro.md`](../devices/Olans-MacBook-Pro.md) | Apple MacBook Pro (M2, 8GB RAM) | macOS 26.5 | Secondary macOS workstation |
 | [`lenovo.md`](../devices/lenovo.md) | Intel i7-1355U, 7.6 GB RAM | Ubuntu 26.04.1 LTS on WSL2 | Windows-hosted Linux dev environment |
 | [`dot.md`](../devices/dot.md) | Lenovo Yoga Book 9 13IRU8 (i7-1355U, 14.8 GB RAM) | Ubuntu 26.04.1 LTS | Dual-screen OLED convertible Linux laptop |
+| [`ongki.md`](../devices/ongki.md) | Dell Latitude E7250 | Linux | Registered portable dev machine |
 
 ---
 

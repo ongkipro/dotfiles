@@ -11,7 +11,7 @@ Read the task's documentation before adding bindings or running database command
 | Look up CLI flags for management, execution, and exports | [D1 Wrangler commands](https://developers.cloudflare.com/d1/wrangler-commands/index.md) |
 | Develop against local database state | [Local development](https://developers.cloudflare.com/d1/best-practices/local-development/index.md) |
 | Generate binding types | [Workers TypeScript](https://developers.cloudflare.com/workers/languages/typescript/index.md) |
-| Choose an ORM or query builder, including Drizzle | [D1 community projects](https://developers.cloudflare.com/d1/reference/community-projects/index.md) (follow the integration's current setup guide) |
+| Choose an ORM or query builder, including Drizzle | [Drizzle ORM with D1](https://orm.drizzle.team/docs/sqlite/connect-cloudflare-d1) and [Query D1 using Prisma ORM](https://developers.cloudflare.com/d1/tutorials/d1-and-prisma-orm/index.md) (Cloudflare's former community-projects page was removed; follow the integration's current setup guide) |
 | Import or export SQL data | [Import and export data](https://developers.cloudflare.com/d1/best-practices/import-export-data/index.md) |
 | Enable replicas and use them through sessions | [Read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/index.md) |
 

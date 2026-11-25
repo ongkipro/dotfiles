@@ -30,7 +30,7 @@ to copy Dawn/Horizon visuals or to universalize Shopify-specific mechanics.
 - Checkout technologies and plan availability:
   https://shopify.dev/docs/apps/build/checkout/technologies
 - Checkout UI extension UX:
-  https://shopify.dev/docs/api/checkout-ui-extensions/latest/ux
+  https://shopify.dev/docs/apps/build/checkout/ux-for-checkout
 - Thank You and Order Status lifecycle:
   https://shopify.dev/docs/apps/build/checkout/thank-you-order-status
 - Customer Account API:

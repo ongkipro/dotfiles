@@ -301,6 +301,15 @@ lazily installed `wreq-js` in `~/.9router/runtime`; when the service's PATH lack
 `npm` that install fails with `spawn npm ENOENT` until it is installed by hand
 and the gateway restarted. Revalidate after a Pi or 9Router upgrade.
 
+Revalidated 2026-11-23 on 9Router 0.5.123: the upgrade re-listed rows the owner had
+hidden (`ag/` Gemini 3.x and `-low/-medium/-high/-max` variants). After every
+upgrade, probe each `/v1/models` row and hide only rows that fail upstream;
+rows that answer stay listed, then rerun `pi-9router-sync.js`. Dead
+upstream (hidden in 9Router, dropped from `enabledModels`): `mmf/mimo-auto`
+("MiMo bootstrap failed: 404"), `oc/glm-5.3-flash-free` ("Model is
+unavailable"), `ag/gemini-3.{1-pro,6-flash,7-flash}-*` and `ag/gemini-pro-agent`
+(404). `ag/claude-*` and `ag/gpt-oss` returned quota 503s that day, not removal.
+
 The selected device can retain `9router-fantastico` while OMP calls its provider
 `9router`: verify the same intended endpoint and available model IDs, rather
 than copying accounts or demanding identical provider labels.

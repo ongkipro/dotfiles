@@ -49,6 +49,8 @@ live campaign collections ran on **v26.0**. Marketing API **v24.0** retired on
 **2026-11-10**, and **v27.0** launched on **2026-11-04** while `facebook-business`
 26.0.x remains pinned to **v26.0**. The 1.2.0/24.x notes below are historical.
 
+**Update 2026-11-22:** `facebook-business` **27.0.1** is on PyPI (2026-11-21; **27.0.0** on 2026-11-19) and `facebook-nodejs-business-sdk` **27.0.0** (2026-11-19) defaults to `v27.0`, but `meta-ads` **1.3.1** (still PyPI `latest`, 2026-10-30) declares `facebook-business<27.0,>=26.0`. So `pipx install meta-ads` and `pipx upgrade meta-ads` keep the CLI on SDK 26.0.x / v26.0 until a `meta-ads` release lifts that cap; do not `pip install --force` SDK 27 into the CLI's venv to chase v27. v26.0 and v27.0 are both listed as available (expiry TBD), so staying on v26.0 is supported. Checked from PyPI metadata, not by running the CLI.
+
 The inspected local package was meta-ads **1.2.0**, with facebook-business
 **24.0.1**. Package metadata requires facebook-business >=24.0,<25.0; the
 generated CLI schema identifies v24.0. An offline probe with a synthetic token,

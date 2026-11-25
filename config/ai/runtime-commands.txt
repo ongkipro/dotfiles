@@ -20,6 +20,8 @@ ai-memory-lifecycle
 ai-memory-lifecycle-test
 ai-memory-link
 ai-memory-link-test
+ai-memory-mcp
+ai-memory-mcp-test
 ai-memory-route
 ai-memory-route-test
 ai-policy-lint
@@ -146,3 +148,5 @@ ai-schedule
 ai-schedule-test
 
 design-tools-test
+dottask
+dottask-test

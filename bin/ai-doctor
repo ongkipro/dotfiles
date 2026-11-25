@@ -275,6 +275,7 @@ check_link claude      "$HOME/.claude/CLAUDE.md"    "$HOME/.claude"
 check_link codex       "$HOME/.codex/AGENTS.md"     "$HOME/.codex"
 check_link antigravity "$HOME/.gemini/GEMINI.md"    "$HOME/.gemini"
 check_link omp         "$HOME/.omp/agent/AGENTS.md" "$HOME/.omp/agent"
+check_link devin       "$HOME/.config/devin/AGENTS.md" "$HOME/.config/devin"
 # agy 1.2.0 hanya membuka ~/.gemini/GEMINI.md (diverifikasi strace 2026-09-15).
 # Link lama di path yang tidak dibaca runtime mana pun = kesehatan palsu.
 for legacy in "$HOME/.antigravity/AGENTS.md" "$HOME/.gemini/antigravity-cli/AGENTS.md" "$HOME/.gemini/antigravity-cli/GEMINI.md"; do
@@ -450,7 +451,7 @@ if [ -d "$SK" ]; then
   else
     wrn "skill-surface-check belum tersedia"
   fi
-  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent" "agy:$HOME/.gemini/config/skills:$HOME/.gemini/config"; do
+  for pair in "claude:$HOME/.claude/skills:$HOME/.claude" "pi:$HOME/.pi/agent/skills:$HOME/.pi/agent" "omp:$HOME/.omp/agent/skills:$HOME/.omp/agent" "agy:$HOME/.gemini/config/skills:$HOME/.gemini/config" "devin:$HOME/.config/devin/skills:$HOME/.config/devin"; do
     cli=${pair%%:*}; rest=${pair#*:}; path=${rest%%:*}; parent=${rest#*:}
     if [ ! -d "$parent" ]; then wrn "$cli: belum terpasang (lewati)"; continue; fi
     if [ ! -d "$path" ]; then bad "$cli: ${path/#$HOME/\~} tidak ada. Perbaiki: skill-update"; continue; fi
@@ -598,7 +599,7 @@ fi
 # ── 5. Dangling symlinks anywhere in the wiring ───────────────────────────────
 hdr "5. Symlink menggantung"
 d=0
-for base in "$HOME/.claude" "$HOME/.codex" "$HOME/.antigravity" "$HOME/.gemini/config" "$HOME/.pi/agent" "$HOME/.omp/agent" "$HOME/.agents" "$HOME/.agents/bin" "$HOME/.local/bin" "$HOME/.config"; do
+for base in "$HOME/.claude" "$HOME/.codex" "$HOME/.antigravity" "$HOME/.gemini/config" "$HOME/.pi/agent" "$HOME/.omp/agent" "$HOME/.config/devin" "$HOME/.agents" "$HOME/.agents/bin" "$HOME/.local/bin" "$HOME/.config"; do
   [ -d "$base" ] || continue
   while IFS= read -r l; do
     [ -e "$l" ] || { bad "MATI: ${l/#$HOME/\~} → $(readlink "$l")"; d=1; }
@@ -662,7 +663,7 @@ if command -v codex >/dev/null 2>&1 && [ -x "$DOT/bin/ai-hooks-install" ]; then
     wrn "Codex hooks: BELUM terpasang — perbaiki dengan: ai-hooks-install --runtime codex"
   fi
 fi
-for rt in agy omp pi; do
+for rt in agy omp pi devin; do
   command -v "$rt" >/dev/null 2>&1 && note_hookless="${note_hookless:-}${note_hookless:+, }$rt"
 done
 [ -z "${note_hookless:-}" ] || ok "tanpa hook dotfiles (aturan Git ditegakkan lewat CORE.md saja): $note_hookless"
@@ -676,7 +677,7 @@ fi
 
 # ── 7. CLI + login ────────────────────────────────────────────────────────────
 hdr "7. AI CLI di device ini"
-for c in claude codex pi agy omp; do
+for c in claude codex pi agy omp devin; do
   if command -v "$c" >/dev/null 2>&1; then
     case "$c" in
       codex) [ -f "$HOME/.codex/auth.json" ] && ok "codex: terpasang + login" \

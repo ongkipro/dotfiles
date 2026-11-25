@@ -24,7 +24,7 @@ if [ -n "${AI_DIR:-}" ]; then
   [ "${1:-}" = "--check" ] || { echo "ERROR: AI_DIR is only valid with --check; unset it to link runtimes."; exit 1; }
   AI="$AI_DIR"
 fi
-RUNTIMES=(claude codex antigravity pi omp)
+RUNTIMES=(claude codex antigravity pi omp devin)
 
 resolve_path() {
   local path="$1" link hops=0 dir
@@ -123,6 +123,7 @@ TARGETS=(
   "codex:$HOME/.codex/AGENTS.md"
   "antigravity:$HOME/.gemini/GEMINI.md"
   "omp:$HOME/.omp/agent/AGENTS.md"
+  "devin:$HOME/.config/devin/AGENTS.md"
 )
 
 link_failures=0

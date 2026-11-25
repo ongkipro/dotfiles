@@ -102,10 +102,22 @@ def main() -> int:
         assert preserved_body == upstream_body, (
             f"body mismatch:\nexpected={upstream_body!r}\ngot={preserved_body!r}"
         )
-        # Check Codex <240-char Not-for boundary
-        desc_line = [ln for ln in skill_text.splitlines() if ln.startswith("description:")][0]
-        not_idx = desc_line.find("Not for")
-        assert 0 < not_idx < 240, f"Not for boundary index out of range: {not_idx}"
+        # Codex cuts descriptions near 250 characters, so the Not/Not for boundary must start before 240.
+        # Measured on the parsed YAML value, the way skill-check does, so a folded (>-) scalar counts too.
+        import re as _re
+
+        frontmatter = _re.match(r"^---\n(.*?)\n---", skill_text, _re.S).group(1)
+        try:
+            import yaml as _yaml
+
+            desc_raw = str(_yaml.safe_load(frontmatter)["description"])
+        except ModuleNotFoundError:
+            # No PyYAML: a folded/plain scalar is its indented continuation lines joined by spaces.
+            m = _re.search(r"^description:[ \t]*(?:>-?|\|-?)?[ \t]*(.*(?:\n[ \t]+.*)*)", frontmatter, _re.M)
+            desc_raw = m.group(1).strip().strip("'\"")
+        desc_value = " ".join(desc_raw.split())
+        boundary = _re.search(r"\b(NOT|Not)\b|\bnot for\b", desc_value)
+        assert boundary and boundary.start() < 240, f"boundary clause starts at {boundary and boundary.start()}"
 
         # 4. Idempotent check: set an old date in .source/.local-fork and verify --check stays IN_SYNC when content matches
         src_file = root / "skills" / "local" / "black-magic" / ".source"
@@ -226,6 +238,170 @@ def main() -> int:
                 raise AssertionError("expected SyncError on IncompleteRead")
             except mod.SyncError as exc:
                 assert "IncompleteRead" in str(exc)
+
+        # 11. Real upstream layouts. Fixtures copy the shape of tagged releases of morluto/rea, so a
+        # layout move cannot pass here while failing against upstream (it did: the file moved from
+        # src/ to src/contracts/ in 6.10.0 and the old fixture could not notice).
+        array_layout = (  # rea-agents 6.8.0 / 6.9.0: names listed in arrays or one frozen object
+            'export const CLI_COMMANDS = Object.freeze({\n'
+            '  analyze: "analyze",\n  inspect: "inspect",\n  doctor: "doctor",\n'
+            '});\n'
+        )
+        contract_layout = (  # rea-agents >= 6.10.0: partial list, the rest come from contracts
+            'export const cliCommandFor = <Name extends string>(name: Name) => name.replaceAll("_", "-");\n'
+            'export const CLI_COMMANDS = Object.freeze({\n'
+            '  analyze: "analyze",\n  inspect: "inspect",\n'
+            '});\n'
+        )
+        assert mod.parse_cli_counts(array_layout) == (3, 0), mod.parse_cli_counts(array_layout)
+        assert mod.parse_cli_counts(contract_layout) == (None, None), (
+            "a contract-derived file lists only part of the commands; reporting its entries as the total is wrong"
+        )
+
+        def count_via(rel_path: str, text: str, label: str) -> dict:
+            work = tmp / f"layout-{label}"
+            names_file = work / rel_path
+            names_file.parent.mkdir(parents=True, exist_ok=True)
+            names_file.write_text(text, encoding="utf-8")
+            skill_ref = work / ".agents" / "skills" / "reverse-engineer-anything"
+            (skill_ref / "references").mkdir(parents=True)
+            (work / "package.json").write_text('{"name":"rea-agents","version":"6.10.1"}', encoding="utf-8")
+            (skill_ref / "SKILL.md").write_text(
+                '---\nname: reverse-engineer-anything\nmetadata:\n  version: "63"\n---\n\n# REA\n', encoding="utf-8"
+            )
+            chk = run_sync("--root", str(root), "--upstream-dir", str(work), "--check", "--json")
+            assert chk.returncode in (0, 1), f"{rel_path}: {chk.returncode} {chk.stderr}"
+            return json.loads(chk.stdout)
+
+        old_rep = count_via("src/cliCommandNames.ts", array_layout, "old")
+        assert old_rep["primaryCliCommandCount"] == 3, old_rep
+        new_rep = count_via("src/contracts/cliCommandNames.ts", contract_layout, "new")
+        assert new_rep["primaryCliCommandCount"] is None, new_rep
+        assert new_rep["mcpOnlyToolCount"] is None, new_rep
+        # The file is found at the new path (not merely absent): the stderr warning must not appear.
+        found = run_sync(
+            "--root", str(root), "--upstream-dir", str(tmp / "layout-new"), "--check", "--json"
+        )
+        assert "not found" not in found.stderr, (
+            "the contract-layout file exists at src/contracts/cliCommandNames.ts but the tool did not look there: "
+            + found.stderr
+        )
+
+        # A missing names file is a warning plus `unknown`, never a silent 0.
+        missing = tmp / "layout-missing"
+        skill_ref = missing / ".agents" / "skills" / "reverse-engineer-anything"
+        (skill_ref / "references").mkdir(parents=True)
+        (missing / "package.json").write_text('{"name":"rea-agents","version":"9.9.9"}', encoding="utf-8")
+        (skill_ref / "SKILL.md").write_text(
+            '---\nname: reverse-engineer-anything\nmetadata:\n  version: "70"\n---\n\n# REA\n', encoding="utf-8"
+        )
+        miss = run_sync("--root", str(root), "--upstream-dir", str(missing), "--check", "--json")
+        assert json.loads(miss.stdout)["primaryCliCommandCount"] is None, miss.stdout
+        assert "cliCommandNames.ts not found" in miss.stderr, miss.stderr
+
+        # The ledger records the unknown, and a second sync is idempotent (no perpetual drift).
+        unk = run_sync("--root", str(root), "--upstream-dir", str(missing), "--json")
+        assert unk.returncode == 0, unk.stderr
+        source_text = (root / "skills" / "local" / "black-magic" / ".source").read_text(encoding="utf-8")
+        assert "primary_cli_commands: unknown" in source_text, source_text
+        again = run_sync("--root", str(root), "--upstream-dir", str(missing), "--check", "--json")
+        assert again.returncode == 0 and json.loads(again.stdout)["status"] == "IN_SYNC", again.stdout
+
+        # A 404 on the newest path falls back to the older one; any other HTTP error does not.
+        import urllib.error
+
+        calls: list[str] = []
+
+        def fake_fetch(url: str) -> str:
+            calls.append(url)
+            if url.endswith("src/contracts/cliCommandNames.ts"):
+                raise mod.NotFoundError("404")
+            if url.endswith("src/cliCommandNames.ts"):
+                return array_layout
+            raise AssertionError(url)
+
+        with unittest.mock.patch.object(mod, "fetch_text", side_effect=fake_fetch):
+            got = None
+            for rel in mod.CLI_NAMES_PATHS:
+                try:
+                    got = mod.parse_cli_counts(mod.fetch_text(f"https://x/{rel}"))
+                    break
+                except mod.NotFoundError:
+                    continue
+            assert got == (3, 0) and len(calls) == 2, (got, calls)
+        with unittest.mock.patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.HTTPError("https://x", 503, "unavailable", {}, None),
+        ):
+            try:
+                mod.fetch_text("https://x")
+                raise AssertionError("expected an error on HTTP 503")
+            except mod.NotFoundError:
+                raise AssertionError("HTTP 503 must not be treated as 'file not found'")
+            except mod.SyncError:
+                pass
+        with unittest.mock.patch(
+            "urllib.request.urlopen",
+            side_effect=urllib.error.HTTPError("https://x", 404, "not found", {}, None),
+        ):
+            try:
+                mod.fetch_text("https://x")
+                raise AssertionError("expected NotFoundError on HTTP 404")
+            except mod.NotFoundError:
+                pass
+
+        # 12. A sync is non-destructive for what the repo wrote by hand (found on 2026-11-23: a real
+        # run would have rewritten the description and erased 4,681 characters of recheck notes).
+        keep_root = tmp / "keep-root"
+        keep_dir = keep_root / "skills" / "local" / "black-magic"
+        (keep_dir / "references").mkdir(parents=True)
+        (keep_dir / "references" / "dotfiles-integration.md").write_text("# Local\nKeep.\n", encoding="utf-8")
+        keep_up = tmp / "keep-upstream"
+        keep_skill = keep_up / ".agents" / "skills" / "reverse-engineer-anything"
+        (keep_skill / "references").mkdir(parents=True)
+        (keep_up / "package.json").write_text('{"name":"rea-agents","version":"7.0.0"}', encoding="utf-8")
+        (keep_up / "src" / "contracts").mkdir(parents=True)
+        (keep_up / "src" / "contracts" / "cliCommandNames.ts").write_text(contract_layout, encoding="utf-8")
+        (keep_skill / "SKILL.md").write_text(
+            '---\nname: reverse-engineer-anything\nmetadata:\n  version: "80"\n---\n\n# REA\n\nBody.\n', encoding="utf-8"
+        )
+        first = run_sync("--root", str(keep_root), "--upstream-dir", str(keep_up), "--json")
+        assert first.returncode == 0, first.stderr
+        fork_path = keep_dir / ".local-fork"
+        # Hand-written notes live in .local-fork next to the tool's own keys.
+        notes = (
+            "recheck: 2026-11-22 — local note that a sync must never erase.\n"
+            "  A continuation line, with an em dash and `code`.\n"
+            "\n"
+            "local-divergence 2026-11-22: a second kind of local key.\n"
+            "description: 2026-10-30 skill-efficiency pass — re-apply after a refresh.\n"
+            "\n"
+            "\n"
+        )
+        fork_path.write_text(fork_path.read_text(encoding="utf-8") + notes, encoding="utf-8")
+        # Upstream moves on; the tool refreshes its own keys and nothing else.
+        (keep_up / "package.json").write_text('{"name":"rea-agents","version":"7.1.0"}', encoding="utf-8")
+        (keep_skill / "SKILL.md").write_text(
+            '---\nname: reverse-engineer-anything\nmetadata:\n  version: "81"\n---\n\n# REA\n\nBody 2.\n', encoding="utf-8"
+        )
+        second = run_sync("--root", str(keep_root), "--upstream-dir", str(keep_up), "--json")
+        assert second.returncode == 0 and json.loads(second.stdout)["status"] == "UPDATED", second.stdout
+        after = fork_path.read_text(encoding="utf-8")
+        assert "rea_version: 7.1.0" in after and "skill_version: 81" in after, after
+        assert after.endswith(notes), "the hand-written notes were not preserved byte for byte:\n" + after
+        assert after.endswith("\n\n\n"), "trailing blank lines of the last note were trimmed: " + repr(after[-40:])
+        assert "continuation line, with an em dash" in after, "an indented continuation line was dropped"
+        assert after.count("recheck:") == 1, "a note must not be duplicated across syncs"
+        third = run_sync("--root", str(keep_root), "--upstream-dir", str(keep_up), "--check", "--json")
+        assert third.returncode == 0, "preserving notes made --check report perpetual drift: " + third.stdout
+        # The frontmatter description is the repo's own constant, folded, and stable across syncs.
+        skill_text = (keep_dir / "SKILL.md").read_text(encoding="utf-8")
+        assert "description: >-\n  " + mod.BLACK_MAGIC_DESCRIPTION + "\n" in skill_text, skill_text[:400]
+        assert "'" not in mod.BLACK_MAGIC_DESCRIPTION, "a single quote would break the folded scalar style"
+        not_for = mod.BLACK_MAGIC_DESCRIPTION.find("Not owned")
+        assert 0 < not_for < 240, not_for
+        # The pin rule that tells the agent not to run an unpinned `npx -y ...@latest`.
+        assert "rea-agents@latest" in skill_text and "run the version pinned" in skill_text, skill_text[-500:]
 
     print("rea-skill-sync-test: PASS")
     return 0

@@ -235,6 +235,61 @@ class RecallTests(unittest.TestCase):
         self.assertNotEqual(self.recall('state', success=False).returncode, 0)
         self.assertEqual(self.index.read_bytes(), before)
 
+    def test_memory_recall_searches_shared_and_project_memory_without_repo(self):
+        mem = self.base / 'ai-mem'
+        (mem / 'memory').mkdir(parents=True)
+        (mem / 'project-memory').mkdir(parents=True)
+        (mem / 'memory/shopify.md').write_text(
+            '---\nname: shopify-oxygen\ndescription: "Vite url preload invariant"\n---\n# Shopify\nUse ?url imports for WOFF2 fonts.\n'
+        )
+        (mem / 'project-memory/alpha.md').write_text('# Alpha\nRuns on Vultr Coolify.\n')
+        result = self.run_command([COMMAND, 'preload', '--memory-root', mem, '--index', self.index, '--json'])
+        payload = json.loads(result.stdout)
+        self.assertEqual(len(payload['results']), 1)
+        self.assertEqual(payload['results'][0]['kind'], 'shared-memory')
+        self.assertEqual(payload['results'][0]['source'], 'memory/shopify.md')
+        self.assertIn('Vite url preload invariant', payload['results'][0]['title'])
+
+        # Refresh reflects edits and deletions
+        (mem / 'project-memory/alpha.md').unlink()
+        result2 = self.run_command([COMMAND, 'Coolify', '--memory-root', mem, '--index', self.index, '--json'])
+        self.assertFalse(json.loads(result2.stdout)['results'])
+
+    def test_memory_recall_excludes_symlinks_and_sensitive_files(self):
+        mem = self.base / 'ai-mem-sec'
+        (mem / 'memory').mkdir(parents=True)
+        outside = self.base / 'outside.md'
+        outside.write_text('# Outside\nOUTSIDE_SYMLINK_MARKER\n')
+        (mem / 'memory/link.md').symlink_to(outside)
+        (mem / 'memory/secret.md').write_text('# Secret\naccess_token=synthetic-mem-secret\n')
+        (mem / 'memory/private.md').write_text('# Internal-only\nPRIVATE_MEM_MARKER\n')
+        (mem / 'memory/safe.md').write_text('# Safe\nSafe invariant needle.\n')
+        result = self.run_command([COMMAND, 'needle', '--memory-root', mem, '--index', self.index, '--json'])
+        payload = json.loads(result.stdout)
+        self.assertEqual([r['source'] for r in payload['results']], ['memory/safe.md'])
+        self.assertGreaterEqual(len(payload['warnings']), 3)
+        raw = self.index.read_bytes()
+        for marker in (b'OUTSIDE_SYMLINK_MARKER', b'synthetic-mem-secret', b'PRIVATE_MEM_MARKER'):
+            self.assertNotIn(marker, raw)
+
+    def test_any_flag_matches_partial_terms_and_combines_with_repo(self):
+        mem = self.base / 'ai-mem-any'
+        (mem / 'memory').mkdir(parents=True)
+        (mem / 'memory/one.md').write_text('# One\nContains alpha and beta.\n')
+        (mem / 'memory/two.md').write_text('# Two\nContains only alpha.\n')
+        (self.repo / 'ARCHITECTURE.md').write_text('# RepoArch\nContains gamma.\n')
+        # Strict AND finds nothing when a third word is absent
+        res_and = self.run_command([COMMAND, 'alpha beta nonexistentword', '--memory-root', mem, '--index', self.index, '--json'])
+        self.assertFalse(json.loads(res_and.stdout)['results'])
+        # --any finds both and ranks the multi-term match first
+        res_any = self.run_command([COMMAND, 'alpha beta nonexistentword', '--any', '--memory-root', mem, '--index', self.index, '--json'])
+        results = json.loads(res_any.stdout)['results']
+        self.assertEqual([r['source'] for r in results], ['memory/one.md', 'memory/two.md'])
+        # Combined --repo + --memory searches both scopes
+        res_both = self.run_command([COMMAND, 'alpha gamma', '--any', '--repo', self.repo, '--memory-root', mem, '--index', self.index, '--json'])
+        kinds = {r['kind'] for r in json.loads(res_both.stdout)['results']}
+        self.assertEqual(kinds, {'repository-reference', 'shared-memory'})
+
 
 if __name__ == '__main__':
     unittest.main(argv=[sys.argv[0]], verbosity=2)

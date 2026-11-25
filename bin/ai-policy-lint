@@ -31,7 +31,7 @@ TEMPLATES_DIR = ROOT / "config" / "templates"
 # rendered context is CORE plus one runtime adapter.
 CORE_BYTE_BUDGET = 8 * 1024
 CONTEXT_BYTE_BUDGET = 10 * 1024
-RUNTIMES = ("claude", "codex", "antigravity", "pi", "omp")
+RUNTIMES = ("claude", "codex", "antigravity", "pi", "omp", "devin")
 
 errors = []
 warnings = []

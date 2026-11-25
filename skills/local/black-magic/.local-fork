@@ -1,14 +1,38 @@
-upstream: https://raw.githubusercontent.com/morluto/rea/c0c3902207d6b1a33709e42b80c7e570da7db964/.agents/skills/reverse-engineer-anything/SKILL.md
-verified: 2026-10-30
+upstream: https://raw.githubusercontent.com/morluto/rea/8bb01b514ac766c0c3ecc8f362bd38186eaec9c2/.agents/skills/reverse-engineer-anything/SKILL.md
+verified: 2026-11-23
 scope: directory
 sync_tool: bin/rea-skill-sync
-rea_version: 6.8.0
-skill_version: 55
-upstream_commit: c0c3902207d6b1a33709e42b80c7e570da7db964
+rea_version: 6.10.1
+skill_version: 63
+upstream_commit: 8bb01b514ac766c0c3ecc8f362bd38186eaec9c2
 reason: Preserves 100% of upstream reverse-engineer-anything SKILL.md body and all
   upstream references/*.md verbatim via bin/rea-skill-sync, while renaming the skill
   to black-magic, front-loading the <240-char Not-for sibling boundary for Codex
   truncation safety, and adding references/dotfiles-integration.md for CLI-first
   execution and dotfiles sibling skill handoffs.
 refresh_guard: _refresh-vendored.sh skips this directory when .local-fork is present.
+recheck: 2026-11-23 — SYNCED to rea-agents 6.10.1 (tag rea-agents-6.10.1, commit 8bb01b5, skill v63; the tool-owned keys above record it). Earlier recheck notes for 2026-11-22 are kept in git history;
+  this block is the standing record. Order of events: the owner asked for the sync; the tool was first made safe, because an unpatched run on a COPY of this directory would have rewritten the
+  description (245 -> 356 chars, which also moves the generated skills/local/README.md row) and erased every local note in this file (4,681 characters). `bin/rea-skill-sync` now keeps
+  any `.local-fork` block whose key it does not own (this `recheck:` and `description:` included), takes its frontmatter description from a constant that equals the one in SKILL.md, folds
+  it the way the other 66 folded-description skills are written, and appends a pin rule to the generated section. A test and eight mutations of the tool guard each of those.
+  WHAT WAS SYNCED: from the release TAG, not main. The npm tarball and the tag carry the same skill except three lines (tool_count: 263 in the frontmatter; two `npx -y rea-agents@latest` examples pinned to
+  @6.10.1). Main was 785 commits ahead and its skill already describes behavior the release lacks (Hex-Rays .idb/.i64 input, the JADX 0.8.0 pin), so a main sync would have documented tools the pinned
+  CLI cannot run. Result: SKILL.md v55 -> v63 (+222/-51 lines), references/desktop-build.md added (860 lines), 7 other references updated, 23 upstream links that were dead are replaced by 68 links that all
+  resolve on main (checked against the repository tree, 9,265 files). Hidden-instruction scan and relative-link check (30 links) clean; skill-check clean.
+  MEASURED AGAINST THE RELEASE (unpacked tarball, offline, synthetic HAR in a /tmp scratch dir): all 34 commands in references/dotfiles-integration.md exist and all 57 flags used are in their --help; the five commands
+  the old doc called absent from 6.8.0 all exist; `--format har` still fails with INVALID_OUTPUT_VALUE; the HAR -> api-surface and environment-build recipes run; `doctor` reports node/host healthy, five
+  analysis engines missing and every client registration as config_drift (nothing is registered, which is the intended CLI-first state); `mcp --http` binds 127.0.0.1 and refuses a non-loopback bind without an
+  allowlist. The release advertises 263 MCP tools and 204 CLI commands in `--help`; `.source` records `unknown` because that total cannot be derived by reading source.
+  NOT DONE, deliberately: no `rea setup`, no MCP registration, no global install, no analysis-engine install, no run against a real target, no Docker run of the generated environment. The new
+  `desktop-build` lane is MCP-only and needs Docker, agentenv and a packed runtime, so it is out of reach in the CLI-first setup and its rules (never accept a licence, never paste a secret, never fetch a vendor
+  download page) are recorded in references/dotfiles-integration.md. The synced SKILL.md still tells the agent `npx -y rea-agents@latest` in upstream's own wording; the pin rule appended by the tool says to use
+  the version pinned in the integration file instead. Upstream links that 404 on main and that the OLD text carried are gone with v63, so the earlier list of 23 dead pages no longer applies.
+  To move to a newer release: clone morluto/rea at the new tag, run `bin/rea-skill-sync --upstream-dir <clone> --check`, then without --check, review `git diff` of this directory, re-run the measurements above
+  against the new package, and hand-update the pinned version, the recipes and the development-kit ecosystem-adoption row.
+  SECOND TOOL DEFECT, FOUND AND FIXED 2026-11-23 (bin/skill-upstream): this fork's URLs pinned commit c0c3902 (a 40-hex SHA) and the drift report asked GitHub for commits after the verified date AND `sha=<that pin>`; history after a
+  pin is not reachable from it, so the report could only say 0. It printed CURRENT for this skill while morluto/rea had 75 commits touching the skill path since 2026-10-30. The tool now asks the default branch for any 40-hex ref and
+  reports CHANGED. The ledger now pins the 6.10.1 commit again, so after future upstream commits the report will say CHANGED (main moves on every day) and that is expected, not a defect: this fork follows tags, not main.
+  TOOLING FIXED 2026-11-23 (bin/rea-skill-sync): `src/cliCommandNames.ts` moved to `src/contracts/cliCommandNames.ts` between tags rea-agents-6.9.0 and rea-agents-6.10.0, which gave `--remote` an HTTP 404 and made
+  `--upstream-dir` silently record 0; both paths are now tried and 6.10+ is recorded as `unknown`. An earlier version of this note wrongly said the object form of CLI_COMMANDS was unparsed and that a fix would reproduce 180; both were wrong.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

@@ -35,6 +35,18 @@ would be destructive on a different box.
   ([[playwright-browser-setup]]). `gnome-keyring` stays: `login.keyring` holds
   credentials.
 - BIOS AC power recovery is on; Tailscale key expiry is disabled for `rich`.
+- **Docker `live-restore` is on** (2026-11-23, `/etc/docker/daemon.json`,
+  applied with `systemctl reload docker`: no container PID changed). A dockerd
+  restart, crash or **patch** upgrade (`YY.MM.x`) keeps containers running; a
+  minor upgrade is outside Docker's support, so back up first (29.9.3 →
+  29.10.0 on 2026-11-23 still kept every container PID, one observation). While dockerd is down there are no
+  health checks, logs or restart policies. Inferred from moby source, not
+  tested: loopback ports go through `docker-proxy`, which dies with dockerd,
+  so `127.0.0.1:<port>` is unreachable until dockerd returns. The last three
+  boots ended without a clean shutdown (Postgres logged automatic recovery);
+  `postgres:16` given SIGTERM across its scope (systemd's shutdown kill) shut
+  down cleanly in 1.2 s. Rollback: restore the `pre-live-restore` backup in
+  `~/.config/ai-local/backups/` and reload.
 
 ## Remote access
 

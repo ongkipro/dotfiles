@@ -1,9 +1,22 @@
 # Content Security Policy (CSP) & Customer Consent in Hydrogen
 
+> **ARCHIVED 2026-11-23: see [README.md](README.md). Superseded by `../delivery-contract.md`; do not copy code from this file.**
+
 > **Historical blueprint, not a canonical runtime contract.** CSP and Hydrogen
 > entry-point syntax depend on the installed project. Verify the effective
 > response header, exact domains, and current Shopify consent documentation;
-> follow [Tracking delivery contract](delivery-contract.md).
+> follow [Tracking delivery contract](../delivery-contract.md).
+>
+> **Superseded in `@shopify/hydrogen@2026.10+`** (checked 2026-11-22, type-checked
+> against 2026.10.3). `createContentSecurityPolicy({shop, directives, nonce?})` now
+> takes the directives under `directives` (top-level directive props are a compile
+> error), returns `{nonce, header, applyResponseHeaders()}` with no `NonceProvider`,
+> and `nonce: false` gives a cacheable policy. `getShopifyCspDirectives(shop)` feeds
+> a framework's own CSP config. Consent is `ShopifyScripts consent={{mode}}`, not
+> `withPrivacyBanner`, and `setTrackingConsent` takes the four-purpose object, not
+> a boolean. The code below applies only to Classic Hydrogen (`<= 2026.4.x`); for
+> the current API read the bundled `hydrogen-request-handlers` skill's
+> `references/content-security-policy.md` inside the installed package.
 
 ---
 

@@ -1,6 +1,6 @@
 # Vercel CLI runbook
 
-Flags checked against Vercel CLI 62.7.0 (`vercel <cmd> --help`, 2026-10-07). When a flag is missing or behaves differently, trust the local `--help` and https://vercel.com/docs/cli. Open only the section the current step needs.
+Flags checked against Vercel CLI 62.7.0 on 2026-10-07 and re-read against 66.6.0 `--help` on 2026-11-22 (37 command forms; the corrections are in this file). When a flag is missing or behaves differently, trust the local `--help` and https://vercel.com/docs/cli. Open only the section the current step needs.
 
 ## Step 1: Inspect Project State First
 
@@ -51,7 +51,9 @@ Run non-blocking deployments so the terminal returns immediately with the URL:
 ```bash
 vercel deploy -y --no-wait --scope <team-slug>
 ```
-Follow up by inspecting status (`--wait` blocks until the deployment finishes, default timeout 3m; the CLI 62.7.0 help says it exits 124 when `--timeout` is reached first, so treat 124 as "still building", not a failed build):
+`--scope` is a global option (`-S, --scope <TEAM>`, listed under `vercel --help`), so it is valid on `deploy`, `ls`, `env` and `domains` even though those commands' own `--help` do not repeat it. In 66.6.0 `--format json` still returns valid JSON on `ls`, `project inspect`, `whoami` and `teams list`, but their `--help` now lists only `--json`; prefer `--json` in new scripts.
+
+Follow up by inspecting status (`--wait` blocks until the deployment finishes, default timeout 3m). **Exit code at the timeout changed**: the 62.7.0 help said `124`; the 66.6.0 help says `1` ("exits 1 if --timeout is reached first"), which is also the code for a failed deployment. So do not read the exit code alone: on a nonzero exit run `vercel inspect <url> --json` and read `readyState` (`BUILDING` or `QUEUED` means still building, `ERROR` or `CANCELED` means it did not ship, `READY` means done). Measured 66.6.0 on 2026-11-22: `vercel inspect <url> --wait` exits `0` for a `READY` deployment and `1` for a `CANCELED` one, and `vercel inspect <url> --json` carries the state in `readyState`. The timeout exit code itself was not triggered (no deployment was in flight), so it rests on the installed `--help`:
 ```bash
 vercel inspect <deployment-url> --wait
 ```

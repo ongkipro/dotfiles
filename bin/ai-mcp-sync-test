@@ -19,7 +19,7 @@ python3 -m json.tool "$DOT/config/ai/mcp-servers.json" >/dev/null \
   || fail "config/ai/mcp-servers.json is not valid JSON"
 
 # 2. Test sandbox initial sync with repo manifest (preserves existing user config)
-mkdir -p "$TMP/.claude" "$TMP/.gemini/config" "$TMP/.codex" "$TMP/.omp/agent" "$TMP/.pi/agent"
+mkdir -p "$TMP/.claude" "$TMP/.gemini/config" "$TMP/.codex" "$TMP/.omp/agent" "$TMP/.pi/agent" "$TMP/.config/devin"
 printf '{"mcpServers":{"existing-tool":{"command":"echo"}}}' > "$TMP/.claude.json"
 printf 'model = "gpt-5"\n' > "$TMP/.codex/config.toml"
 
@@ -65,6 +65,7 @@ check(json.load(open(f"{home}/.claude.json"))["mcpServers"]["astro-docs"], "clau
 check(json.load(open(f"{home}/.gemini/config/mcp_config.json"))["mcpServers"]["astro-docs"], "antigravity")
 check(json.load(open(f"{home}/.omp/agent/mcp.json"))["mcpServers"]["astro-docs"], "omp")
 check(json.load(open(f"{home}/.pi/agent/mcp.json"))["mcpServers"]["astro-docs"], "pi")
+check(json.load(open(f"{home}/.config/devin/mcp_config.json"))["mcpServers"]["astro-docs"], "devin")
 check(tomllib.load(open(f"{home}/.codex/config.toml", "rb"))["mcp_servers"]["astro-docs"], "codex")
 PY
 

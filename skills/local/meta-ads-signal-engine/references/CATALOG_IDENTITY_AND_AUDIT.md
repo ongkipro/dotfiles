@@ -108,7 +108,7 @@ The reliable check is end-to-end: fire a real event, then confirm the value, `co
 - Graph API changelog (version/expiry dates): https://developers.facebook.com/docs/graph-api/changelog
 - Deduplication (event_id+event_name, 48 h, first-received kept; fbp/external_id fallback only browser-first): https://developers.facebook.com/docs/marketing-api/conversions-api/deduplicate-pixel-and-server-events
 - Customer information parameters (ph: digits with country code, no symbols; external_id hashing recommended, not required; fbp/fbc never hashed): https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters
-- Official SDK release tracking the Graph version (`facebook-nodejs-business-sdk` v26.0.2, 2026-09-21): https://github.com/facebook/facebook-nodejs-business-sdk/releases
+- Official SDK release tracking the Graph version (`facebook-nodejs-business-sdk` v26.0.2 on 2026-09-21; npm `latest` is 27.0.0 on 2026-11-19, whose `FacebookAdsApi.VERSION` is `v27.0`): https://github.com/facebook/facebook-nodejs-business-sdk/releases
 - WebKit tracking prevention (cookie caps used in the parity reference): https://webkit.org/tracking-prevention/
 
 No official vendor agent skill for Meta CAPI was found on GitHub on that date; nothing borrowed.

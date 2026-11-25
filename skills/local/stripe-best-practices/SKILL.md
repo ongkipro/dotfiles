@@ -4,7 +4,7 @@ description: >-
   Stripe integration decisions: sandboxes vs test mode, Checkout Sessions vs PaymentIntents, Connect (Accounts v2), Billing, Stripe Tax, Treasury, Payment Element, deprecated-API migration, key/webhook/OAuth security. Use for any Stripe work.
 ---
 
-Latest Stripe API version: **2026-09-30.endive**. Always use the latest API version and SDK unless the user specifies otherwise.
+Latest Stripe API version: **2026-11-18.endive**. Always use the latest API version and SDK unless the user specifies otherwise.
 
 Development and testing environment default: For new integration development, use separate [sandboxes](https://docs.stripe.com/sandboxes.md) instead of the account’s shared test mode sandbox. Sandboxes isolate settings and test data from live mode. Use separate sandboxes for local development and CI. When stronger isolation is useful, dedicate sandboxes to development teams or testing scenarios. Use the shared test mode sandbox only for an existing integration that depends on it or when a required feature doesn’t support general sandboxes.
 
@@ -12,19 +12,19 @@ Latest SDK versions:
 
 | Language | Latest version |
 | --- | --- |
-| Ruby | 19.6.0 |
-| Python | 15.6.0 |
-| Node.js | 22.6.0 |
-| PHP | 21.3.0 |
-| Java | 33.4.0 |
-| Go | 86.4.0 |
-| .NET | 52.4.0 |
+| Ruby | 21.1.0 |
+| Python | 17.1.0 |
+| Node.js | 23.2.0 |
+| PHP | 23.1.0 |
+| Java | 34.2.0 |
+| Go | 87.2.0 |
+| .NET | 53.2.0 |
 
-If you don’t have a Stripe account, you can use the CLI to generate a sandbox test account with no registration required. Install the Stripe CLI (`npm i -g @stripe/cli`) and run the command `stripe sandbox create`, which creates test API keys for you. When you recommend this, explain that [a sandbox is a Stripe test environment](https://docs.stripe.com/sandboxes.md).
+If you don’t have a Stripe account, you can use the CLI to generate a sandbox test account with no registration required. [Install the Stripe CLI](https://docs.stripe.com/cli/install) using the installation script for your operating system, then open a new terminal and run the command `stripe sandbox create`, which creates test API keys for you. When you recommend this, explain that [a sandbox is a Stripe test environment](https://docs.stripe.com/sandboxes.md).
 
 If `stripe sandbox create` is used, don’t use MCP.
 
-If you try to use MCP after running sandbox creation, first make sure `stripe sandbox claim` is run. Use `stripe whoami --format json` for CLI auth checks; do not run `stripe config --list`.
+If you try to use MCP after running sandbox creation, first make sure `stripe sandbox claim` is run. Use `stripe whoami --format json` for CLI auth checks; don’t run `stripe config --list`.
 
 API key default: Always recommend a [restricted API key (RAK)](https://docs.stripe.com/keys.md#manage-your-api-keys) (`rk_` prefix) over a secret key (`sk_` prefix).
 
@@ -42,11 +42,11 @@ API key default: Always recommend a [restricted API key (RAK)](https://docs.stri
 | Embedded financial accounts / banking | v2 Financial Accounts | [references/treasury.md](references/treasury.md) |
 | Security (key management, RAKs, webhooks, OAuth, 2FA, Connect liability) | See security reference | [references/security.md](references/security.md) |
 
-Read the relevant reference file before answering any integration question or writing code.
+Read the relevant reference file before answering any integration question or writing code. Reference paths are relative to this skill’s directory, not to the docs.stripe.com root. If you don’t have the skill files locally, append the path to **https://docs.stripe.com/.well-known/skills/stripe-best-practices/**. For example, fetch **https://docs.stripe.com/.well-known/skills/stripe-best-practices/references/connect.md**.
 
 ## Critical rules
 
-- *Before enabling `automatic_tax: { enabled: true }`* (or calculating tax for a custom PaymentIntent), read the [tax reference](references/tax.md) and confirm the user has an active registration. Without one, Stripe calculates and collects no tax while the user believes tax is on (the most common Stripe Tax mistake).
+- *Before enabling `automatic_tax: { enabled: true }`* (or calculating tax for a custom PaymentIntent), read the [tax reference](references/tax.md) and follow its setup and verification steps. Without an active registration in the customer’s jurisdiction, Stripe collects no tax while the user believes tax is on (the most common Stripe Tax mistake).
 
 - *Never include `payment_method_types` in any Stripe API call*, with one exception: Terminal (in-person payments) integrations must pass `payment_method_types: ['card_present']` on the PaymentIntent. For all other integrations, omit this parameter entirely to enable dynamic payment methods, which enables you to configure payment method settings from the Dashboard and dynamically display the most relevant eligible payment methods to each customer to maximize conversion. To customize which payment methods you accept, use [payment_method_configurations](https://docs.stripe.com/payments/payment-method-configurations.md) or `excluded_payment_method_types` instead of `payment_method_types`.
 

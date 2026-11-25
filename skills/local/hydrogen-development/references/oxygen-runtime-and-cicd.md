@@ -101,7 +101,7 @@ When asked to pull, sync, audit, or set up local development for an existing Hyd
   - In `app/entry.server.tsx`: call `createContentSecurityPolicy({ shop: { checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN, storeDomain: context.env.PUBLIC_STORE_DOMAIN } })` and pass `<NonceProvider>` + `Content-Security-Policy` header.
   - In `app/root.tsx`: read `const nonce = useNonce()`, return `shop: getShopAnalytics({ storefront: context.storefront, publicStorefrontId: context.env.PUBLIC_STOREFRONT_ID })` and `consent` from `loader`, and wrap `<Outlet />` in `<Analytics.Provider cart={data.cart} shop={data.shop} consent={data.consent}>`.
 - **Hydrogen `2026.10+`**:
-  - Render `<ShopifyScripts analytics={{ shop, i18n }} consent={consentConfig} nonce={nonce} />` + `useCartAnalytics()`.
+  - Render `<ShopifyScripts shop={shop} i18n={i18n} consent={consentConfig} nonce={nonce} />` + `useCartAnalytics()`, with `nonce` from `createContentSecurityPolicy({shop, directives})` (call `csp.applyResponseHeaders(response.headers)`; the policy has no `NonceProvider`).
 
 ---
 

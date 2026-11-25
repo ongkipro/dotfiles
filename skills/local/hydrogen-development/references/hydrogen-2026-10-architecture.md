@@ -1,8 +1,21 @@
 # Hydrogen 2026-10 Architecture & Packaged Skills Reference
 
-Last verified against `@shopify/hydrogen@2026.10.1` (`latest` on npm), `https://shopify.dev/docs/storefronts/hydrogen`, and `https://shopify.dev/docs/storefronts/hydrogen/migrate` on `2026-10-14`.
+Last verified 2026-11-22 against `@shopify/hydrogen@2026.10.3` (`latest` on npm; its published `.d.mts` types, bundled skills and `CHANGELOG.md`), `https://shopify.dev/docs/storefronts/hydrogen`, and `https://shopify.dev/docs/storefronts/hydrogen/migrate`. Sections written against `2026.10.1` were rechecked; the changes that matter between `2026.10.1` and `2026.10.3` are listed in section 0.
 
-Starting with `2026.10.0` (promoted to npm `latest` in October 2026; `2026.4.x` is now labeled **Legacy Hydrogen** on `shopify.dev`), `@shopify/hydrogen` is a **framework-agnostic storefront toolkit and server-handler library** rather than a framework wrapper that owns your server entry and build. Your framework (React Router 7 with `future.v8_middleware: true`, Next.js App Router, Astro, Nuxt, SvelteKit, or SolidStart) owns routing, rendering, and builds; Hydrogen provides per-request context, Storefront/Customer Account GraphQL clients, pre-router and post-404 request handlers, observable client stores, and Shopify Standard Actions.
+Starting with `2026.10.0` (promoted to npm `latest` in October 2026; `2026.4.x` is now labeled **Legacy Hydrogen** on `shopify.dev`), `@shopify/hydrogen` is a **framework-agnostic storefront toolkit and server-handler library** rather than a framework wrapper that owns your server entry and build. Your framework (React Router 7 with `future.v8_middleware: true` on RR 7.x only, Next.js App Router, Astro, Nuxt, SvelteKit, or SolidStart) owns routing, rendering, and builds; Hydrogen provides per-request context, Storefront/Customer Account GraphQL clients, pre-router and post-404 request handlers, observable client stores, and Shopify Standard Actions.
+
+---
+
+## 0. What changed between `2026.10.1` and `2026.10.3` (verified in the package CHANGELOG, 2026-11-22)
+
+- **Renames, old names still work**: `createShopifyRouteTemplates` is now `defineShopifyRouteTemplates` (deprecated alias, removed next major). `defineShopifyI18n` is new: a module-scope, serializable locale definition (`defaultLocale`, `routing: {type: 'pathname' | 'domain', locales}`) that `createShopifyRequestContext({request, i18n})` matches against the URL. The resolved locale is `requestContext.locale` and `storefrontClient.locale` (`{language, country, pathPrefix}`). `requestContext.i18n`, `storefrontClient.i18n` and the `I18nConfig` type are deprecated; passing a fixed `{language, country, pathPrefix}` as `i18n` still works but skips URL matching.
+- **CSP is framework-independent**: `createContentSecurityPolicy({shop, directives, nonce?})` and `getShopifyCspDirectives(shop, {hashes?})` take directives under `directives`, return `{nonce, header, applyResponseHeaders()}`, and `nonce: false` gives a cacheable policy. Read the packaged `hydrogen-request-handlers` skill's `references/content-security-policy.md` before writing one; the classic `NonceProvider` shape no longer applies. `getShopifyScriptHashes()` authorizes Shopify's inline bootstraps without a per-request nonce.
+- **Personalized responses are public API**: `requestContext.markResponseAsPersonalized(reason)` marks a response that holds customer data Hydrogen cannot see (for example a page that server-renders the buyer's cart); `applyResponseHeaders()` then makes it private and drops `Surrogate-Control` and vendor `*-Cache-Control` headers, `Oxygen-Cache-Control` included. The Storefront client no longer caches a response whose `Cache-Control` contains `private` or `no-store`, and no longer follows redirects (a `3xx` throws `StorefrontApiError`).
+- **Proxy hardening**: the `/__shopify`, `.well-known` and UCP MCP proxies no longer forward client IP and forwarding headers (`X-Forwarded-For`, `X-Real-IP`, `Forwarded`, and others), and a bare `/__shopify` now returns `404`. `/checkout` and `/cart/<permalink>` redirects send `Cache-Control: private, no-store`.
+- **Market injection is typed**: since `2026.10.2` the Storefront client injects the request's market only into variables declared exactly as `$country: CountryCode` and `$language: LanguageCode`; since `2026.10.3` the Customer Account client does the same for `$language`. A variable of another type (`$country: String`) is left to the caller and is omitted from the request when you pass nothing, so its GraphQL default or `null` applies.
+- **Analytics destinations**: removing and re-adding a destination under the same name no longer replays retained events (see `hydrogen-headless-tracking`).
+- **React Router**: `@react-router/dev@8` rejects `future.v8_middleware` because middleware is always on (checked on 8.5.2: the `Config` type has no such key, and the package's own validation names the flag as removed); stay on 7.x with the flag, or drop the flag on 8.
+- **Packaged skills**: 21 now, up from 20 (`hydrogen-robots-txt` added; the `hydrogen-oxygen`, `hydrogen-request-handlers` and `migrate-to-hydrogen-2026-10` skills no longer hardcode `v8_middleware`).
 
 ---
 
@@ -10,7 +23,7 @@ Starting with `2026.10.0` (promoted to npm `latest` in October 2026; `2026.4.x` 
 
 | Entry Point | Exports & Responsibility |
 | --- | --- |
-| `@shopify/hydrogen` | Framework-agnostic core: `createShopifyRequestContext`, `createStorefrontClient`, `gql`, `Cache`, `handleShopifyRoutes`, `handleShopifyRedirects`, `createShopifyRouteTemplates`, `createShopifyRouteHandler`, `createCartServerHandlers`, `createCartStore`, `createCartFormRegister`, `createProductFormStore`, `createProductFormRegister`, `canAddToCart`, `buildProductSelectionSearchParams`, `createCollectionStore`, `parseCollectionParams`, `serializeCollectionParams`, `getFilterRemovalUrl`, `getSortByValue`, `createPredictiveSearchServerHandlers`, `createPredictiveSearchStore`, `formatMoney`, `flattenConnection`, `getSelectedProductOptions`, `getSelectedVariant`, `createShopPayButton`, `renderShopPayButton`, `defineShopPayButton`, `initializeShopifyScripts`, `getShopifyScriptTags`, `renderShopifyScriptTags`, `trackCartAnalytics`, `configureLogging`. |
+| `@shopify/hydrogen` | Framework-agnostic core: `createShopifyRequestContext`, `createStorefrontClient`, `gql`, `Cache`, `handleShopifyRoutes`, `handleShopifyRedirects`, `defineShopifyRouteTemplates` (`createShopifyRouteTemplates` is a deprecated alias), `defineShopifyI18n`, `createShopifyRouteHandler`, `createContentSecurityPolicy`, `createCartServerHandlers`, `createCartStore`, `createCartFormRegister`, `createProductFormStore`, `createProductFormRegister`, `canAddToCart`, `buildProductSelectionSearchParams`, `createCollectionStore`, `parseCollectionParams`, `serializeCollectionParams`, `getFilterRemovalUrl`, `getSortByValue`, `createPredictiveSearchServerHandlers`, `createPredictiveSearchStore`, `formatMoney`, `flattenConnection`, `getSelectedProductOptions`, `getSelectedVariant`, `createShopPayButton`, `renderShopPayButton`, `defineShopPayButton`, `initializeShopifyScripts`, `getShopifyScriptTags`, `renderShopifyScriptTags`, `trackCartAnalytics`, `configureLogging`. |
 | `@shopify/hydrogen/react` | React bindings (client components; add `'use client'` in Next.js): `createCartComponents`, `createProductComponents`, `useProductForm`, `CollectionProvider`, `useCollection`, `useCollectionActions`, `useCollectionForm`, `PredictiveSearchProvider`, `usePredictiveSearch`, `usePredictiveSearchActions`, `usePredictiveSearchForm`, `ShopifyScripts`, `ShopPayButton`, `useCartAnalytics`. |
 | `@shopify/hydrogen/vue` | Vue 3.5+ bindings with identical component/composable surface (`useCart` returns a read-only ref). |
 | `@shopify/hydrogen/customer-account` | `createCustomerAccountClient`, `createCustomerAccountServerHandlers`, `createCustomerSession`, Customer Account `gql`, `CUSTOMER_ACCOUNT_LOGIN_PATH` (`/account/login`), `CUSTOMER_ACCOUNT_AUTHORIZE_PATH` (`/account/authorize`), `CUSTOMER_ACCOUNT_REFRESH_PATH` (`/account/refresh`), `CUSTOMER_ACCOUNT_LOGOUT_PATH` (`/account/logout`), and error classes (`CustomerAccountApiError`, `CustomerAccountAuthenticationError`, `CustomerAccountOAuthError`, `CustomerAccountTimeoutError`). |
@@ -24,7 +37,7 @@ Hydrogen `2026-10+` splits CLI responsibilities between the `@shopify/hydrogen` 
 
 1. **`@shopify/hydrogen` Package CLI (`npx @shopify/hydrogen <cmd>` / `npx hydrogen <cmd>`)**:
    - `setup`: Installs `@shopify/hydrogen` (detecting the lockfile's package manager) and syncs version-matched agent instructions into `.claude` and `.agents` without modifying application code.
-   - `skills sync` / `skills check --mode=warn|error`: Syncs or validates the 20 packaged skills in `@shopify/hydrogen/skills/*`.
+   - `skills sync` / `skills check --mode=warn|error`: Syncs or validates the 21 packaged skills in `@shopify/hydrogen/skills/*`.
    - `gql check [--fail-on-warn]`: Validates all Storefront and Customer Account `gql()` queries against bundled schemas (`tsc` alone does **not** catch invalid GraphQL fields inside `gql()`).
    - `certs install` / `certs uninstall`: Installs or removes the local mkcert CA and TLS certificates for `https://local.tryhydrogen.dev`.
 2. **Shopify CLI Hydrogen Commands (`npx shopify hydrogen <cmd>` — `https://shopify.dev/docs/api/shopify-cli/hydrogen`)**:
@@ -49,7 +62,7 @@ Hydrogen `2026-10+` splits CLI responsibilities between the `@shopify/hydrogen` 
 
 | `type` | Token & `buyerIp` | Use Case |
 | --- | --- | --- |
-| `'private'` | Requires `privateStorefrontToken` (`shpat_...`) and a real `buyerIp` on `requestContext` | **Production default** for SSR loaders/actions. Sends `Shopify-Storefront-Buyer-IP` and forwards `_shopify_y` / `_shopify_s` cookies so Shopify rate-limits per buyer rather than throttling your server IP. |
+| `'private'` | Requires `privateStorefrontToken` (`shpat_...`) and a real `buyerIp` on `requestContext` | **Production default** for SSR loaders/actions. Sends `Shopify-Storefront-Buyer-IP` so Shopify rate-limits per buyer rather than throttling your server IP, and forwards the request's cookie header. Do not rely on `_shopify_y` / `_shopify_s`: Shopify no longer sets them and the Storefront API proxy expires leftovers. |
 | `'private_no_buyer_context'` | Requires `privateStorefrontToken`; `requestContext` optional (`buyerIp` must be omitted) | Background jobs, build-time SSG (`export const prerender = true`), sitemaps, or shared catalog reads at module scope with no buyer session. |
 | `'public'` | Optional `publicStorefrontToken` (omit token for `mock.shop`) | Public token storefronts or `mock.shop` testing (`mock.shop` rejects private tokens and empty-string `PUBLIC_STOREFRONT_API_TOKEN=""`). |
 
@@ -78,7 +91,7 @@ Wire Hydrogen around your framework router in two gates:
      - Liquid `?variant=<numeric_id>` parity: `GET` requests on product routes matching `routeTemplates` with a numeric `?variant=` query parameter automatically query the variant's selected options and `302` redirect to canonical option query params (`?Color=Blue&Size=M`).
      - Dev GraphiQL: `/graphiql` (non-production only).
      - Registered handler groups: `/api/cart` (`GET`/`POST`), `/api/predictive-search` (`GET`), and `/account/login`, `/account/authorize`, `/account/refresh`, `/account/logout`.
-   - **React Router 7 catch-all requirement**: Keep a catch-all route (`app/routes/$.tsx`), because React Router `v8_middleware` only executes for matched routes.
+   - **React Router 7 catch-all requirement**: Keep a catch-all route (`app/routes/$.tsx`), because React Router middleware only executes for matched routes. On React Router 7.x set `future.v8_middleware: true` in `react-router.config.ts`; React Router 8 removed that flag because middleware is always on, and `@react-router/dev@8` rejects it (checked against 8.5.2: the `Config` type has no such key and the package's validation names the flag as removed). Shopify's `dist` template still pins React Router 7.15.1 with the flag. Verify with `GET /api/cart` returning JSON from the cart handler.
 
 2. **Post-404 gate (`handleShopifyRedirects`)**:
    - Run **only when the framework router returns a `404`**:
@@ -180,7 +193,7 @@ Configure Hydrogen's structured logger once at server startup via `configureLogg
 1. **Run `handleShopifyRoutes` before framework routing**:
    - It decides synchronously whether it owns the URL (`null` when unmatched; `Promise<Response>` when matched). Do not `await` before checking truthiness, and inside a `try/catch` use `if (shopifyRoute) return await shopifyRoute;`.
    - Delete competing route files for paths Hydrogen owns (`/api/cart`, `/api/predictive-search`, `/checkout`, `/cart/c/*`, `/cart/{id}:{qty}`, `/buy/{id}:{qty}`, `/discount/{code}`, `/cart.js`, `/account/login`, `/account/authorize`, `/account/refresh`, `/account/logout`), but **keep a catch-all route (`app/routes/$.tsx`)** in React Router 7 so root middleware runs on unmatched URLs.
-   - Always pass `routeTemplates` (`createShopifyRouteTemplates`) so legacy Liquid `?variant=<numeric_id>` URLs on custom product routes `302`-redirect to canonical option query params.
+   - Always pass `routeTemplates` (`defineShopifyRouteTemplates`; the old `createShopifyRouteTemplates` name still works as a deprecated alias) so legacy Liquid `?variant=<numeric_id>` URLs on custom product routes `302`-redirect to canonical option query params.
 2. **Run `handleShopifyRedirects` only on `404` responses**:
    - After `const response = await next()`, if `response.status === 404`, check `await handleShopifyRedirects({ request, storefrontClient, routeTemplates })`.
 

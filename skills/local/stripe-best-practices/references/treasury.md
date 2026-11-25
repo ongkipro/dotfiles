@@ -7,7 +7,7 @@
 
 ## v2 Financial Accounts API
 
-For embedded financial accounts (bank accounts, account and routing numbers, money movement), use the [v2 Financial Accounts API](https://docs.stripe.com/api/v2/core/vault/financial-accounts.md) (`POST /v2/core/vault/financial_accounts`). This is required for new integrations.
+For embedded financial accounts (bank accounts, account and routing numbers, money movement), use the [v2 Financial Accounts API](https://docs.stripe.com/api/v2/money-management/financial-accounts.md) (`POST /v2/money_management/financial_accounts`). This is required for new integrations.
 
 For Treasury for platforms concepts and guides, see the [Treasury for platforms overview](https://docs.stripe.com/treasury/connect.md).
 

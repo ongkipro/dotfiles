@@ -157,11 +157,12 @@ expected() { # $1=runtime → what the rendered file must be, built independentl
 }
 target_of() { case "$1" in
   claude) echo "$H/.claude/CLAUDE.md" ;; codex) echo "$H/.codex/AGENTS.md" ;;
-  antigravity) echo "$H/.gemini/GEMINI.md" ;; omp) echo "$H/.omp/agent/AGENTS.md" ;; esac; }
+  antigravity) echo "$H/.gemini/GEMINI.md" ;; omp) echo "$H/.omp/agent/AGENTS.md" ;;
+  devin) echo "$H/.config/devin/AGENTS.md" ;; esac; }
 
 # Each runtime links to its own rendered file, and that file is exactly core + adapter.
 ctx_home 1; run
-for rt in claude codex antigravity omp; do
+for rt in claude codex antigravity omp devin; do
   t="$(target_of "$rt")"
   check "$rt links to its own rendered context" "$(readlink "$t")" "$H/.config/ai/context/$rt.md"
   check "$rt context is core + its adapter" \
@@ -174,7 +175,7 @@ check "adapters really differ between runtimes" \
 check "the OMP goal contract stays out of the Codex context" \
   "$(grep -c 'OMP autonomous repository goals' "$H/.config/ai/context/codex.md")" "0"
 check "the approval canary reaches every runtime" \
-  "$(cat "$H"/.config/ai/context/*.md | grep -c 'Permission allowed is not user approval')" "5"
+  "$(cat "$H"/.config/ai/context/*.md | grep -c 'Permission allowed is not user approval')" "6"
 for f in "$H"/.config/ai/context/*.md; do
   sz="$(wc -c < "$f" | tr -d ' ')"
   check "$(basename "$f") stays under the 10 KB hot-context budget" "$([ "$sz" -le 10240 ] && echo under || echo "over:$sz")" "under"

@@ -7,61 +7,23 @@ metadata:
   originSessionId: 85298ebc-bb43-4139-914e-5b92de5e7aea
 ---
 
-Browser automation for pi.dev + general CLI use, set up 2026-06-25. See [[pi-9router-setup]].
+Browser automation stack on Linux (`rich`, headless `multi-user.target`). See [[pi-9router-setup]].
 
-**Installed (global, nvm node v24.16.0):**
-- `agent-browser` **0.30.1** — engine for pi's `agent_browser` tool (pkg `pi-agent-browser-native`). Was 0.28.0, bumped to 0.30.1 to clear the wrapper's "version drift" doctor error. Drives the SYSTEM browser, has zero npm deps, does NOT need Playwright.
-- `playwright` + `@playwright/test` **1.61.1** (global). NOTE: global install means the `playwright` CLI works everywhere, but scripts doing `require('playwright')` need `NODE_PATH=$(npm root -g)` (node won't auto-resolve global modules for import/require).
-- Playwright browsers in `~/.cache/ms-playwright/`: `chromium-1228`, `chromium_headless_shell-1228`, `ffmpeg-1011`. Both bundled headless launch AND system-Chrome channel verified working (open example.com).
+## Active invariants
 
-**System browsers:** superseded — see 2026-11-03 entry below. 
+- **Single system browser:** Google Chrome `.deb` at `/usr/bin/google-chrome` (Google apt repo; `/snap/bin/chromium` was purged). Suites that set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` must point to `/usr/bin/google-chrome`.
+- **How to launch Playwright:** prefer system Chrome (`chromium.launch({ channel: 'chrome' })`) for full fonts/codecs (CJK + emoji verified); bundled Chromium (`chromium.launch({ headless: true })`) is fallback.
+- **Playwright packages & cache:** there is no global `playwright` npm module on `rich` (`require('playwright')` from global root fails; use project-local or scratch `playwright-core` with `executablePath` if driving programmatically). Cached Playwright browsers in `~/.cache/ms-playwright/` include `chromium-1228` (projects pinning 1.61.1) and `chromium-1248` (1.64.1).
+- **Playwright MCP:** registered once in `config/ai/mcp-servers.json` (`@playwright/mcp --browser chrome --headless --isolated`) and synced across runtimes by `ai-mcp-sync`. `pi` has built-in MCP (`pi mcp list`), so `pi-mcp-adapter` is not needed.
+- **`chrome-devtools-mcp` profile lock:** refuses to attach whenever another Chrome instance holds `~/.cache/chrome-devtools-mcp/chrome-profile`.
+- **`agent-browser` AppArmor invariant:** `agent-browser` (>= 0.43.0 for `pi-agent-browser-native`) must use `/usr/bin/google-chrome` via `config/agent-browser/config.json` -> `~/.agent-browser/config.json`. Downloaded Chrome for Testing fails under Ubuntu `kernel.apparmor_restrict_unprivileged_userns = 1` (`No usable sandbox`); only `/opt/google/chrome/chrome` has an AppArmor profile (`/etc/apparmor.d/chrome`). Upgrade Chrome via `sudo apt install --only-upgrade google-chrome-stable`, not `agent-browser install`.
+- **`playwright install-deps`:** optional (only for extra CJK/Thai/gstreamer libs) and requires interactive `sudo`.
 
-**How to launch (two options):**
-- System Chrome (PREFERRED — real Chrome 149, all fonts/codecs present, no extra install): `chromium.launch({ channel: 'chrome' })`.
-- Bundled chromium (fallback): `chromium.launch({ headless: true })`.
+---
 
-**install-deps:** `playwright install-deps` reports 59 missing libs (CJK/Thai fonts, gstreamer, video codecs) but these are OPTIONAL — bundled chromium still launches & renders pages without them. Only needed for CJK-font screenshots or in-page audio/video. Requires sudo PASSWORD (passwordless sudo NOT available here), so Claude can't run it; user must: `sudo env PATH=$PATH playwright install-deps chromium`. Not done as of 2026-06-25.
+## Timeline (recent verifications)
 
-**Correction 2026-08-19 (verified on this Linux box, `rich`):** there is no
-global `playwright` module here — `npm ls -g` lists `chrome-devtools-mcp` but no
-playwright, and `require('playwright')` from the global root fails. The browsers
-are cached, though: `~/.cache/ms-playwright/chromium-1228/chrome-linux64/chrome`.
-To drive a page, install `playwright-core` in a scratch directory and pass that
-binary as `executablePath`. `chrome-devtools-mcp` refuses to attach whenever
-another Chrome already holds `~/.cache/chrome-devtools-mcp/chrome-profile`, which
-is the normal state when a browser is open.
-
-**Verified 2026-10-29 (`99ribu`, mise node 24.22.1):** a global `playwright` CLI
-1.64.1 is on PATH (mise), the project pins `@playwright/test` 1.64.1, and the
-cache holds `chromium-1248`, `chromium_headless_shell-1248`, `webkit-2370`. Both
-the bundled Chromium 156 and `/snap/bin/chromium` 156 launched headless and
-rendered a page. Project browser suites take
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE=/snap/bin/chromium`.
-
-**Verified 2026-11-03 (`rich` went headless):** GNOME/gdm/xorg and snapd (with
-snap Chromium) were purged; boot target is `multi-user.target`. The single system
-browser is Google Chrome `.deb` 156 at `/usr/bin/google-chrome` (Google apt repo),
-which both MCP configs already expect. `playwright screenshot --channel chrome`
-rendered CJK + emoji. `/snap/bin/chromium` no longer exists: suites that set
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE=/snap/bin/chromium` must use
-`/usr/bin/google-chrome`. Playwright cache keeps `chromium-1228` (7 projects pin
-1.61.1) and `chromium-1248` (1.64.1).
-
-**Verified 2026-11-18 (`rich`): agent-browser 0.43.0 pinned to system Chrome.**
-`pi-agent-browser-native` requires agent-browser >= 0.43.0 (`MINIMUM_AGENT_BROWSER_VERSION`).
-`agent-browser install` downloads Chrome for Testing into `~/.agent-browser/browsers/`,
-but on this Ubuntu (`kernel.apparmor_restrict_unprivileged_userns = 1`) that binary dies
-with `FATAL ... No usable sandbox`: only `/opt/google/chrome/chrome` has an AppArmor
-profile (`/etc/apparmor.d/chrome`, `userns`). Fix without `--no-sandbox`: dotfiles
-`config/agent-browser/config.json` (`{"executablePath": "/usr/bin/google-chrome"}`),
-linked to `~/.agent-browser/config.json` by `install.sh` when `/usr/bin/google-chrome`
-exists. The Chrome version is then the apt package: the wrapper's "Chrome ... behind the
-current stable release" warning is cleared with `sudo apt install --only-upgrade
-google-chrome-stable`, not with `agent-browser install`. Done 2026-11-18: system
-Chrome 157.0.8103.78, warning gone; the unused Chrome for Testing (408 MB) was moved
-to `/data/backups/agent-browser-cft-20261118/`.
-
-**Verified 2026-11-02:** Playwright MCP is registered once in
-`config/ai/mcp-servers.json` (`@playwright/mcp@0.0.84 --browser chrome --headless`,
-25 tools) and `ai-mcp-sync` writes it to Claude, Codex, agy, OMP and pi. pi has
-built-in MCP (`pi mcp list`), so `pi-mcp-adapter` is not needed.
+- **2026-11-18 (`rich`):** `agent-browser` 0.43.0 pinned to system Chrome 157.0.8103.78; unused Chrome for Testing (408 MB) moved to `/data/backups/agent-browser-cft-20261118/`.
+- **2026-11-03 (`rich`):** GNOME/gdm/xorg and snapd (snap Chromium) purged; `/usr/bin/google-chrome` verified with `playwright screenshot --channel chrome` (CJK + emoji).
+- **2026-11-02:** Playwright MCP standardized in `config/ai/mcp-servers.json` via `ai-mcp-sync`.
+- **2026-10-29 (`99ribu`):** mise node 24.22.1 with `@playwright/test` 1.64.1 (`chromium-1248`, `webkit-2370`).

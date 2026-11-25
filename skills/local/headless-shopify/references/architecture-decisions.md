@@ -10,7 +10,7 @@ Headless requires a verified business outcome that Shopify's Online Store 2.0 th
 | --- | --- | --- |
 | **Online Store 2.0 Liquid Theme** (`sections/*.liquid`, `blocks/*.liquid`, `templates/*.json`) | Default for merchant-editable storefronts, standard catalog/PDP/cart flows, and maximum third-party app compatibility (`storefront-development`). | Shopify hosts routing, rendering, CDN, Theme Editor, App Blocks, and Checkout. |
 | **Storefront Web Components** (`https://shopify.dev/docs/api/storefront-web-components`, `<shopify-account>`, embedded buy surfaces) | Adding Shopify commerce or account widgets into an existing marketing/editorial site (Astro, WordPress, static docs) without rebuilding a full storefront. | Host site owns pages; Shopify web components + Storefront API handle embedded product/cart/account widgets and hand off to Shopify Checkout. |
-| **Hydrogen `2026.10+` Toolkit** (`@shopify/hydrogen@2026.10.1`) | Full custom storefront inside **React Router 7 on Oxygen**, **Next.js App Router on Vercel**, **Astro**, **Nuxt**, **SvelteKit**, or **SolidStart** (`hydrogen-development`). | Framework owns routing/rendering/UI; Hydrogen owns Storefront & Customer Account clients, pre-router `handleShopifyRoutes`, post-404 `handleShopifyRedirects`, observable stores, and Standard Actions (`window.Shopify.actions`). |
+| **Hydrogen `2026.10+` Toolkit** (`@shopify/hydrogen@2026.10.3`) | Full custom storefront inside **React Router 7 on Oxygen**, **Next.js App Router on Vercel**, **Astro**, **Nuxt**, **SvelteKit**, or **SolidStart** (`hydrogen-development`). | Framework owns routing/rendering/UI; Hydrogen owns Storefront & Customer Account clients, pre-router `handleShopifyRoutes`, post-404 `handleShopifyRedirects`, observable stores, and Standard Actions (`window.Shopify.actions`). |
 | **Bring Your Own Stack (Raw Storefront API `2026-10`)** | Native mobile apps (iOS/Android), game engines, POS/kiosks, or non-JS server stacks where `@shopify/hydrogen` cannot run. | Custom client/server owns all GraphQL queries, cart token persistence, buyer IP forwarding, rate-limit backoff, and `checkoutUrl` handoff. |
 
 ## 2. Architecture Decision Matrix
@@ -38,7 +38,7 @@ Never leave a production headless storefront handing shoppers off to `<shop>.mys
 | `checkout.brand.com` | `CNAME -> shops.myshopify.com` | **Online Store / Checkout** (`PUBLIC_CHECKOUT_DOMAIN`) | Authoritative `cart.checkoutUrl` destination, Shop Pay / accelerated wallets, `/checkpoint` flash-sale bot protection, `gift_card.liquid`, and Customer Account OAuth endpoints. |
 
 - Install `Shopify/hydrogen-redirect-theme` as the active Liquid theme on `checkout.brand.com` with `settings.storefront_hostname = "https://brand.com"` so accidental visits to `checkout.brand.com/` redirect cleanly to `brand.com` without breaking `/checkouts/*`, `/checkpoint`, or `/gift_cards/*`.
-- Because `brand.com` and `checkout.brand.com` share the same eTLD+1 (`brand.com`), first-party cookies (`_shopify_y`, `_shopify_s`, `_fbp`, `_fbc`, `_ga`) survive checkout handoff with zero cross-domain linker loss (`hydrogen-headless-tracking`).
+- Because `brand.com` and `checkout.brand.com` share the same eTLD+1 (`brand.com`), first-party cookies (`_fbp`, `_fbc`, `_ga`, Shopify's consent and session cookies) survive checkout handoff with zero cross-domain linker loss (`hydrogen-headless-tracking`).
 
 ## 3. Authority & Custom Data Boundaries (`Shopify-AI-Toolkit` Custom Data Rules)
 

@@ -10,7 +10,7 @@ Generate technical diagrams as Mermaid blocks — they render directly in GitHub
 
 ## Syntax Provenance
 
-The examples were reviewed on 2026-10-02 against `mermaid@12.0.0` (npm `latest`, published 2026-09-10) and its diagram detectors. They also parse on v11.x except where marked. This is a baseline, not an evergreen version claim: the target repository's installed Mermaid package or host renderer (GitHub, GitLab, Notion, Obsidian, VS Code preview) wins, and hosts often lag the npm release. Check that renderer before using a recently added diagram type, and do not silently rewrite a project's established syntax for a different major version.
+The examples were reviewed on 2026-10-02 against `mermaid@12.0.0` (npm `latest`, published 2026-09-10) and its diagram detectors, and all 11 code blocks were re-parsed with `mermaid.parse()` on 2026-11-22 against `mermaid@12.3.0` (npm `latest`, 2026-11-03). They also parse on v11.x except where marked (checked on 11.12.0). The 2026-11-22 run caught one real error that the earlier review missed: the C4 example used `SystemExt(...)`, which is not a C4 keyword and fails on 11.12, 12.0 and 12.3 alike; the keyword is `System_Ext(...)`. This is a baseline, not an evergreen version claim: the target repository's installed Mermaid package or host renderer (GitHub, GitLab, Notion, Obsidian, VS Code preview) wins, and hosts often lag the npm release. Check that renderer before using a recently added diagram type, and do not silently rewrite a project's established syntax for a different major version.
 
 Mermaid 12 notes that change output, not syntax: ELK is now bundled and is the default layout (diagrams without an explicit `layout` may re-render differently than on v11), the `defaultRenderer` config option was removed in favor of top-level `layout`, and the default look is `redux-color` + `neo`. Source: [mermaid 12.0.0 release](https://github.com/mermaid-js/mermaid/releases/tag/mermaid%4012.0.0).
 
@@ -80,7 +80,7 @@ Mermaid labels C4 "an experimental diagram for now"; syntax may change. Prefer `
 C4Context
     Person(user, "User", "End user")
     System(app, "App", "Main application")
-    SystemExt(email, "Email Service", "Sends notifications")
+    System_Ext(email, "Email Service", "Sends notifications")
     Rel(user, app, "Uses")
     Rel(app, email, "Sends via")
 ```

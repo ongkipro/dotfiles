@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# dottask — AI-terminal client for the dottask team app (task/project/DAG/IDR ledger).
+#
+# Thin wrapper over the repo CLI at $DOTTASK_REPO (default ~/Projects/dottask).
+# The device token is resolved inside the CLI via `secrets-env get DOTTASK_DEVICE_TOKEN`
+# (never on argv); the API URL defaults to production inside the CLI and can be
+# overridden with DOTTASK_API_URL (https only, loopback http allowed for tests).
+#
+#   dottask whoami
+#   dottask summary
+#   dottask task list --project dottask
+#   dottask mcp                 # stdio MCP server for AI runtimes
+set -euo pipefail
+
+REPO="${DOTTASK_REPO:-$HOME/Projects/dottask}"
+ENTRY="$REPO/packages/cli/bin/dottask.mjs"
+
+if [[ ! -f "$ENTRY" ]]; then
+  echo "dottask: repo CLI not found at $ENTRY (set DOTTASK_REPO to the dottask checkout)" >&2
+  exit 1
+fi
+
+exec node "$ENTRY" "$@"

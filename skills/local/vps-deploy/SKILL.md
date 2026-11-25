@@ -71,7 +71,9 @@ versions running side by side.
 - **Logs and disk**: Docker json-file logs are unrotated by default; set
   `"log-opts": {"max-size": "10m", "max-file": "3"}` in `/etc/docker/daemon.json`
   (applies to newly created containers). Enable Coolify's disk threshold
-  notification and cleanup.
+  notification and cleanup. `"live-restore": true` keeps containers up through
+  dockerd restarts and patch (`YY.MM.x`) upgrades, not minor upgrades or Swarm;
+  apply it with `systemctl reload docker`, not a restart.
 - **External uptime check**: Coolify does not probe public URLs from outside.
 
 ## 3. Database safety

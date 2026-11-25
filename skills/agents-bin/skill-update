@@ -35,6 +35,7 @@ DIRECTORY_TARGETS=(
   "$HOME/.agents/local-skills"
   "$HOME/.gemini/config/skills"
   "$HOME/.omp/agent/skills"
+  "$HOME/.config/devin/skills"
 )
 
 linked=0

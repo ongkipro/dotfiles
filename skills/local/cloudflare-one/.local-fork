@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-one
-verified: 2026-10-24
+verified: 2026-11-22
 scope: directory
 reason: The current upstream entrypoint references the gateway-workers sibling skill,
   which is not vendored in this dotfiles tree. Local points to its official
@@ -13,4 +13,11 @@ refresh_guard: _refresh-vendored.sh reports and preserves this managed fork.
   while the sibling is not intentionally adopted.
 to_vendor: Restore the upstream sibling reference if gateway-workers is deliberately
   installed as a canonical owned skill and its routing boundary is accepted.
+recheck: 2026-11-22 — merged upstream 5108325 content change since fe02920 (0ebb241): new "Access-Protected Webpages and APIs" section under
+  Workflow (service-token headers `CF-Access-Client-Id` / `CF-Access-Client-Secret`, Service Auth policy, single-header mode via
+  `read_service_tokens_from_header`, strict service token authentication). Facts verified against cloudflare-one/access-controls/
+  service-credentials/service-tokens; the doc also records that organizations created on or after 2026-10-05 have strict mode on by default.
+  The upstream description tail ("Also use when an agent, script, crawler ... Cloudflare Access") is folded into the local <=250-char
+  description as a second sentence (219 chars; the first sentence is unchanged so the generated skills/local/README.md row does not drift, and the sibling boundary `cloudflare-one-migrations` starts at char 165). The gateway-workers external pointer
+  stands. skill-feedback: upstream added `references/skill-feedback.md` and a `## Skill feedback` pointer to every skill (cloudflare/skills 0e7a86d, 29de2b2). NOT adopted, on purpose: it instructs the agent to file a public GitHub issue on cloudflare/skills with `gh issue create`. Upstream itself gates it on showing the exact title and body and getting a yes, but a posting path from a shared, auto-loaded skill is an outbound action that belongs to the owner, and CORE's approval gates cover external publication. To adopt later: add the file and pointer per skill and keep the explicit-approval step.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

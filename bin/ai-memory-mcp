@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""ai-memory-mcp — read-only MCP stdio server for dotfiles memory routing and FTS5 recall.
+
+Exposes two read-only tools over JSON-RPC 2.0 stdio:
+  - memory_route: deterministic keyword/repo memory router (wraps bin/ai-memory-route)
+  - memory_recall: SQLite FTS5 search over curated memory and optional repos (wraps bin/ai-recall)
+
+Zero external dependencies (Python 3 stdlib only). Never mutates memory or repositories.
+"""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+SERVER_NAME = "ai-memory-mcp"
+SERVER_VERSION = "1.0.0"
+DEFAULT_PROTOCOL = "2024-11-05"
+
+BIN_DIR = Path(__file__).resolve().parent
+ROUTE_BIN = BIN_DIR / "ai-memory-route"
+RECALL_BIN = BIN_DIR / "ai-recall"
+
+TOOLS = [
+    {
+        "name": "memory_route",
+        "description": (
+            "Select the smallest relevant set of curated dotfiles memory files for a request "
+            "using deterministic keyword and repo/path triggers. Advisory only; repository "
+            "files and executable checks remain authoritative."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "User request or topic to route against curated memory triggers.",
+                },
+                "repo": {
+                    "type": "string",
+                    "description": "Optional repository root path for project-scoped routing.",
+                },
+                "max_files": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Maximum number of memory files to return (default: router manifest default).",
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "memory_recall",
+        "description": (
+            "Full-text SQLite FTS5 search across curated shared and project memory "
+            "(and optionally repository contracts/verified learning). Use as fallback when "
+            "memory_route returns no match or for cross-session recall. Advisory only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "1 to 32 literal words to search (FTS operators are not executed).",
+                },
+                "any_term": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Match any query term (OR, ranked by BM25) instead of requiring all terms (AND).",
+                },
+                "repo": {
+                    "type": "string",
+                    "description": "Optional repository root path to search alongside curated memory.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "default": 6,
+                    "description": "Maximum number of results to return.",
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+]
+
+
+def run_tool_command(argv: list[str], timeout: int) -> tuple[bool, str]:
+    try:
+        res = subprocess.run(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, f"execution error: {exc}"
+    if res.returncode != 0:
+        msg = (res.stderr or res.stdout or f"exit {res.returncode}").strip()
+        return False, msg[:2000]
+    return True, res.stdout.strip()
+
+
+def handle_memory_route(args: dict) -> tuple[bool, str]:
+    query = args.get("query")
+    if not isinstance(query, str) or not query.strip() or len(query) > 2000:
+        return False, "query must be a non-empty string (<= 2000 chars)"
+    argv = [str(ROUTE_BIN), "--json"]
+    repo = args.get("repo")
+    if repo is not None:
+        if not isinstance(repo, str) or not repo.strip():
+            return False, "repo must be a non-empty string path"
+        argv += ["--repo", repo]
+    max_files = args.get("max_files")
+    if max_files is not None:
+        if isinstance(max_files, bool) or not isinstance(max_files, int) or not 1 <= max_files <= 10:
+            return False, "max_files must be an integer between 1 and 10"
+        argv += ["--max-files", str(max_files)]
+    argv += ["--", query]
+    return run_tool_command(argv, timeout=10)
+
+
+def handle_memory_recall(args: dict) -> tuple[bool, str]:
+    query = args.get("query")
+    if not isinstance(query, str) or not query.strip() or len(query) > 1000:
+        return False, "query must be a non-empty string (<= 1000 chars)"
+    argv = [str(RECALL_BIN), "--memory", "--json"]
+    memory_root = os.environ.get("AI_MEMORY_MCP_ROOT")
+    if memory_root:
+        argv += ["--memory-root", memory_root]
+    index_path = os.environ.get("AI_MEMORY_MCP_INDEX")
+    if index_path:
+        argv += ["--index", index_path]
+    any_term = args.get("any_term", False)
+    if not isinstance(any_term, bool):
+        return False, "any_term must be a boolean"
+    if any_term:
+        argv.append("--any")
+    repo = args.get("repo")
+    if repo is not None:
+        if not isinstance(repo, str) or not repo.strip():
+            return False, "repo must be a non-empty string path"
+        argv += ["--repo", repo]
+    limit = args.get("limit", 6)
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 20:
+        return False, "limit must be an integer between 1 and 20"
+    argv += ["--limit", str(limit), "--", query]
+    return run_tool_command(argv, timeout=15)
+
+
+def send(message: dict) -> None:
+    sys.stdout.write(json.dumps(message, separators=(",", ":")) + "\n")
+    sys.stdout.flush()
+
+
+def handle_request(req: dict) -> dict | None:
+    req_id = req.get("id")
+    method = req.get("method")
+    params = req.get("params") or {}
+
+    if not isinstance(method, str):
+        if req_id is None:
+            return None
+        return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32600, "message": "Invalid Request"}}
+
+    # Notifications have no id and expect no reply.
+    if req_id is None:
+        return None
+
+    if method == "initialize":
+        proto = params.get("protocolVersion") if isinstance(params, dict) else None
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "protocolVersion": proto if isinstance(proto, str) and proto else DEFAULT_PROTOCOL,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+            },
+        }
+
+    if method == "ping":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {}}
+
+    if method == "tools/list":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {"tools": TOOLS}}
+
+    if method == "tools/call":
+        if not isinstance(params, dict):
+            return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32602, "message": "Invalid params"}}
+        name = params.get("name")
+        arguments = params.get("arguments") or {}
+        if not isinstance(arguments, dict):
+            return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32602, "message": "arguments must be an object"}}
+        if name == "memory_route":
+            ok, text = handle_memory_route(arguments)
+        elif name == "memory_recall":
+            ok, text = handle_memory_recall(arguments)
+        else:
+            return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": f"Unknown tool: {name}"}}
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "content": [{"type": "text", "text": text}],
+                "isError": not ok,
+            },
+        }
+
+    return {"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": f"Method not found: {method}"}}
+
+
+def main() -> int:
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ("-h", "--help"):
+            print(__doc__.strip())
+            return 0
+        if sys.argv[1] in ("-V", "--version"):
+            print(f"{SERVER_NAME} {SERVER_VERSION}")
+            return 0
+        print(f"{SERVER_NAME}: unexpected argument: {sys.argv[1]}", file=sys.stderr)
+        return 2
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+        except json.JSONDecodeError:
+            send({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}})
+            continue
+        if not isinstance(req, dict):
+            send({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid Request"}})
+            continue
+        resp = handle_request(req)
+        if resp is not None:
+            send(resp)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

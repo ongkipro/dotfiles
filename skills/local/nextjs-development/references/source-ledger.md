@@ -33,7 +33,7 @@ current official documentation. Installed project types/source and scripts win.
 - [Next.js MCP server](https://nextjs.org/docs/app/guides/mcp) — `/_next/mcp`
   tool list (`compile_route`/`get_compilation_issues` are Turbopack-only).
 - [vercel-labs react-best-practices rules](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices/rules)
-  and [vercel-plugin `next-cache-components`](https://github.com/vercel/vercel-plugin/tree/main/skills/next-cache-components)
+  and [vercel-plugin `cdn-caching` and `runtime-cache`](https://github.com/vercel/vercel-plugin/tree/main/skills) (the former `next-cache-components` directory no longer exists)
   — `updateTag` vs `revalidateTag(tag, 'max')`.
 - [Vercel documentation](https://vercel.com/docs) — official platform behavior;
   use only when Vercel is the selected target.

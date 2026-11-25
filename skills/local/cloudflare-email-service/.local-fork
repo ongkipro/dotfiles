@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/cloudflare-email-service
-verified: 2026-10-02
+verified: 2026-11-22
 scope: directory
 reason: Upstream (fetched 2026-09-29) now carries a retrieval-first design and a
   real `wrangler email` command tree, so the 2026-08-16 "invented CLI/MCP
@@ -47,4 +47,9 @@ recheck: 2026-10-02 — merged upstream 41e0d19 (docs links -> `<route>/index.md
   corrections still hold: route-emails page still says **Compute**; email-service index still lists Email
   Sending as Beta on Workers Paid; local-development/sending still documents simulate-without-remote; the
   Wrangler command reference still has no `email` entry. Local-only links also moved to index.md routes.
+recheck: 2026-11-22 — merged upstream 5108325 content change since 41e0d19: references/deliverability.md drops the "zone-level
+  suppressions are also available at /zones/{zone_id}/email/sending/suppression" sentence. Verified against
+  developers.cloudflare.com/email-service/configuration/suppressions: suppressions are scoped `account` or `sending_domain` and managed through
+  the account Email Sending suppression REST API, so the zone route is not documented. All four local corrections still hold (dashboard path
+  still **Compute** > **Email Service** > **Email Sending**). skill-feedback: upstream added `references/skill-feedback.md` and a `## Skill feedback` pointer to every skill (cloudflare/skills 0e7a86d, 29de2b2). NOT adopted, on purpose: it instructs the agent to file a public GitHub issue on cloudflare/skills with `gh issue create`. Upstream itself gates it on showing the exact title and body and getting a yes, but a posting path from a shared, auto-loaded skill is an outbound action that belongs to the owner, and CORE's approval gates cover external publication. To adopt later: add the file and pointer per skill and keep the explicit-approval step.
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

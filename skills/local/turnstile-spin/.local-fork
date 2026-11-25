@@ -1,5 +1,5 @@
 upstream: https://raw.githubusercontent.com/cloudflare/skills/main/skills/turnstile-spin
-verified: 2026-10-02
+verified: 2026-11-22
 scope: directory
 reason: Deliberate secret-handling and scope hardening over upstream (compared against upstream 5cd3c5d1, 2026-09-05). New-widget flow never lets the secret enter the agent process: widget-create.sh discards the one-time secret and returns only status/sitekey/secret_configuration, the user stores TURNSTILE_SECRET directly, and validate.sh is not run for new widgets (upstream captures the secret from `wrangler turnstile widget create --json` or the helper and pipes it through validate.sh). Step 6 adds a fail-closed existing-backend boundary; references/vanilla-html.md and references/hugo.md drop upstream's "add a Pages Function / Worker / third-party form host" options and the `pages secret put` pipe. Local-only files kept on purpose: scripts/fetch-secret.sh (metadata-only existing-widget lookup), scripts/worker-deploy.sh (fail-closed stub, exits 2 with extra_infrastructure_out_of_scope), templates/worker/ (historical upstream artifact, marked archived, never invoked). tests/validation.md is rewritten to match (bin/turnstile-secret-test, Test 6).
 merged_from_upstream_2026-09-29: removed the non-spec `references:` frontmatter key and restored the in-body Framework references table (upstream 5cd3c5d1, per the Agent Skills specification at agentskills.io/specification). Description rewritten front-loaded with the existing-backend boundary instead of upstream's shorter one.
@@ -7,4 +7,11 @@ would_lose_if_wired: A byte-for-byte refresh would put the widget secret back in
 to_vendor: Remove this marker only if upstream adopts a new-widget flow in which the secret never reaches the agent process and an explicit no-new-backend stop; otherwise keep as a permanent managed fork and re-diff on each refresh.
 recheck: 2026-10-02 — upstream 41e0d19 only changed doc links to `<route>/index.md` in SKILL.md and
   README.md; merged. No other upstream file changed since 5cd3c5d1, so every hardening item stands.
+recheck: 2026-11-22 — merged upstream 5108325 content changes since 41e0d19 that do not touch the hardening: scripts/persist-skill.sh now reports a
+  failed bundle copy (`persist-skill: bundle copy failed`, JSON `{"status":"error","reason":"copy_failed"}`, exit 1) instead of continuing; the
+  local copy was byte-identical to upstream@41e0d19, so it now equals upstream's. tests/test_persist_skill.py (3 offline tests, local Git stub,
+  no network or credentials) added and passing; tests/validation.md gains upstream's "Offline persistence tests" section, with the path
+  corrected to skills/local/turnstile-spin/tests. Nothing else in upstream changed for this skill. Every hardening item still stands, and
+  bin/turnstile-secret-test passes. NOT adopted: references/skill-feedback.md and the `## Skill feedback` pointer (a public GitHub issue
+  path from an auto-loaded skill; see the cloudflare fork ledgers for the reasoning).
 description: 2026-10-30 skill-efficiency pass — frontmatter description rewritten to ≤250 chars (what + boundary front-loaded; Codex truncates at ~250). Body untouched by this pass. Re-apply after a byte-for-byte refresh; see docs/skill-efficiency-audit-2026-10-30.md.

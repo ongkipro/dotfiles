@@ -1,0 +1,4 @@
+watch: facebook/facebook-python-business-sdk
+watch: facebookincubator/catalogue-of-api-solutions
+verified: 2026-11-22
+note: The official meta-ads CLI runs on facebook-business (PyPI), the SDK this repo ships. meta-ads 1.3.1 pins facebook-business<27.0, so a release here that lifts the cap is the signal to re-read api-and-evidence.md. The catalogue repo is the one the CPAS references cite for catalog patterns. Checked 2026-11-22: neither repo archived, pushed 2026-11-21 and 2026-09-16.

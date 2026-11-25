@@ -10,7 +10,7 @@ An engineering operating system for reliable Meta Ads conversion tracking, Pixel
 
 ## Verify the API version before writing code
 
-**Never hardcode a Graph API version from memory or from these notes.** Meta ships a new version a few times a year and each one expires roughly two years after its successor ships (v23.0 May 2025, v24.0 Oct 2025, v25.0 Feb 2026, v26.0 Jul 2026 — changelog checked 2026-10-02), so any version written down here goes stale.
+**Never hardcode a Graph API version from memory or from these notes.** Meta ships a new version a few times a year and each one expires roughly two years after its successor ships (v23.0 May 2025, v24.0 Oct 2025, v25.0 Feb 2026, v26.0 Jul 2026, v27.0 Nov 2026 — changelog table re-read 2026-11-22; v24.0 expires 2026-10-06, v25.0 2028-07-29, v26.0 and v27.0 are listed as TBD), so any version written down here goes stale.
 
 | Check | Where |
 | --- | --- |
@@ -21,7 +21,7 @@ Pin the version in **one** exported constant so a bump is a one-line change, nev
 
 ```typescript
 // Verified against the changelog on <date>. Re-check before bumping.
-export const META_GRAPH_API_VERSION = 'v26.0'; // latest on 2026-10-02; example only
+export const META_GRAPH_API_VERSION = 'v27.0'; // latest on 2026-11-22 (released 2026-11-04); example only
 const endpoint = `https://graph.facebook.com/${META_GRAPH_API_VERSION}/${pixelId}/events`;
 ```
 

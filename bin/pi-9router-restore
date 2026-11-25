@@ -164,6 +164,8 @@ if "enabledModels" in seed or "enabledModels" in settings:
             "cc/claude-sonnet-5", "ag/claude-sonnet-5-5", "ag/claude-sonnet-5-5-high",
             "ag/claude-sonnet-5-5-medium", "cc/claude-haiku-4-5-20251001",
             "oc/mimo-v2.6-flash-free", "oc/deepseek-v4.1-flash-free", "oc/glm-5.3-flash-free",
+            # 2026-11-23: upstream dead (MiMo bootstrap 404); hidden in 9Router.
+            "mmf/mimo-auto",
         )
     } | {
         "minimax/MiniMax-M2.7", "minimax/MiniMax-M2.7-highspeed",

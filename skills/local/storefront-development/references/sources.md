@@ -1,6 +1,6 @@
 # Sources and Freshness
 
-Verified `2026-10-14` against `shopify.dev`, `@shopify/hydrogen@2026.10.1`, and `Shopify/Shopify-AI-Toolkit` (`v1.17.1`). Retrieve current official documentation before coding against any platform API, plan entitlement, extension target, field, limit, version, or migration date.
+Verified `2026-10-14` against `shopify.dev`; the Hydrogen and toolkit facts were rechecked `2026-11-22` against `@shopify/hydrogen@2026.10.3` and `Shopify/Shopify-AI-Toolkit` (plugin `v2.4.0`). Retrieve current official documentation before coding against any platform API, plan entitlement, extension target, field, limit, version, or migration date.
 
 ## Shopify implementation sources
 
